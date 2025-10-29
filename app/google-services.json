@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "7618879125",
+    "project_id": "origin-kickoff",
+    "storage_bucket": "origin-kickoff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:7618879125:android:5bd66139396ad864a4059c",
+        "android_client_info": {
+          "package_name": "ca.team.originkickoff"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBDtFrfUFHT-Ltf6yB5E7f1Hn-X6K3Iric"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
