@@ -1,12 +1,19 @@
 package ca.team.originkickoff;
 
+import android.app.AlertDialog;
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -21,17 +28,26 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.Calendar;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
+import ca.team.originkickoff.ui.fragments.EventDetailFragment;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements EventAdapter.OnEventClickListener {
     private static final String TAG = "MainActivity";
     private FirebaseFirestore db;
     private RecyclerView rvEvents;
     private EventAdapter eventAdapter;
+    private EditText searchInput;
+    private LinearLayout categoryFilter, dateFilter, locationFilter;
+
+    private final List<Event> allEvents = new ArrayList<>();
+    private String selectedCategory = null;
+    private Long selectedDate = null;
+    private String selectedLocation = null; // treated as a query (substring match)
     private View loadingView;
 
     @Override
@@ -45,7 +61,6 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        // Initialize Firebase
         db = FirebaseFirestore.getInstance();
 
         // Initialize loading view
@@ -53,18 +68,13 @@ public class MainActivity extends AppCompatActivity {
 
         // Set up RecyclerView
         setupRecyclerView();
-
-        // Set up click listeners
         setupClickListeners();
-
-        // Load events from Firestore
         loadEventsFromFirestore();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload events when returning to this activity
         loadEventsFromFirestore();
     }
 
@@ -92,65 +102,24 @@ public class MainActivity extends AppCompatActivity {
         db.collection("events")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
-                    List<Event> events = new ArrayList<>();
-
+                    allEvents.clear();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         try {
-                            Event event = new Event();
+                            Event event = document.toObject(Event.class);
                             event.setId(document.getId());
-                            event.setName(document.getString("name"));
-                            event.setDescription(document.getString("description"));
-                            event.setOrganizerId(document.getString("organizerId"));
-                            event.setOrganizerName(document.getString("organizerName"));
-                            event.setLocation(document.getString("location"));
-                            event.setPosterUrl(document.getString("posterUrl"));
-
-                            // Handle numeric fields
-                            Long capacity = document.getLong("capacity");
-                            event.setCapacity(capacity != null ? capacity.intValue() : 0);
-
-                            Long waitlistCount = document.getLong("waitlistCount");
-                            event.setWaitlistCount(waitlistCount != null ? waitlistCount.intValue() : 0);
-
-                            Double price = document.getDouble("price");
-                            event.setPrice(price != null ? price : 0.0);
-
-                            Long createdAt = document.getLong("createdAt");
-                            event.setCreatedAt(createdAt != null ? createdAt : System.currentTimeMillis());
-
-                            // Handle boolean fields
-                            Boolean geolocationRequired = document.getBoolean("geolocationRequired");
-                            event.setGeolocationRequired(geolocationRequired != null ? geolocationRequired : false);
-
-                            // Handle date fields
-                            com.google.firebase.Timestamp eventDateTimestamp = document.getTimestamp("eventDate");
-                            if (eventDateTimestamp != null) {
-                                event.setEventDate(eventDateTimestamp.toDate());
-                            }
-
-                            com.google.firebase.Timestamp regStartTimestamp = document.getTimestamp("registrationStartTime");
-                            if (regStartTimestamp != null) {
-                                event.setRegistrationStartTime(regStartTimestamp.toDate());
-                            }
-
-                            com.google.firebase.Timestamp regEndTimestamp = document.getTimestamp("registrationEndTime");
-                            if (regEndTimestamp != null) {
-                                event.setRegistrationEndTime(regEndTimestamp.toDate());
-                            }
-
-                            events.add(event);
+                            allEvents.add(event);
                         } catch (Exception e) {
                             Log.e(TAG, "Error parsing event document: " + document.getId(), e);
                         }
                     }
+                    // Update adapter based on filters
+                    filterEvents();
 
-                    Log.d(TAG, "Loaded " + events.size() + " events from Firestore");
-                    eventAdapter.setEvents(events);
-
-                    // Hide loading screen
+                    // Hide loading and log
                     loadingView.setVisibility(View.GONE);
+                    Log.d(TAG, "Loaded " + allEvents.size() + " events from Firestore");
 
-                    if (events.isEmpty()) {
+                    if (allEvents.isEmpty()) {
                         Toast.makeText(this, "No events available", Toast.LENGTH_SHORT).show();
                     }
                 })
@@ -165,45 +134,190 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        // Add Event button (plus icon)
+        searchInput = findViewById(R.id.searchInput);
+        categoryFilter = findViewById(R.id.categoryFilter);
+        dateFilter = findViewById(R.id.dateFilter);
+        locationFilter = findViewById(R.id.locationFilter);
+
+        searchInput.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { filterEvents(); }
+            @Override public void afterTextChanged(Editable s) {}
+        });
+
+        categoryFilter.setOnClickListener(v -> showCategoryFilterDialog());
+        dateFilter.setOnClickListener(v -> showDatePickerDialog());
+        locationFilter.setOnClickListener(v -> showLocationFilterDialog());
+
         ImageView ivAddEvent = findViewById(R.id.ivAddEvent);
         ivAddEvent.setOnClickListener(v -> {
-            // Open CreateEventActivity
             Intent intent = new Intent(MainActivity.this, CreateEventActivity.class);
             startActivity(intent);
-            Log.d(TAG, "Add Event button clicked - opening CreateEventActivity");
         });
 
-        // Scan QR button
         Button btnScanQR = findViewById(R.id.btnScanQR);
-        btnScanQR.setOnClickListener(v -> {
-            Toast.makeText(this, "Scan QR clicked", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Scan QR button clicked");
+        btnScanQR.setOnClickListener(v -> Toast.makeText(this, "Scan QR clicked", Toast.LENGTH_SHORT).show());
+    }
+
+    @Override
+    public void onEventClick(Event event) {
+        getSupportFragmentManager().beginTransaction()
+                .replace(R.id.main, EventDetailFragment.newInstance(event.getId()))
+                .addToBackStack(null)
+                .commit();
+    }
+
+    private void showCategoryFilterDialog() {
+        List<String> categories = allEvents.stream()
+                .map(Event::getCategory)
+                .filter(c -> c != null && !c.isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+        // Add an "All" option at the top for quick clear
+        categories.add(0, "All Categories");
+
+        // Build a simple searchable dialog with an EditText + ListView
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        root.setPadding(pad, pad, pad, pad);
+
+        EditText search = new EditText(this);
+        search.setHint("Search category");
+        root.addView(search, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        ListView listView = new ListView(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, categories);
+        listView.setAdapter(adapter);
+        root.addView(listView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Filter by Category")
+                .setView(root)
+                .setNegativeButton("Clear", (d, w) -> { selectedCategory = null; filterEvents(); })
+                .setPositiveButton("Close", null)
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String choice = adapter.getItem(position);
+            selectedCategory = ("All Categories".equalsIgnoreCase(choice)) ? null : choice;
+            filterEvents();
+            dialog.dismiss();
         });
 
-        // Bottom Navigation
-        LinearLayout navHome = findViewById(R.id.navHome);
-        navHome.setOnClickListener(v -> {
-            Toast.makeText(this, "Home clicked", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Home navigation clicked");
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { adapter.getFilter().filter(s); }
+            @Override public void afterTextChanged(Editable s) {}
         });
 
-        LinearLayout navEvents = findViewById(R.id.navEvents);
-        navEvents.setOnClickListener(v -> {
-            Toast.makeText(this, "My Events clicked", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "My Events navigation clicked");
+        dialog.show();
+    }
+
+    private void showDatePickerDialog() {
+        Calendar cal = Calendar.getInstance();
+        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
+            Calendar selectedCal = Calendar.getInstance();
+            selectedCal.set(year, month, dayOfMonth, 0, 0, 0);
+            selectedDate = selectedCal.getTimeInMillis();
+            filterEvents();
+        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+    }
+
+    private void showLocationFilterDialog() {
+        // Distinct list of locations for suggestions
+        List<String> locations = allEvents.stream()
+                .map(Event::getLocation)
+                .filter(l -> l != null && !l.isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        root.setPadding(pad, pad, pad, pad);
+
+        EditText search = new EditText(this);
+        search.setHint("Search location");
+        if (selectedLocation != null) search.setText(selectedLocation);
+        root.addView(search, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        ListView listView = new ListView(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, locations);
+        listView.setAdapter(adapter);
+        root.addView(listView, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("Filter by Location")
+                .setView(root)
+                .setNegativeButton("Clear", (d, w) -> { selectedLocation = null; filterEvents(); })
+                .setPositiveButton("Apply", (d, w) -> { selectedLocation = search.getText().toString().trim(); if (selectedLocation.isEmpty()) selectedLocation = null; filterEvents(); })
+                .create();
+
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            String choice = adapter.getItem(position);
+            selectedLocation = choice; // selecting suggestion
+            filterEvents();
+            dialog.dismiss();
         });
 
-        LinearLayout navNotifications = findViewById(R.id.navNotifications);
-        navNotifications.setOnClickListener(v -> {
-            Toast.makeText(this, "Notifications clicked", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Notifications navigation clicked");
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { adapter.getFilter().filter(s); }
+            @Override public void afterTextChanged(Editable s) {}
         });
 
-        LinearLayout navProfile = findViewById(R.id.navProfile);
-        navProfile.setOnClickListener(v -> {
-            Toast.makeText(this, "Profile clicked", Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Profile navigation clicked");
-        });
+        dialog.show();
+    }
+
+    private void filterEvents() {
+        List<Event> tempFiltered = new ArrayList<>(allEvents);
+        String query = searchInput.getText() != null ? searchInput.getText().toString().toLowerCase() : "";
+
+        if (!query.isEmpty()) {
+            String q = query;
+            tempFiltered = tempFiltered.stream()
+                    .filter(event -> (event.getName() != null && event.getName().toLowerCase().contains(q)) ||
+                            (event.getDescription() != null && event.getDescription().toLowerCase().contains(q)) ||
+                            (event.getLocation() != null && event.getLocation().toLowerCase().contains(q)))
+                    .collect(Collectors.toList());
+        }
+
+        if (selectedCategory != null) {
+            String cat = selectedCategory.toLowerCase();
+            tempFiltered = tempFiltered.stream()
+                    .filter(event -> event.getCategory() != null && event.getCategory().toLowerCase().equals(cat))
+                    .collect(Collectors.toList());
+        }
+
+        if (selectedDate != null) {
+            Long picked = selectedDate;
+            tempFiltered = tempFiltered.stream()
+                    .filter(event -> {
+                        if (event.getEventDate() == null) return false;
+                        Calendar eventCal = Calendar.getInstance();
+                        eventCal.setTime(event.getEventDate());
+                        Calendar selectedCal = Calendar.getInstance();
+                        selectedCal.setTimeInMillis(picked);
+                        return eventCal.get(Calendar.YEAR) == selectedCal.get(Calendar.YEAR)
+                                && eventCal.get(Calendar.DAY_OF_YEAR) == selectedCal.get(Calendar.DAY_OF_YEAR);
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        if (selectedLocation != null) {
+            String loc = selectedLocation.toLowerCase();
+            tempFiltered = tempFiltered.stream()
+                    .filter(event -> event.getLocation() != null && event.getLocation().toLowerCase().contains(loc))
+                    .collect(Collectors.toList());
+        }
+
+        eventAdapter.setEvents(tempFiltered);
     }
 }

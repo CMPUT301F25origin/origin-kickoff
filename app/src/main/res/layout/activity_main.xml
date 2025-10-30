@@ -74,13 +74,15 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />
 
-        <TextView
-            android:id="@+id/tvSearchHint"
+        <EditText
+            android:id="@+id/searchInput"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Search events"
-            android:textColor="#BFBFBF"
+            android:hint="Search events"
+            android:textColor="@android:color/white"
+            android:textColorHint="#BFBFBF"
             android:textSize="14sp"
+            android:background="@android:color/transparent"
             app:layout_constraintStart_toEndOf="@id/ivSearch"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -109,6 +111,7 @@
 
             <!-- Interest chip -->
             <LinearLayout
+                android:id="@+id/categoryFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:orientation="horizontal"
@@ -136,6 +139,7 @@
 
             <!-- Date chip -->
             <LinearLayout
+                android:id="@+id/dateFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:orientation="horizontal"
@@ -163,6 +167,7 @@
 
             <!-- Location chip -->
             <LinearLayout
+                android:id="@+id/locationFilter"
                 android:layout_width="wrap_content"
                 android:layout_height="36dp"
                 android:orientation="horizontal"
@@ -201,7 +206,7 @@
         app:layout_constraintTop_toBottomOf="@id/filterRow"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/bottomBar">
+        app:layout_constraintBottom_toTopOf="@+id/bottomBar">
 
         <!-- RecyclerView for dynamic event cards -->
         <androidx.recyclerview.widget.RecyclerView

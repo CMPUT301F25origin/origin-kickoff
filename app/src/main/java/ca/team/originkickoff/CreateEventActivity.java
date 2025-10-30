@@ -36,7 +36,7 @@ import java.util.UUID;
 public class CreateEventActivity extends AppCompatActivity {
     private static final String TAG = "CreateEventActivity";
 
-    private TextInputEditText etTitle, etDescription, etLocation, etDate, etTime,
+    private TextInputEditText etTitle, etDescription, etLocation, etCategory, etDate, etTime,
             etPrice, etCapacity, etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime, etCriteria;
     private ImageView ivPosterPreview;
     private Button btnUploadImage, btnCreateEvent;
@@ -107,6 +107,7 @@ public class CreateEventActivity extends AppCompatActivity {
         etTitle = findViewById(R.id.etTitle);
         etDescription = findViewById(R.id.etDescription);
         etLocation = findViewById(R.id.etLocation);
+        etCategory = findViewById(R.id.etCategory);
         etDate = findViewById(R.id.etDate);
         etTime = findViewById(R.id.etTime);
         etPrice = findViewById(R.id.etPrice);
@@ -239,6 +240,7 @@ public class CreateEventActivity extends AppCompatActivity {
         String title = getText(etTitle);
         String description = getText(etDescription);
         String location = getText(etLocation);
+        String category = getText(etCategory);
         String priceStr = getText(etPrice);
         String capacityStr = getText(etCapacity);
         String criteria = getText(etCriteria);
@@ -260,6 +262,12 @@ public class CreateEventActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(location)) {
             etLocation.setError("Location is required");
             etLocation.requestFocus();
+            return;
+        }
+
+        if (TextUtils.isEmpty(category)) {
+            etCategory.setError("Category is required");
+            etCategory.requestFocus();
             return;
         }
 
@@ -336,6 +344,7 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("organizerId", organizerId);
         event.put("organizerName", organizerName);
         event.put("location", location);
+        event.put("category", category);
         event.put("capacity", capacity);
         event.put("price", price);
         event.put("waitlistCount", 0);
