@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">KickOff</string>
+    <string name="free_label">Free</string>
+    <string name="no_events">No events available</string>
+    <string name="check_back_later">Check back later for upcoming events</string>
+    <string name="date_time_format">%1$s at %2$s</string>
+    <string name="organizer_label">By %1$s</string>
 </resources>

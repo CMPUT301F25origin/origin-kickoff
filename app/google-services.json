@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "7618879125",
+    "firebase_url": "https://origin-kickoff-default-rtdb.firebaseio.com",
     "project_id": "origin-kickoff",
     "storage_bucket": "origin-kickoff.firebasestorage.app"
   },

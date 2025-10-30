@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/cleanup.sh">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/cleanup.sh" />
+              <option name="updatedContent" value="#!/bin/bash&#10;# Remove all documentation files&#10;rm -f README.md&#10;rm -f QUICK_START.md&#10;rm -f IMPLEMENTATION_COMPLETE.md&#10;rm -f FEATURE_IMPLEMENTATION.md&#10;rm -f CODE_EXAMPLES.md&#10;rm -f FILES_REFERENCE.md&#10;rm -f TESTING_GUIDE.md&#10;rm -f VERIFICATION_CHECKLIST.md&#10;rm -f IMPLEMENTATION_SUMMARY.md&#10;rm -f DELIVERY_PACKAGE_CONTENTS.md&#10;echo &quot;All documentation files removed!&quot;&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
