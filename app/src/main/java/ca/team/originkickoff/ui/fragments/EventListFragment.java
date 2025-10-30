@@ -1,5 +1,6 @@
 package ca.team.originkickoff.ui.fragments;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -9,11 +10,13 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -24,13 +27,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import ca.team.originkickoff.R;
+import ca.team.originkickoff.CreateEventActivity;
 import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.services.FirebaseEventService;
 
 public class EventListFragment extends Fragment implements EventAdapter.OnEventClickListener {
     private static final String TAG = "EventListFragment";
-    // ...existing code...
     private RecyclerView eventsRecyclerView;
     private SwipeRefreshLayout swipeRefreshLayout;
     private LinearLayout emptyState;
@@ -40,8 +43,8 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
 
     private EventAdapter adapter;
     private FirebaseEventService firebaseEventService;
-    private List<Event> allEvents = new ArrayList<>();
-    private List<Event> filteredEvents = new ArrayList<>();
+    private final List<Event> allEvents = new ArrayList<>();
+    private final List<Event> filteredEvents = new ArrayList<>();
 
     @Nullable
     @Override
@@ -58,6 +61,20 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         setupRecyclerView();
         setupSwipeRefresh();
         setupSearchAndFilter();
+
+        // Initialize the add button (in the Activity layout) and set click to open CreateEventActivity
+        try {
+            ImageView ivAddEvent = requireActivity().findViewById(R.id.ivAddEvent);
+            if (ivAddEvent != null) {
+                ivAddEvent.setOnClickListener(v -> {
+                    Log.d(TAG, "ivAddEvent clicked - launching CreateEventActivity");
+                    Intent i = new Intent(requireActivity(), CreateEventActivity.class);
+                    startActivity(i);
+                });
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Could not bind ivAddEvent: " + e.getMessage());
+        }
 
         firebaseEventService = new FirebaseEventService();
         loadEvents();
@@ -79,8 +96,8 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
     }
 
     private void setupSwipeRefresh() {
-        swipeRefreshLayout.setOnRefreshListener(() -> loadEvents());
-        swipeRefreshLayout.setColorSchemeColors(getResources().getColor(R.color.teal_700));
+        swipeRefreshLayout.setOnRefreshListener(this::loadEvents);
+        swipeRefreshLayout.setColorSchemeColors(ContextCompat.getColor(requireContext(), R.color.teal_700));
     }
 
     private void setupSearchAndFilter() {
@@ -114,7 +131,8 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
             @Override
             public void onSuccess(List<Event> events) {
                 Log.d(TAG, "onSuccess called with " + events.size() + " events");
-                allEvents = events;
+                allEvents.clear();
+                allEvents.addAll(events);
                 filteredEvents.clear();
                 filteredEvents.addAll(events);
                 Log.d(TAG, "Updated adapter with " + filteredEvents.size() + " events");

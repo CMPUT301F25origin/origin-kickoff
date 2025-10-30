@@ -9,8 +9,6 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,30 +18,50 @@ import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.Event;
 
 public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHolder> {
-    private final List<Event> events;
-    private final OnEventClickListener listener;
+    private List<Event> events;
+    private OnEventClickListener listener;
 
     public interface OnEventClickListener {
         void onEventClick(Event event);
     }
 
-    public EventAdapter(List<Event> events, OnEventClickListener listener) {
-        this.events = new ArrayList<>(events);
+    public EventAdapter(OnEventClickListener listener) {
+        this.events = new ArrayList<>();
         this.listener = listener;
+    }
+
+    // Constructor that accepts initial events list
+    public EventAdapter(List<Event> events, OnEventClickListener listener) {
+        this.events = events != null ? new ArrayList<>(events) : new ArrayList<>();
+        this.listener = listener;
+    }
+
+    public void setEvents(List<Event> events) {
+        this.events = events != null ? events : new ArrayList<>();
+        notifyDataSetChanged();
+    }
+
+    // Add updateEvents method for compatibility
+    public void updateEvents(List<Event> events) {
+        this.events.clear();
+        if (events != null) {
+            this.events.addAll(events);
+        }
+        notifyDataSetChanged();
     }
 
     @NonNull
     @Override
     public EventViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_event, parent, false);
-        return new EventViewHolder(view, listener);
+                .inflate(R.layout.item_event_card, parent, false);
+        return new EventViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull EventViewHolder holder, int position) {
         Event event = events.get(position);
-        holder.bind(event);
+        holder.bind(event, listener);
     }
 
     @Override
@@ -51,79 +69,55 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         return events.size();
     }
 
-    public void updateEvents(List<Event> newEvents) {
-        this.events.clear();
-        this.events.addAll(newEvents);
-        notifyDataSetChanged();
-    }
+    static class EventViewHolder extends RecyclerView.ViewHolder {
+        private final ImageView ivEventImage;
+        private final TextView tvEventName;
+        private final TextView tvEventDate;
+        private final TextView tvSpotsLeft;
+        private final TextView tvRequirements;
 
-    public static class EventViewHolder extends RecyclerView.ViewHolder {
-        private final ImageView eventPoster;
-        private final TextView eventName;
-        private final TextView eventDate;
-        private final TextView eventLocation;
-        private final TextView eventOrganizerName;
-        private final TextView eventPrice;
-        private final TextView waitlistInfo;
-        private Event currentEvent;
-
-        public EventViewHolder(@NonNull View itemView, OnEventClickListener listener) {
+        public EventViewHolder(@NonNull View itemView) {
             super(itemView);
-            eventPoster = itemView.findViewById(R.id.eventPoster);
-            eventName = itemView.findViewById(R.id.eventName);
-            eventDate = itemView.findViewById(R.id.eventDate);
-            eventLocation = itemView.findViewById(R.id.eventLocation);
-            eventOrganizerName = itemView.findViewById(R.id.eventOrganizerName);
-            eventPrice = itemView.findViewById(R.id.eventPrice);
-            waitlistInfo = itemView.findViewById(R.id.waitlistInfo);
-
-            itemView.setOnClickListener(v -> {
-                if (listener != null && currentEvent != null) {
-                    listener.onEventClick(currentEvent);
-                }
-            });
+            ivEventImage = itemView.findViewById(R.id.ivEventImage);
+            tvEventName = itemView.findViewById(R.id.tvEventName);
+            tvEventDate = itemView.findViewById(R.id.tvEventDate);
+            tvSpotsLeft = itemView.findViewById(R.id.tvSpotsLeft);
+            tvRequirements = itemView.findViewById(R.id.tvRequirements);
         }
 
-        public void bind(Event event) {
-            this.currentEvent = event;
-            eventName.setText(event.getName());
+        public void bind(Event event, OnEventClickListener listener) {
+            tvEventName.setText(event.getName());
 
-            // Format date and time
-            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-            SimpleDateFormat timeFormat = new SimpleDateFormat("hh:mm a", Locale.getDefault());
-
+            // Format date
             if (event.getEventDate() != null) {
-                String dateString = dateFormat.format(event.getEventDate());
-                String timeString = timeFormat.format(event.getEventDate());
-                eventDate.setText(itemView.getContext().getString(R.string.date_time_format, dateString, timeString));
-            }
-
-            eventLocation.setText(event.getLocation());
-            eventOrganizerName.setText(itemView.getContext().getString(R.string.organizer_label, event.getOrganizerName()));
-
-            // Format price
-            if (event.getPrice() > 0) {
-                eventPrice.setText(String.format(Locale.getDefault(), "$%.2f", event.getPrice()));
+                SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+                tvEventDate.setText(dateFormat.format(event.getEventDate()));
             } else {
-                eventPrice.setText(R.string.free_label);
+                tvEventDate.setText("Date TBD");
             }
 
-            // Show waitlist info
-            int availableSpots = event.getCapacity() - event.getWaitlistCount();
-            waitlistInfo.setText(String.format(Locale.getDefault(),
-                    "%d on waitlist • %d spots available",
-                    event.getWaitlistCount(), availableSpots));
+            // Calculate spots left
+            int spotsLeft = event.getCapacity() - event.getWaitlistCount();
+            if (spotsLeft < 0) spotsLeft = 0;
+            tvSpotsLeft.setText(spotsLeft + " spots left");
 
-            // Load poster image if available
-            if (event.getPosterUrl() != null && !event.getPosterUrl().isEmpty()) {
-                Glide.with(itemView.getContext())
-                        .load(event.getPosterUrl())
-                        .placeholder(R.drawable.ic_launcher_background)
-                        .error(R.drawable.ic_launcher_background)
-                        .into(eventPoster);
+            // Show requirements
+            if (event.isGeolocationRequired()) {
+                tvRequirements.setText("Req: Geolocation");
             } else {
-                eventPoster.setImageResource(R.drawable.ic_launcher_background);
+                tvRequirements.setText("");
             }
+
+            // Set click listener
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onEventClick(event);
+                }
+            });
+
+            // TODO: Load image from posterUrl using Glide or Picasso
+            // For now, use a placeholder
+            ivEventImage.setImageResource(R.drawable.sample_event_1);
         }
     }
 }
