@@ -32,6 +32,7 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private RecyclerView rvEvents;
     private EventAdapter eventAdapter;
+    private View loadingView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,6 +47,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize Firebase
         db = FirebaseFirestore.getInstance();
+
+        // Initialize loading view
+        loadingView = findViewById(R.id.loadingView);
 
         // Set up RecyclerView
         setupRecyclerView();
@@ -69,10 +73,11 @@ public class MainActivity extends AppCompatActivity {
         rvEvents.setLayoutManager(new LinearLayoutManager(this));
 
         eventAdapter = new EventAdapter(event -> {
-            // Handle event click - you can open event details here
-            Toast.makeText(MainActivity.this, "Clicked: " + event.getName(), Toast.LENGTH_SHORT).show();
-            Log.d(TAG, "Event clicked: " + event.getName());
-            // TODO: Open EventDetailsActivity
+            // Handle event click - open event details
+            Intent intent = new Intent(MainActivity.this, EventDetailActivity.class);
+            intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, event.getId());
+            startActivity(intent);
+            Log.d(TAG, "Event clicked: " + event.getName() + " (ID: " + event.getId() + ")");
         });
 
         rvEvents.setAdapter(eventAdapter);
@@ -80,6 +85,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadEventsFromFirestore() {
         Log.d(TAG, "Loading events from Firestore...");
+
+        // Show loading screen
+        loadingView.setVisibility(View.VISIBLE);
 
         db.collection("events")
                 .get()
@@ -139,12 +147,19 @@ public class MainActivity extends AppCompatActivity {
                     Log.d(TAG, "Loaded " + events.size() + " events from Firestore");
                     eventAdapter.setEvents(events);
 
+                    // Hide loading screen
+                    loadingView.setVisibility(View.GONE);
+
                     if (events.isEmpty()) {
                         Toast.makeText(this, "No events available", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading events from Firestore", e);
+
+                    // Hide loading screen even on error
+                    loadingView.setVisibility(View.GONE);
+
                     Toast.makeText(this, "Error loading events: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
