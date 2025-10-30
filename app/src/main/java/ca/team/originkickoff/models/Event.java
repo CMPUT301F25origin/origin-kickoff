@@ -11,6 +11,7 @@ public class Event implements Serializable {
     private String organizerName;
     private Date eventDate;
     private String location;
+    private String category;
     private int capacity;
     private int waitlistCount;
     private Date registrationStartTime;
@@ -25,7 +26,7 @@ public class Event implements Serializable {
     }
 
     public Event(String id, String name, String description, String organizerId, String organizerName,
-                 Date eventDate, String location, int capacity, int waitlistCount,
+                 Date eventDate, String location, String category, int capacity, int waitlistCount,
                  Date registrationStartTime, Date registrationEndTime, String posterUrl,
                  boolean geolocationRequired, double price, long createdAt) {
         this.id = id;
@@ -35,6 +36,7 @@ public class Event implements Serializable {
         this.organizerName = organizerName;
         this.eventDate = eventDate;
         this.location = location;
+        this.category = category;
         this.capacity = capacity;
         this.waitlistCount = waitlistCount;
         this.registrationStartTime = registrationStartTime;
@@ -66,6 +68,9 @@ public class Event implements Serializable {
 
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
     public int getCapacity() { return capacity; }
     public void setCapacity(int capacity) { this.capacity = capacity; }
@@ -103,4 +108,3 @@ public class Event implements Serializable {
         return waitlistCount < capacity;
     }
 }
-
