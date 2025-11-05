@@ -1,8 +1,12 @@
 package ca.team.originkickoff;
 
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -30,6 +34,8 @@ public class EventDetailActivity extends AppCompatActivity {
     private TextView pillToBeSelected;
     private Button btnJoinWaitingList;
     private Button btnLotteryCriteria;
+    private ImageView ivQrCode;
+    private LinearLayout qrCodeSection;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -73,6 +79,8 @@ public class EventDetailActivity extends AppCompatActivity {
         pillToBeSelected = findViewById(R.id.pillToBeSelected);
         btnJoinWaitingList = findViewById(R.id.btnJoinWaitingList);
         btnLotteryCriteria = findViewById(R.id.btnLotteryCriteria);
+        ivQrCode = findViewById(R.id.ivQrCode);
+        qrCodeSection = findViewById(R.id.qrCodeSection);
     }
 
     private void setupListeners() {
@@ -133,6 +141,7 @@ public class EventDetailActivity extends AppCompatActivity {
                             currentEvent.setOrganizerName(documentSnapshot.getString("organizerName"));
                             currentEvent.setLocation(documentSnapshot.getString("location"));
                             currentEvent.setPosterUrl(documentSnapshot.getString("posterUrl"));
+                            currentEvent.setQrCodeBase64(documentSnapshot.getString("qrCodeBase64"));
 
                             // Handle numeric fields
                             Long capacity = documentSnapshot.getLong("capacity");
@@ -205,6 +214,21 @@ public class EventDetailActivity extends AppCompatActivity {
         // Set date (you can format this based on your needs)
         if (currentEvent.getRegistrationStartTime() != null) {
             textDate.setText("Registration Open"); // Format the date as needed
+        }
+
+        // Show QR code if it exists
+        if (currentEvent.getQrCodeBase64() != null && !currentEvent.getQrCodeBase64().isEmpty()) {
+            try {
+                byte[] decodedString = Base64.decode(currentEvent.getQrCodeBase64(), Base64.DEFAULT);
+                Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                ivQrCode.setImageBitmap(decodedByte);
+                qrCodeSection.setVisibility(View.VISIBLE);
+            } catch (Exception e) {
+                Log.e(TAG, "Error decoding Base64 QR code", e);
+                qrCodeSection.setVisibility(View.GONE);
+            }
+        } else {
+            qrCodeSection.setVisibility(View.GONE);
         }
 
         // TODO: Load poster image using Glide or Picasso

@@ -307,6 +307,33 @@
 
             </LinearLayout>
 
+            <!-- QR Code Section -->
+            <LinearLayout
+                android:id="@+id/qrCodeSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:padding="16dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Event QR Code"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="8dp"/>
+
+                <ImageView
+                    android:id="@+id/ivQrCode"
+                    android:layout_width="150dp"
+                    android:layout_height="150dp"
+                    android:contentDescription="Event QR Code"/>
+
+            </LinearLayout>
+
         </LinearLayout>
 
     </ScrollView>

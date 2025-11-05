@@ -3,14 +3,18 @@ package ca.team.originkickoff;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
@@ -18,14 +22,12 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.util.Calendar;
 import java.util.HashMap;
@@ -33,13 +35,18 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+import ca.team.originkickoff.utils.QRCodeGenerator;
+
 public class CreateEventActivity extends AppCompatActivity {
     private static final String TAG = "CreateEventActivity";
 
-    private TextInputEditText etTitle, etDescription, etLocation, etCategory, etDate, etTime,
-            etPrice, etCapacity, etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime, etCriteria;
-    private ImageView ivPosterPreview;
-    private Button btnUploadImage, btnCreateEvent;
+    private EditText etEventName, etDescription, etLocation, etDate, etTime,
+            etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime;
+    // Optional fields that may not be in the layout
+    private EditText etCategory, etPrice, etCapacity, etCriteria;
+    private ImageView ivPosterPreview, btnClose;
+    private LinearLayout layoutUploadImage;
+    private Button btnCreateEvent;
     private androidx.appcompat.widget.SwitchCompat switchGenerateQr;
     private ProgressBar progressBar;
     private View formContainer;
@@ -84,7 +91,9 @@ public class CreateEventActivity extends AppCompatActivity {
                         Uri uri = result.getData().getData();
                         if (uri != null) {
                             selectedImageUri = uri;
-                            ivPosterPreview.setImageURI(selectedImageUri);
+                            if (ivPosterPreview != null) {
+                                ivPosterPreview.setImageURI(selectedImageUri);
+                            }
                             Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
                         }
                     }
@@ -104,27 +113,25 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void bindViews() {
-        etTitle = findViewById(R.id.etTitle);
+        etEventName = findViewById(R.id.etEventName);
         etDescription = findViewById(R.id.etDescription);
         etLocation = findViewById(R.id.etLocation);
-        etCategory = findViewById(R.id.etCategory);
         etDate = findViewById(R.id.etDate);
         etTime = findViewById(R.id.etTime);
-        etPrice = findViewById(R.id.etPrice);
-        etCapacity = findViewById(R.id.etCapacity);
         etRegStartDate = findViewById(R.id.etRegStartDate);
         etRegStartTime = findViewById(R.id.etRegStartTime);
         etRegEndDate = findViewById(R.id.etRegEndDate);
         etRegEndTime = findViewById(R.id.etRegEndTime);
+        etCapacity = findViewById(R.id.etCapacity);
         etCriteria = findViewById(R.id.etCriteria);
-        ivPosterPreview = findViewById(R.id.ivPosterPreview);
-        btnUploadImage = findViewById(R.id.btnUploadImage);
+        btnClose = findViewById(R.id.btnClose);
+        layoutUploadImage = findViewById(R.id.layoutUploadImage);
         btnCreateEvent = findViewById(R.id.btnCreateEvent);
-        switchGenerateQr = findViewById(R.id.switchGenerateQr);
 
-        // Add progress bar and form container if they exist in layout
-        progressBar = findViewById(R.id.progressBar);
-        formContainer = findViewById(R.id.formContainer);
+        // Optional views that don't exist in the new layout - leaving them null
+        // ivPosterPreview = findViewById(R.id.ivPosterPreview);
+        // switchGenerateQr = findViewById(R.id.switchGenerateQr);
+        // progressBar = findViewById(R.id.progressBar);
     }
 
     private void attachListeners() {
@@ -188,7 +195,9 @@ public class CreateEventActivity extends AppCompatActivity {
             etRegEndTime.setText(String.format(Locale.US, "%02d:%02d", hour, minute));
         }));
 
-        btnUploadImage.setOnClickListener(v -> pickImage());
+        btnClose.setOnClickListener(v -> finish());
+
+        layoutUploadImage.setOnClickListener(v -> pickImage());
 
         btnCreateEvent.setOnClickListener(v -> createEvent());
     }
@@ -237,19 +246,16 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void createEvent() {
-        String title = getText(etTitle);
+        String title = getText(etEventName);
         String description = getText(etDescription);
         String location = getText(etLocation);
-        String category = getText(etCategory);
-        String priceStr = getText(etPrice);
         String capacityStr = getText(etCapacity);
         String criteria = getText(etCriteria);
-        boolean genQr = switchGenerateQr.isChecked();
 
-        // Validation
+        // Validation - ALL FIELDS ARE MANDATORY
         if (TextUtils.isEmpty(title)) {
-            etTitle.setError("Event name is required");
-            etTitle.requestFocus();
+            etEventName.setError("Event name is required");
+            etEventName.requestFocus();
             return;
         }
 
@@ -265,12 +271,6 @@ public class CreateEventActivity extends AppCompatActivity {
             return;
         }
 
-        if (TextUtils.isEmpty(category)) {
-            etCategory.setError("Category is required");
-            etCategory.requestFocus();
-            return;
-        }
-
         if (eventDateMillis <= 0) {
             etDate.setError("Please choose event date");
             Toast.makeText(this, "Please choose event date", Toast.LENGTH_SHORT).show();
@@ -283,6 +283,35 @@ public class CreateEventActivity extends AppCompatActivity {
             return;
         }
 
+        if (regStartMillis <= 0) {
+            etRegStartDate.setError("Please choose registration start date");
+            Toast.makeText(this, "Please choose registration start date", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (regEndMillis <= 0) {
+            etRegEndDate.setError("Please choose registration end date");
+            Toast.makeText(this, "Please choose registration end date", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (TextUtils.isEmpty(capacityStr)) {
+            etCapacity.setError("Capacity is required");
+            etCapacity.requestFocus();
+            return;
+        }
+
+        if (TextUtils.isEmpty(criteria)) {
+            etCriteria.setError("Lottery criteria is required");
+            etCriteria.requestFocus();
+            return;
+        }
+
+        if (selectedImageUri == null) {
+            Toast.makeText(this, "Please upload an event image", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
 
         // Validate event is in the future
@@ -291,31 +320,29 @@ public class CreateEventActivity extends AppCompatActivity {
             return;
         }
 
-        double price = 0;
-        try {
-            if (!TextUtils.isEmpty(priceStr)) {
-                price = Double.parseDouble(priceStr);
-                if (price < 0) {
-                    etPrice.setError("Price cannot be negative");
-                    return;
-                }
-            }
-        } catch (NumberFormatException e) {
-            etPrice.setError("Invalid price format");
+        // Validate registration period is before event date
+        if (regEndMillis > eventTimestampMillis) {
+            Toast.makeText(this, "Registration must end before event date", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Validate registration start is before end
+        if (regStartMillis >= regEndMillis) {
+            Toast.makeText(this, "Registration start must be before registration end", Toast.LENGTH_SHORT).show();
             return;
         }
 
         int capacity = 0;
         try {
-            if (!TextUtils.isEmpty(capacityStr)) {
-                capacity = Integer.parseInt(capacityStr);
-                if (capacity <= 0) {
-                    etCapacity.setError("Capacity must be greater than 0");
-                    return;
-                }
+            capacity = Integer.parseInt(capacityStr);
+            if (capacity <= 0) {
+                etCapacity.setError("Capacity must be greater than 0");
+                etCapacity.requestFocus();
+                return;
             }
         } catch (NumberFormatException e) {
             etCapacity.setError("Invalid capacity");
+            etCapacity.requestFocus();
             return;
         }
 
@@ -344,38 +371,20 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("organizerId", organizerId);
         event.put("organizerName", organizerName);
         event.put("location", location);
-        event.put("category", category);
+        event.put("category", "General");
         event.put("capacity", capacity);
-        event.put("price", price);
+        event.put("lotteryCriteria", criteria);
+        event.put("price", 0);
         event.put("waitlistCount", 0);
-        event.put("geolocationRequired", false); // Default to false, can add UI control later
+        event.put("geolocationRequired", false);
         event.put("status", "draft");
         event.put("createdAt", System.currentTimeMillis());
         event.put("eventDate", new Timestamp(new java.util.Date(eventTimestampMillis)));
+        event.put("registrationStartTime", new Timestamp(new java.util.Date(regStartMillis)));
+        event.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
 
-        // Add registration period timestamps
-        if (regStartMillis > 0) {
-            event.put("registrationStartTime", new Timestamp(new java.util.Date(regStartMillis)));
-        } else {
-            // Default to now if not specified
-            event.put("registrationStartTime", Timestamp.now());
-        }
-
-        if (regEndMillis > 0) {
-            event.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
-        } else {
-            // Default to event date if not specified
-            event.put("registrationEndTime", new Timestamp(new java.util.Date(eventTimestampMillis)));
-        }
-
-        // If an image is selected, upload first, then save event with poster url
-        if (selectedImageUri != null) {
-            uploadImageAndSaveEvent(selectedImageUri, event);
-        } else {
-            // Use empty string or placeholder URL if no image selected
-            event.put("posterUrl", "");
-            saveEventToFirestore(event);
-        }
+        // Upload image and save event
+        uploadImageAndSaveEvent(selectedImageUri, event);
     }
 
     private void uploadImageAndSaveEvent(Uri uri, Map<String, Object> event) {
@@ -406,12 +415,10 @@ public class CreateEventActivity extends AppCompatActivity {
     private void saveEventToFirestore(Map<String, Object> event) {
         db.collection("events").add(event)
                 .addOnSuccessListener(documentReference -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Event created successfully!", Toast.LENGTH_LONG).show();
-                    Log.d(TAG, "Event saved with ID: " + documentReference.getId());
+                    String eventId = documentReference.getId();
+                    Log.d(TAG, "Event saved with ID: " + eventId);
 
-                    // Return to previous screen
-                    finish();
+                    generateAndSaveQRCodeAsBase64(eventId, documentReference);
                 })
                 .addOnFailureListener(e -> {
                     setLoading(false);
@@ -419,6 +426,58 @@ public class CreateEventActivity extends AppCompatActivity {
                     Toast.makeText(this, "Failed to create event: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
+
+    /**
+     * Generates a QR code for the event ID, Base64 encodes it, and saves it to the event document.
+     */
+    private void generateAndSaveQRCodeAsBase64(String eventId, com.google.firebase.firestore.DocumentReference eventRef) {
+        Log.d(TAG, "Generating QR code for event: " + eventId);
+
+        Bitmap qrCodeBitmap = QRCodeGenerator.generateQRCode(eventId);
+
+        if (qrCodeBitmap == null) {
+            Log.e(TAG, "Failed to generate QR code bitmap");
+            Toast.makeText(this, "Event created but QR code generation failed.", Toast.LENGTH_LONG).show();
+            navigateToEventDetail(eventId); // Navigate anyway
+            return;
+        }
+
+        byte[] qrCodeBytes = QRCodeGenerator.bitmapToByteArray(qrCodeBitmap);
+
+        if (qrCodeBytes == null) {
+            Log.e(TAG, "Failed to convert QR code bitmap to byte array");
+            Toast.makeText(this, "Event created but QR code processing failed.", Toast.LENGTH_LONG).show();
+            navigateToEventDetail(eventId); // Navigate anyway
+            return;
+        }
+
+        // Base64 encode the byte array to a string
+        String qrCodeBase64 = Base64.encodeToString(qrCodeBytes, Base64.DEFAULT);
+
+        // Update the event document with the Base64 string
+        eventRef.update("qrCodeBase64", qrCodeBase64)
+                .addOnSuccessListener(aVoid -> {
+                    setLoading(false);
+                    Toast.makeText(this, "Event created with QR code!", Toast.LENGTH_LONG).show();
+                    Log.d(TAG, "Event updated with Base64 QR code.");
+                    navigateToEventDetail(eventId);
+                })
+                .addOnFailureListener(e -> {
+                    setLoading(false);
+                    Log.e(TAG, "Failed to update event with Base64 QR code", e);
+                    Toast.makeText(this, "Event created but failed to save QR code.", Toast.LENGTH_LONG).show();
+                    navigateToEventDetail(eventId); // Navigate anyway, event exists
+                });
+    }
+
+
+    private void navigateToEventDetail(String eventId) {
+        Intent intent = new Intent(this, EventDetailActivity.class);
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
+        startActivity(intent);
+        finish();
+    }
+
 
     private long mergeDateAndTime(long dateMillis, long timeOfDayMillis) {
         Calendar dateCal = Calendar.getInstance();
@@ -432,7 +491,7 @@ public class CreateEventActivity extends AppCompatActivity {
         return dateCal.getTimeInMillis();
     }
 
-    private String getText(TextInputEditText et) {
+    private String getText(EditText et) {
         if (et == null) return "";
         CharSequence cs = et.getText();
         return cs == null ? "" : cs.toString().trim();
