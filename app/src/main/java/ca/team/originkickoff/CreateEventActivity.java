@@ -3,9 +3,11 @@ package ca.team.originkickoff;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
@@ -25,13 +27,14 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
 
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+
+import ca.team.originkickoff.utils.QRCodeGenerator;
 
 public class CreateEventActivity extends AppCompatActivity {
     private static final String TAG = "CreateEventActivity";
@@ -406,12 +409,17 @@ public class CreateEventActivity extends AppCompatActivity {
     private void saveEventToFirestore(Map<String, Object> event) {
         db.collection("events").add(event)
                 .addOnSuccessListener(documentReference -> {
-                    setLoading(false);
-                    Toast.makeText(this, "Event created successfully!", Toast.LENGTH_LONG).show();
-                    Log.d(TAG, "Event saved with ID: " + documentReference.getId());
+                    String eventId = documentReference.getId();
+                    Log.d(TAG, "Event saved with ID: " + eventId);
 
-                    // Return to previous screen
-                    finish();
+                    // Generate and save QR code for the event as a Base64 string
+                    if (switchGenerateQr.isChecked()) {
+                        generateAndSaveQRCodeAsBase64(eventId, documentReference);
+                    } else {
+                        setLoading(false);
+                        Toast.makeText(this, "Event created successfully!", Toast.LENGTH_LONG).show();
+                        navigateToEventDetail(eventId);
+                    }
                 })
                 .addOnFailureListener(e -> {
                     setLoading(false);
@@ -419,6 +427,58 @@ public class CreateEventActivity extends AppCompatActivity {
                     Toast.makeText(this, "Failed to create event: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
     }
+
+    /**
+     * Generates a QR code for the event ID, Base64 encodes it, and saves it to the event document.
+     */
+    private void generateAndSaveQRCodeAsBase64(String eventId, com.google.firebase.firestore.DocumentReference eventRef) {
+        Log.d(TAG, "Generating QR code for event: " + eventId);
+
+        Bitmap qrCodeBitmap = QRCodeGenerator.generateQRCode(eventId);
+
+        if (qrCodeBitmap == null) {
+            Log.e(TAG, "Failed to generate QR code bitmap");
+            Toast.makeText(this, "Event created but QR code generation failed.", Toast.LENGTH_LONG).show();
+            navigateToEventDetail(eventId); // Navigate anyway
+            return;
+        }
+
+        byte[] qrCodeBytes = QRCodeGenerator.bitmapToByteArray(qrCodeBitmap);
+
+        if (qrCodeBytes == null) {
+            Log.e(TAG, "Failed to convert QR code bitmap to byte array");
+            Toast.makeText(this, "Event created but QR code processing failed.", Toast.LENGTH_LONG).show();
+            navigateToEventDetail(eventId); // Navigate anyway
+            return;
+        }
+
+        // Base64 encode the byte array to a string
+        String qrCodeBase64 = Base64.encodeToString(qrCodeBytes, Base64.DEFAULT);
+
+        // Update the event document with the Base64 string
+        eventRef.update("qrCodeBase64", qrCodeBase64)
+                .addOnSuccessListener(aVoid -> {
+                    setLoading(false);
+                    Toast.makeText(this, "Event created with QR code!", Toast.LENGTH_LONG).show();
+                    Log.d(TAG, "Event updated with Base64 QR code.");
+                    navigateToEventDetail(eventId);
+                })
+                .addOnFailureListener(e -> {
+                    setLoading(false);
+                    Log.e(TAG, "Failed to update event with Base64 QR code", e);
+                    Toast.makeText(this, "Event created but failed to save QR code.", Toast.LENGTH_LONG).show();
+                    navigateToEventDetail(eventId); // Navigate anyway, event exists
+                });
+    }
+
+
+    private void navigateToEventDetail(String eventId) {
+        Intent intent = new Intent(this, EventDetailActivity.class);
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
+        startActivity(intent);
+        finish();
+    }
+
 
     private long mergeDateAndTime(long dateMillis, long timeOfDayMillis) {
         Calendar dateCal = Calendar.getInstance();

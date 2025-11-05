@@ -56,7 +56,7 @@
         android:layout_marginStart="16dp"
         android:layout_marginEnd="16dp"
         android:layout_marginTop="8dp"
-        android:background="@drawable/bg_search"
+        android.background="@drawable/bg_search"
         android:paddingStart="14dp"
         android:paddingEnd="14dp"
         app:layout_constraintTop_toBottomOf="@id/topBar"
@@ -341,24 +341,26 @@
                 android:textSize="11sp"/>
         </LinearLayout>
 
-        <!-- Floating Scan QR button -->
-        <Button
-            android:id="@+id/btnScanQR"
-            android:layout_width="140dp"
-            android:layout_height="46dp"
-            android:text="Scan QR"
-            android:textAllCaps="false"
-            android:textSize="15sp"
-            android:textColor="@android:color/black"
-            android:background="@drawable/bg_scan_qr"
-            android:drawableStart="@drawable/ic_qr_code"
-            android:drawablePadding="6dp"
-            android:drawableTint="@android:color/black"
-            app:layout_constraintBottom_toTopOf="@id/bottomBar"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginBottom="8dp"/>
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Floating Scan QR button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnScanQR"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:text="SCAN QR"
+        android:textColor="#003932"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:icon="@drawable/ic_qr_code"
+        app:iconTint="#003932"
+        app:iconPadding="8dp"
+        android:backgroundTint="#4DE8C0"
+        app:cornerRadius="24dp"
+        app:layout_constraintBottom_toTopOf="@id/bottomBar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="16dp" />
 
     <!-- Loading Screen -->
     <LinearLayout

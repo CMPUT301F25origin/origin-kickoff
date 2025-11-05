@@ -20,6 +20,8 @@ public class Event implements Serializable {
     private boolean geolocationRequired;
     private double price;
     private long createdAt;
+    private String qrCodeUrl;
+    private String qrCodeBase64;
 
     // Empty constructor for Firebase
     public Event() {
@@ -28,7 +30,7 @@ public class Event implements Serializable {
     public Event(String id, String name, String description, String organizerId, String organizerName,
                  Date eventDate, String location, String category, int capacity, int waitlistCount,
                  Date registrationStartTime, Date registrationEndTime, String posterUrl,
-                 boolean geolocationRequired, double price, long createdAt) {
+                 boolean geolocationRequired, double price, long createdAt, String qrCodeUrl) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -45,6 +47,7 @@ public class Event implements Serializable {
         this.geolocationRequired = geolocationRequired;
         this.price = price;
         this.createdAt = createdAt;
+        this.qrCodeUrl = qrCodeUrl;
     }
 
     // Getters and Setters
@@ -95,6 +98,12 @@ public class Event implements Serializable {
 
     public long getCreatedAt() { return createdAt; }
     public void setCreatedAt(long createdAt) { this.createdAt = createdAt; }
+
+    public String getQrCodeUrl() { return qrCodeUrl; }
+    public void setQrCodeUrl(String qrCodeUrl) { this.qrCodeUrl = qrCodeUrl; }
+
+    public String getQrCodeBase64() { return qrCodeBase64; }
+    public void setQrCodeBase64(String qrCodeBase64) { this.qrCodeBase64 = qrCodeBase64; }
 
     // Helper method to check if registration is still open
     public boolean isRegistrationOpen() {

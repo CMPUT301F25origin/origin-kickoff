@@ -156,7 +156,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         });
 
         Button btnScanQR = findViewById(R.id.btnScanQR);
-        btnScanQR.setOnClickListener(v -> Toast.makeText(this, "Scan QR clicked", Toast.LENGTH_SHORT).show());
+        btnScanQR.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ScanActivity.class);
+            startActivity(intent);
+        });
     }
 
     @Override
