@@ -115,7 +115,11 @@ public class ProfileActivity extends AppCompatActivity {
             startActivity(new Intent(ProfileActivity.this, MainActivity.class));
             finish();
         });
-        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events coming soon", Toast.LENGTH_SHORT).show());
+        navEvents.setOnClickListener(v -> {
+            // Open the My Events screen (with tabs)
+            Intent i = new Intent(ProfileActivity.this, MyEventsActivity.class);
+            startActivity(i);
+        });
         navNotifications.setOnClickListener(v -> Toast.makeText(this, "Notifications coming soon", Toast.LENGTH_SHORT).show());
         navProfile.setOnClickListener(v -> {}); // already here
     }

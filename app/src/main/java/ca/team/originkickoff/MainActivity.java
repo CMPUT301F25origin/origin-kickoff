@@ -146,7 +146,11 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         LinearLayout navProfile = findViewById(R.id.navProfile);
 
         navHome.setOnClickListener(v -> { /* already here */ });
-        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events coming soon", Toast.LENGTH_SHORT).show());
+        navEvents.setOnClickListener(v -> {
+            // Launch the MyEventsActivity which contains the two tabs
+            Intent intent = new Intent(MainActivity.this, MyEventsActivity.class);
+            startActivity(intent);
+        });
         navNotifications.setOnClickListener(v -> {
             Intent i = new Intent(MainActivity.this, NotificationsActivity.class);
             startActivity(i);

@@ -48,6 +48,9 @@
         <activity android:name=".MapViewActivity" android:exported="false" />
         <activity android:name="ca.team.originkickoff.WaitingListActivity" android:exported="false" />
 
+        <!-- My Events activity -->
+        <activity android:name=".MyEventsActivity" android:exported="false" />
+
     </application>
 
 </manifest>
