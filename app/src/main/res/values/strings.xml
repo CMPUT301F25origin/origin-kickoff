@@ -6,6 +6,9 @@
     <string name="date_time_format">%1$s at %2$s</string>
     <string name="organizer_label">By %1$s</string>
 
+    <!-- Google Maps API Key - REPLACE WITH YOUR ACTUAL KEY -->
+    <string name="google_maps_key">AIzaSyCWoeJYaGpmy_QA2dd29cUhd_ZAhFUYi58</string>
+
     <!-- Create Event Screen -->
     <string name="create_event">Create Event</string>
     <string name="close">Close</string>
@@ -61,4 +64,20 @@
     <string name="delete_profile_confirm_title">Delete Profile?</string>
     <string name="delete_profile_confirm_message">Are you sure you want to delete your profile?
 All your data will be erased!</string>
+    <!-- Notifications Screen -->
+    <string name="no_notifications">No notifications yet</string>
+    <string name="no_notifications_subtitle">You will see updates here when they arrive.</string>
+    <string name="back">Back</string>
+    <string name="notifications_today">Today</string>
+    <string name="notification_lottery_title">Lottery Result</string>
+    <string name="text_lottery_win">You won the lottery for the event \'Tech Innovators Summit\'.</string>
+    <string name="notification_event_update_title">Event Update</string>
+    <string name="text_event_postponed">The event \'Artisan Craft Fair\' has been postponed to next month.</string>
+    <string name="notifications_yesterday">Yesterday</string>
+    <string name="text_lottery_lose">You did not win the lottery for the event \'Global Music Festival\'.</string>
+    <string name="notification_new_event_title">New Event</string>
+    <string name="text_new_event_open">The event \'Local Food Tasting\' is now open for lottery entries.</string>
+    <string name="notifications_settings_title">Settings</string>
+    <string name="notifications_prefs_title">Notification Preferences</string>
+    <string name="notifications_prefs_subtitle">Opt out of receiving notifications from organizers and admins.</string>
 </resources>

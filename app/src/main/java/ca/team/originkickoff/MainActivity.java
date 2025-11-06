@@ -174,6 +174,15 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
             Intent intent = new Intent(MainActivity.this, ScanActivity.class);
             startActivity(intent);
         });
+
+        // Open Notifications page when bottom bar button is clicked
+        LinearLayout navNotifications = findViewById(R.id.navNotifications);
+        if (navNotifications != null) {
+            navNotifications.setOnClickListener(v -> {
+                Intent i = new Intent(MainActivity.this, NotificationsActivity.class);
+                startActivity(i);
+            });
+        }
     }
 
     @Override

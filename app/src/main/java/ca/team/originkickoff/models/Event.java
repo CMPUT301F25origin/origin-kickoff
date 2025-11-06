@@ -11,12 +11,16 @@ public class Event implements Serializable {
     private String organizerName;
     private Date eventDate;
     private String location;
+    private double locationLatitude;
+    private double locationLongitude;
+    private String locationPlaceId;
     private String category;
     private int capacity;
     private int waitlistCount;
     private Date registrationStartTime;
     private Date registrationEndTime;
     private String posterUrl;
+    private String posterBase64;
     private boolean geolocationRequired;
     private double price;
     private long createdAt;
@@ -29,7 +33,7 @@ public class Event implements Serializable {
 
     public Event(String id, String name, String description, String organizerId, String organizerName,
                  Date eventDate, String location, String category, int capacity, int waitlistCount,
-                 Date registrationStartTime, Date registrationEndTime, String posterUrl,
+                 Date registrationStartTime, Date registrationEndTime, String posterUrl, String posterBase64,
                  boolean geolocationRequired, double price, long createdAt, String qrCodeUrl) {
         this.id = id;
         this.name = name;
@@ -44,6 +48,7 @@ public class Event implements Serializable {
         this.registrationStartTime = registrationStartTime;
         this.registrationEndTime = registrationEndTime;
         this.posterUrl = posterUrl;
+        this.posterBase64 = posterBase64;
         this.geolocationRequired = geolocationRequired;
         this.price = price;
         this.createdAt = createdAt;
@@ -72,6 +77,15 @@ public class Event implements Serializable {
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
 
+    public double getLocationLatitude() { return locationLatitude; }
+    public void setLocationLatitude(double locationLatitude) { this.locationLatitude = locationLatitude; }
+
+    public double getLocationLongitude() { return locationLongitude; }
+    public void setLocationLongitude(double locationLongitude) { this.locationLongitude = locationLongitude; }
+
+    public String getLocationPlaceId() { return locationPlaceId; }
+    public void setLocationPlaceId(String locationPlaceId) { this.locationPlaceId = locationPlaceId; }
+
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
 
@@ -89,6 +103,9 @@ public class Event implements Serializable {
 
     public String getPosterUrl() { return posterUrl; }
     public void setPosterUrl(String posterUrl) { this.posterUrl = posterUrl; }
+
+    public String getPosterBase64() { return posterBase64; }
+    public void setPosterBase64(String posterBase64) { this.posterBase64 = posterBase64; }
 
     public boolean isGeolocationRequired() { return geolocationRequired; }
     public void setGeolocationRequired(boolean geolocationRequired) { this.geolocationRequired = geolocationRequired; }

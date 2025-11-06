@@ -3,6 +3,7 @@ package ca.team.originkickoff;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
@@ -14,6 +15,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -36,6 +38,8 @@ public class EventDetailActivity extends AppCompatActivity {
     private Button btnLotteryCriteria;
     private ImageView ivQrCode;
     private LinearLayout qrCodeSection;
+    private CardView locationCard;
+    private ImageView imageMapPreview;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -81,6 +85,8 @@ public class EventDetailActivity extends AppCompatActivity {
         btnLotteryCriteria = findViewById(R.id.btnLotteryCriteria);
         ivQrCode = findViewById(R.id.ivQrCode);
         qrCodeSection = findViewById(R.id.qrCodeSection);
+        locationCard = findViewById(R.id.locationCard);
+        imageMapPreview = findViewById(R.id.imageMapPreview);
     }
 
     private void setupListeners() {
@@ -116,12 +122,20 @@ public class EventDetailActivity extends AppCompatActivity {
 
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
         navNotifications.setOnClickListener(v -> {
-            Toast.makeText(this, "Notifications", Toast.LENGTH_SHORT).show();
+            Intent i = new Intent(this, NotificationsActivity.class);
+            startActivity(i);
         });
 
         LinearLayout navProfile = findViewById(R.id.navProfile);
         navProfile.setOnClickListener(v -> {
             Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
+        });
+
+        // Location card click
+        locationCard.setOnClickListener(v -> {
+            if (currentEvent != null && currentEvent.getLocation() != null) {
+                openMapPreview();
+            }
         });
     }
 
@@ -142,6 +156,22 @@ public class EventDetailActivity extends AppCompatActivity {
                             currentEvent.setLocation(documentSnapshot.getString("location"));
                             currentEvent.setPosterUrl(documentSnapshot.getString("posterUrl"));
                             currentEvent.setQrCodeBase64(documentSnapshot.getString("qrCodeBase64"));
+                            currentEvent.setPosterBase64(documentSnapshot.getString("posterBase64"));
+
+                            // Load location coordinates
+                            Double latitude = documentSnapshot.getDouble("locationLatitude");
+                            Double longitude = documentSnapshot.getDouble("locationLongitude");
+                            String placeId = documentSnapshot.getString("locationPlaceId");
+
+                            if (latitude != null) {
+                                currentEvent.setLocationLatitude(latitude);
+                            }
+                            if (longitude != null) {
+                                currentEvent.setLocationLongitude(longitude);
+                            }
+                            if (placeId != null) {
+                                currentEvent.setLocationPlaceId(placeId);
+                            }
 
                             // Handle numeric fields
                             Long capacity = documentSnapshot.getLong("capacity");
@@ -231,8 +261,24 @@ public class EventDetailActivity extends AppCompatActivity {
             qrCodeSection.setVisibility(View.GONE);
         }
 
-        // TODO: Load poster image using Glide or Picasso
-        // Glide.with(this).load(currentEvent.getPosterUrl()).into(posterImage);
+        // Load poster image from base64
+        if (currentEvent.getPosterBase64() != null && !currentEvent.getPosterBase64().isEmpty()) {
+            try {
+                byte[] decodedString = Base64.decode(currentEvent.getPosterBase64(), Base64.DEFAULT);
+                Bitmap posterBitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                posterImage.setImageBitmap(posterBitmap);
+                Log.d(TAG, "Poster image loaded from base64");
+            } catch (Exception e) {
+                Log.e(TAG, "Error decoding Base64 poster image", e);
+                // Keep default placeholder if decoding fails
+            }
+        } else {
+            Log.d(TAG, "No base64 poster image available");
+            // Keep default placeholder
+        }
+
+        // TODO: Load map preview image
+        // imageMapPreview.setImageBitmap(...);
     }
 
     private void joinWaitingList() {
@@ -249,5 +295,31 @@ public class EventDetailActivity extends AppCompatActivity {
         Toast.makeText(this, "Opening lottery criteria", Toast.LENGTH_SHORT).show();
 
         // TODO: Navigate to lottery criteria screen or show dialog
+    }
+
+    private void openMapPreview() {
+        if (currentEvent.getLocationLatitude() != 0.0 && currentEvent.getLocationLongitude() != 0.0) {
+            // Open full-screen map viewer
+            Intent intent = new Intent(this, MapViewActivity.class);
+            intent.putExtra(MapViewActivity.EXTRA_LATITUDE, currentEvent.getLocationLatitude());
+            intent.putExtra(MapViewActivity.EXTRA_LONGITUDE, currentEvent.getLocationLongitude());
+            intent.putExtra(MapViewActivity.EXTRA_LOCATION_NAME, currentEvent.getLocation());
+            startActivity(intent);
+        } else {
+            // Fallback: Open location in Google Maps using address search
+            String uri = "geo:0,0?q=" + Uri.encode(currentEvent.getLocation());
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+            intent.setPackage("com.google.android.apps.maps");
+
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivity(intent);
+            } else {
+                // If Google Maps not installed, open in browser
+                String browserUri = "https://www.google.com/maps/search/?api=1&query=" +
+                        Uri.encode(currentEvent.getLocation());
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(browserUri));
+                startActivity(browserIntent);
+            }
+        }
     }
 }
