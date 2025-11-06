@@ -172,6 +172,7 @@
 
             <!-- Event History Title -->
             <TextView
+                android:id="@+id/tvEventHistoryTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/event_history"
@@ -181,119 +182,11 @@
                 android:layout_marginTop="8dp"
                 android:layout_marginBottom="8dp"/>
 
-            <!-- Card 1 - Selected -->
-            <androidx.cardview.widget.CardView
+            <LinearLayout
+                android:id="@+id/eventHistoryLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardCornerRadius="16dp"
-                app:cardBackgroundColor="@color/ko_card_tint">
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="16dp">
-
-                    <LinearLayout
-                        android:id="@+id/status1"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/selected"
-                            android:textColor="@color/ko_success"
-                            android:textStyle="bold"
-                            android:textSize="12sp"/>
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvEvent1Title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@+id/status1"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/sample_event_1_name"
-                        android:textColor="@color/ko_text_primary"
-                        android:textStyle="bold"
-                        android:textSize="16sp"/>
-
-                    <TextView
-                        android:id="@+id/tvEvent1Location"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/tvEvent1Title"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/sample_event_1_location"
-                        android:textColor="@color/ko_text_muted"
-                        android:textSize="13sp"/>
-
-                    <ImageView
-                        android:layout_width="72dp"
-                        android:layout_height="56dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:src="@drawable/sample_event_1"
-                        android:contentDescription="@string/app_name"/>
-                </RelativeLayout>
-            </androidx.cardview.widget.CardView>
-
-            <!-- Card 2 - Not Selected -->
-            <androidx.cardview.widget.CardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="20dp"
-                app:cardCornerRadius="16dp"
-                app:cardBackgroundColor="@color/ko_card_tint">
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="16dp">
-
-                    <LinearLayout
-                        android:id="@+id/status2"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/not_selected"
-                            android:textColor="@color/ko_danger"
-                            android:textStyle="bold"
-                            android:textSize="12sp"/>
-                    </LinearLayout>
-
-                    <TextView
-                        android:id="@+id/tvEvent2Title"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/status2"
-                        android:layout_marginTop="6dp"
-                        android:text="@string/sample_event_2_name"
-                        android:textColor="@color/ko_text_primary"
-                        android:textStyle="bold"
-                        android:textSize="16sp"/>
-
-                    <TextView
-                        android:id="@+id/tvEvent2Location"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_below="@id/tvEvent2Title"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/sample_event_2_location"
-                        android:textColor="@color/ko_text_muted"
-                        android:textSize="13sp"/>
-
-                    <ImageView
-                        android:layout_width="72dp"
-                        android:layout_height="56dp"
-                        android:layout_alignParentEnd="true"
-                        android:layout_centerVertical="true"
-                        android:src="@drawable/sample_event_2"
-                        android:contentDescription="@string/app_name"/>
-                </RelativeLayout>
-            </androidx.cardview.widget.CardView>
+                android:orientation="vertical" />
 
             <!-- Buttons -->
             <com.google.android.material.button.MaterialButton

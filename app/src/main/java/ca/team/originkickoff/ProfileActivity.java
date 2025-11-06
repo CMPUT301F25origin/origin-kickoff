@@ -7,6 +7,7 @@ import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -24,10 +25,12 @@ import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -40,8 +43,10 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView tvUserName;
     private TextView tvUserEmail;
     private ImageView ivProfile;
+    private LinearLayout eventHistoryLayout;
     private String deviceId;
     private FirebaseFirestore db;
+    private String userDocId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +63,9 @@ public class ProfileActivity extends AppCompatActivity {
         deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
         ivProfile = findViewById(R.id.ivProfile);
+        eventHistoryLayout = findViewById(R.id.eventHistoryLayout);
+        tvUserName = findViewById(R.id.tvUserName);
+        tvUserEmail = findViewById(R.id.tvUserEmail);
 
         setupTopBar();
         setupToggles();
@@ -73,125 +81,89 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void setupTopBar() {
-        View btnBack = findViewById(R.id.btnBack);
-        btnBack.setOnClickListener(v -> finish());
-
-        View btnEdit = findViewById(R.id.btnEditProfile);
-        btnEdit.setOnClickListener(v -> {
-            Intent i = new Intent(this, EditProfileActivity.class);
-            startActivity(i);
+        findViewById(R.id.btnBack).setOnClickListener(v -> finish());
+        findViewById(R.id.btnEditProfile).setOnClickListener(v -> {
+            startActivity(new Intent(this, EditProfileActivity.class));
         });
     }
 
     private void setupToggles() {
         switchLottery = findViewById(R.id.switchLottery);
-
         if (TextUtils.isEmpty(deviceId)) return;
 
         db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
+                        userDocId = doc.getId();
                         Boolean notifService = doc.getBoolean("notif_service");
                         switchLottery.setChecked(notifService != null && notifService);
                     }
                 });
 
         switchLottery.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful() && !task.getResult().isEmpty()) {
-                            String docId = task.getResult().getDocuments().get(0).getId();
-                            db.collection("users").document(docId).update("notif_service", isChecked);
-                        }
-                    });
+            if(userDocId != null) {
+                db.collection("users").document(userDocId).update("notif_service", isChecked);
+            }
         });
     }
 
     private void setupButtons() {
-        MaterialButton btnDelete = findViewById(R.id.btnDelete);
-        btnDelete.setOnClickListener(v -> showDeleteConfirmationDialog());
+        findViewById(R.id.btnDelete).setOnClickListener(v -> showDeleteConfirmationDialog());
     }
 
     private void showDeleteConfirmationDialog() {
         final BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
         bottomSheetDialog.setContentView(R.layout.bottomsheet_delete_profile);
-
         MaterialButton btnCancel = bottomSheetDialog.findViewById(R.id.btnCancel);
         MaterialButton btnDelete = bottomSheetDialog.findViewById(R.id.btnDelete);
-
-        if (btnCancel != null) {
-            btnCancel.setOnClickListener(v -> bottomSheetDialog.dismiss());
-        }
-
-        if (btnDelete != null) {
-            btnDelete.setOnClickListener(v -> {
-                clearUserData();
-                bottomSheetDialog.dismiss();
-            });
-        }
-
+        if (btnCancel != null) btnCancel.setOnClickListener(v -> bottomSheetDialog.dismiss());
+        if (btnDelete != null) btnDelete.setOnClickListener(v -> {
+            clearUserData();
+            bottomSheetDialog.dismiss();
+        });
         bottomSheetDialog.show();
     }
 
     private void clearUserData() {
-        if (TextUtils.isEmpty(deviceId)) {
-            Toast.makeText(this, "Error: Could not get device ID.", Toast.LENGTH_SHORT).show();
+        if (userDocId == null) {
+            Toast.makeText(this, "Error: Could not get user profile to clear.", Toast.LENGTH_SHORT).show();
             return;
         }
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("display_name", "");
+        updates.put("email", null);
+        updates.put("phone", null);
+        updates.put("profile_image_id", null);
+        updates.put("is_admin", false);
+        updates.put("is_organizer", false);
+        updates.put("notif_marketing", false);
+        updates.put("notif_service", true);
+        updates.put("updated_at", FieldValue.serverTimestamp());
 
-        db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
-                .addOnCompleteListener(task -> {
-                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
-                        String docId = task.getResult().getDocuments().get(0).getId();
-
-                        Map<String, Object> updates = new HashMap<>();
-                        updates.put("display_name", "");
-                        updates.put("email", null);
-                        updates.put("phone", null);
-                        updates.put("profile_image_id", null);
-                        updates.put("is_admin", false);
-                        updates.put("is_organizer", false);
-                        updates.put("notif_marketing", false);
-                        updates.put("notif_service", true);
-                        updates.put("updated_at", FieldValue.serverTimestamp());
-
-                        db.collection("users").document(docId).update(updates)
-                                .addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(ProfileActivity.this, "Profile data cleared.", Toast.LENGTH_SHORT).show();
-                                    updateProfileHeader();
-                                    setupToggles();
-                                })
-                                .addOnFailureListener(e -> {
-                                    Log.e(TAG, "Failed to clear profile data", e);
-                                    Toast.makeText(ProfileActivity.this, "Failed to clear profile.", Toast.LENGTH_SHORT).show();
-                                });
-                    } else {
-                        Log.e(TAG, "Could not find profile to clear", task.getException());
-                        Toast.makeText(ProfileActivity.this, "Could not find profile to clear.", Toast.LENGTH_SHORT).show();
-                    }
-                });
+        db.collection("users").document(userDocId).update(updates)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(ProfileActivity.this, "Profile data cleared.", Toast.LENGTH_SHORT).show();
+                    updateProfileHeader();
+                    setupToggles();
+                })
+                .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to clear profile.", Toast.LENGTH_SHORT).show());
     }
 
     private void setupBottomBar() {
-        LinearLayout navHome = findViewById(R.id.navHome);
-        LinearLayout navEvents = findViewById(R.id.navEvents);
-        LinearLayout navNotifications = findViewById(R.id.navNotifications);
-        LinearLayout navProfile = findViewById(R.id.navProfile);
-
-        navHome.setOnClickListener(v -> {
+        findViewById(R.id.navHome).setOnClickListener(v -> {
             startActivity(new Intent(ProfileActivity.this, MainActivity.class));
             finish();
         });
-        navEvents.setOnClickListener(v -> {
+        findViewById(R.id.navEvents).setOnClickListener(v -> {
             startActivity(new Intent(ProfileActivity.this, MyEventsActivity.class));
             finish();
         });
-        navNotifications.setOnClickListener(v -> {
+        findViewById(R.id.navNotifications).setOnClickListener(v -> {
             startActivity(new Intent(ProfileActivity.this, NotificationsActivity.class));
             finish();
         });
-        navProfile.setOnClickListener(v -> {});
+        findViewById(R.id.navProfile).setOnClickListener(v -> {});
     }
 
     private void setupDeviceId() {
@@ -200,13 +172,8 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void updateProfileHeader() {
-        if (tvUserName == null) tvUserName = findViewById(R.id.tvUserName);
-        if (tvUserEmail == null) tvUserEmail = findViewById(R.id.tvUserEmail);
-
         if (TextUtils.isEmpty(deviceId)) {
-            tvUserName.setText("");
-            tvUserEmail.setText("");
-            showPlaceholderImage();
+            showPlaceholderAndClearData();
             return;
         }
 
@@ -214,55 +181,125 @@ public class ProfileActivity extends AppCompatActivity {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
+                        userDocId = doc.getId();
                         tvUserName.setText(doc.getString("display_name"));
                         tvUserEmail.setText(doc.getString("email"));
+                        loadProfileImage(doc.getString("profile_image_id"));
+                        loadEventHistory(userDocId);
+                    } else {
+                        showPlaceholderAndClearData();
+                    }
+                })
+                .addOnFailureListener(e -> showPlaceholderAndClearData());
+    }
 
-                        String imageId = doc.getString("profile_image_id");
-                        if (imageId != null && !imageId.isEmpty()) {
-                            loadAndSetProfileImage(imageId);
-                        } else {
+    private void showPlaceholderAndClearData(){
+        tvUserName.setText("");
+        tvUserEmail.setText("");
+        eventHistoryLayout.removeAllViews();
+        showPlaceholderImage();
+    }
+
+    private void loadProfileImage(String imageId) {
+        if (imageId != null && !imageId.isEmpty()) {
+            db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
+                if (imageDoc.exists()) {
+                    String base64Image = imageDoc.getString("storage_path");
+                    if (base64Image != null && !base64Image.isEmpty()) {
+                        try {
+                            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+                            ivProfile.setImageTintList(null);
+                            Glide.with(this).load(decodedString).apply(RequestOptions.circleCropTransform()).into(ivProfile);
+                        } catch (Exception e) {
                             showPlaceholderImage();
                         }
                     } else {
-                        tvUserName.setText("");
-                        tvUserEmail.setText("");
-                        showPlaceholderImage();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to load user data from Firestore", e);
-                    tvUserName.setText("");
-                    tvUserEmail.setText("");
-                    showPlaceholderImage();
-                });
-    }
-
-    private void loadAndSetProfileImage(String imageId) {
-        db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
-            if (imageDoc.exists()) {
-                String base64Image = imageDoc.getString("storage_path");
-                if (base64Image != null && !base64Image.isEmpty()) {
-                    try {
-                        byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
-                        ivProfile.setImageTintList(null);
-                        Glide.with(ProfileActivity.this)
-                                .load(decodedString)
-                                .apply(RequestOptions.circleCropTransform())
-                                .into(ivProfile);
-                    } catch (Exception e) {
                         showPlaceholderImage();
                     }
                 } else {
                     showPlaceholderImage();
                 }
-            } else {
-                showPlaceholderImage();
-            }
-        }).addOnFailureListener(e -> showPlaceholderImage());
+            }).addOnFailureListener(e -> showPlaceholderImage());
+        } else {
+            showPlaceholderImage();
+        }
     }
 
     private void showPlaceholderImage() {
         ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
         Glide.with(this).load(R.drawable.ic_person).apply(RequestOptions.circleCropTransform()).into(ivProfile);
+    }
+
+    private void loadEventHistory(String userId) {
+        eventHistoryLayout.removeAllViews();
+        db.collection("waiting_list_entries").whereEqualTo("user_id", userId).get()
+                .addOnSuccessListener(entries -> {
+                    if (entries.isEmpty()) {
+                        findViewById(R.id.tvEventHistoryTitle).setVisibility(View.GONE);
+                    } else {
+                        findViewById(R.id.tvEventHistoryTitle).setVisibility(View.VISIBLE);
+                        for (QueryDocumentSnapshot entry : entries) {
+                            String state = entry.getString("state");
+                            if (!"left".equalsIgnoreCase(state)) {
+                                String eventId = entry.getString("event_id");
+                                if (eventId != null) {
+                                    fetchEventAndDisplay(eventId, state);
+                                }
+                            }
+                        }
+                    }
+                });
+    }
+
+    private void fetchEventAndDisplay(String eventId, String state) {
+        db.collection("events").document(eventId).get().addOnSuccessListener(eventDoc -> {
+            if (eventDoc.exists()) {
+                LayoutInflater inflater = LayoutInflater.from(this);
+                View eventCard = inflater.inflate(R.layout.item_event_history, eventHistoryLayout, false);
+
+                TextView tvStatus = eventCard.findViewById(R.id.tvStatus);
+                TextView tvEventTitle = eventCard.findViewById(R.id.tvEventTitle);
+                TextView tvEventLocation = eventCard.findViewById(R.id.tvEventLocation);
+                ShapeableImageView ivEventImage = eventCard.findViewById(R.id.ivEventImage);
+
+                tvEventTitle.setText(eventDoc.getString("name"));
+                tvEventLocation.setText(eventDoc.getString("location_name"));
+                
+                String statusText = state != null ? state.substring(0, 1).toUpperCase() + state.substring(1) : "Unknown";
+                tvStatus.setText(statusText);
+
+                if ("selected".equalsIgnoreCase(state)) {
+                    tvStatus.setTextColor(ContextCompat.getColor(this, R.color.ko_success));
+                } else {
+                    tvStatus.setTextColor(ContextCompat.getColor(this, R.color.ko_danger));
+                }
+
+                String base64Image = eventDoc.getString("posterBase64");
+                if (base64Image != null && !base64Image.isEmpty()) {
+                    try {
+                        String pureBase64 = base64Image;
+                        int commaIndex = base64Image.indexOf(',');
+                        if (commaIndex != -1) {
+                            pureBase64 = base64Image.substring(commaIndex + 1);
+                        }
+                        byte[] decodedString = Base64.decode(pureBase64, Base64.DEFAULT);
+                        Glide.with(this)
+                                .load(decodedString)
+                                .placeholder(R.drawable.bg_event_image_placeholder)
+                                .error(R.drawable.bg_event_image_placeholder)
+                                .into(ivEventImage);
+                    } catch (IllegalArgumentException e) {
+                        Log.e(TAG, "Bad Base64 string for event " + eventId, e);
+                        ivEventImage.setImageResource(R.drawable.bg_event_image_placeholder);
+                    }
+                } else {
+                    ivEventImage.setImageResource(R.drawable.bg_event_image_placeholder);
+                }
+
+                eventHistoryLayout.addView(eventCard);
+            } else {
+                Log.e(TAG, "Event with ID " + eventId + " not found.");
+            }
+        }).addOnFailureListener(e -> Log.e(TAG, "Failed to fetch event with ID " + eventId, e));
     }
 }
