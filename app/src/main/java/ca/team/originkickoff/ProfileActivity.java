@@ -2,7 +2,6 @@ package ca.team.originkickoff;
 
 import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -65,7 +64,6 @@ public class ProfileActivity extends AppCompatActivity {
         setupButtons();
         setupBottomBar();
         setupDeviceId();
-        updateProfileHeader();
     }
 
     @Override
@@ -186,7 +184,7 @@ public class ProfileActivity extends AppCompatActivity {
             finish();
         });
         navEvents.setOnClickListener(v -> {
-            startActivity(new Intent(ProfileActivity.this, EventDetailActivity.class));
+            startActivity(new Intent(ProfileActivity.this, MyEventsActivity.class));
             finish();
         });
         navNotifications.setOnClickListener(v -> {
@@ -208,8 +206,7 @@ public class ProfileActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(deviceId)) {
             tvUserName.setText("");
             tvUserEmail.setText("");
-            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-            Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
+            showPlaceholderImage();
             return;
         }
 
@@ -221,45 +218,51 @@ public class ProfileActivity extends AppCompatActivity {
                         tvUserEmail.setText(doc.getString("email"));
 
                         String imageId = doc.getString("profile_image_id");
-                        if (imageId != null) {
-                            db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
-                                if (imageDoc.exists()) {
-                                    String base64Image = imageDoc.getString("storage_path");
-                                    if (base64Image != null && !base64Image.isEmpty()) {
-                                        try {
-                                            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
-                                            ivProfile.setImageTintList(null);
-                                            Glide.with(ProfileActivity.this)
-                                                    .load(decodedString)
-                                                    .apply(RequestOptions.circleCropTransform())
-                                                    .into(ivProfile);
-                                        } catch (Exception e) {
-                                            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                                            Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
-                                        }
-                                    }
-                                } else {
-                                    ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                                    Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
-                                }
-                            });
+                        if (imageId != null && !imageId.isEmpty()) {
+                            loadAndSetProfileImage(imageId);
                         } else {
-                            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                            Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
+                            showPlaceholderImage();
                         }
                     } else {
                         tvUserName.setText("");
                         tvUserEmail.setText("");
-                        ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                        Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
+                        showPlaceholderImage();
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to load user data from Firestore", e);
                     tvUserName.setText("");
                     tvUserEmail.setText("");
-                    ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                    Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
+                    showPlaceholderImage();
                 });
+    }
+
+    private void loadAndSetProfileImage(String imageId) {
+        db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
+            if (imageDoc.exists()) {
+                String base64Image = imageDoc.getString("storage_path");
+                if (base64Image != null && !base64Image.isEmpty()) {
+                    try {
+                        byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+                        ivProfile.setImageTintList(null);
+                        Glide.with(ProfileActivity.this)
+                                .load(decodedString)
+                                .apply(RequestOptions.circleCropTransform())
+                                .into(ivProfile);
+                    } catch (Exception e) {
+                        showPlaceholderImage();
+                    }
+                } else {
+                    showPlaceholderImage();
+                }
+            } else {
+                showPlaceholderImage();
+            }
+        }).addOnFailureListener(e -> showPlaceholderImage());
+    }
+
+    private void showPlaceholderImage() {
+        ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+        Glide.with(this).load(R.drawable.ic_person).apply(RequestOptions.circleCropTransform()).into(ivProfile);
     }
 }
