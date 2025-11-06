@@ -4,6 +4,7 @@ import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -26,19 +27,18 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 
+import ca.team.originkickoff.models.EventLocation;
 import ca.team.originkickoff.utils.QRCodeGenerator;
 
 public class CreateEventActivity extends AppCompatActivity {
     private static final String TAG = "CreateEventActivity";
+    private static final int LOCATION_REQUEST_CODE = 101;
 
     private EditText etEventName, etDescription, etLocation, etDate, etTime,
             etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime;
@@ -53,8 +53,10 @@ public class CreateEventActivity extends AppCompatActivity {
 
     private Uri selectedImageUri;
     private FirebaseFirestore db;
-    private FirebaseStorage storage;
     private FirebaseAuth auth;
+
+    // Location data
+    private EventLocation selectedLocation;
 
     // Hold chosen date/time in milliseconds
     private long eventDateMillis = -1;
@@ -78,7 +80,6 @@ public class CreateEventActivity extends AppCompatActivity {
         }
 
         db = FirebaseFirestore.getInstance();
-        storage = FirebaseStorage.getInstance();
         auth = FirebaseAuth.getInstance();
 
         bindViews();
@@ -135,6 +136,10 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void attachListeners() {
+        etLocation.setFocusable(false);
+        etLocation.setClickable(true);
+        etLocation.setOnClickListener(v -> openLocationSearch());
+
         etDate.setOnClickListener(v -> showDatePicker((millis) -> {
             eventDateMillis = millis;
             etDate.setText(android.text.format.DateFormat.getDateFormat(this).format(millis));
@@ -307,10 +312,7 @@ public class CreateEventActivity extends AppCompatActivity {
             return;
         }
 
-        if (selectedImageUri == null) {
-            Toast.makeText(this, "Please upload an event image", Toast.LENGTH_SHORT).show();
-            return;
-        }
+        // Image is now optional - removed validation
 
         long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
 
@@ -351,7 +353,7 @@ public class CreateEventActivity extends AppCompatActivity {
 
         // Assemble event map matching Firestore schema exactly
         Map<String, Object> event = new HashMap<>();
-        FirebaseUser current = auth.getCurrentUser();
+        com.google.firebase.auth.FirebaseUser current = auth.getCurrentUser();
         String organizerId;
         String organizerName;
 
@@ -371,6 +373,16 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("organizerId", organizerId);
         event.put("organizerName", organizerName);
         event.put("location", location);
+
+        // Add location coordinates if available
+        if (selectedLocation != null) {
+            event.put("locationLatitude", selectedLocation.getLatitude());
+            event.put("locationLongitude", selectedLocation.getLongitude());
+            if (selectedLocation.getPlaceId() != null) {
+                event.put("locationPlaceId", selectedLocation.getPlaceId());
+            }
+        }
+
         event.put("category", "General");
         event.put("capacity", capacity);
         event.put("lotteryCriteria", criteria);
@@ -383,33 +395,59 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("registrationStartTime", new Timestamp(new java.util.Date(regStartMillis)));
         event.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
 
-        // Upload image and save event
-        uploadImageAndSaveEvent(selectedImageUri, event);
+        // Check if image was selected
+        if (selectedImageUri != null) {
+            // Convert image to Base64 and save event
+            uploadImageAndSaveEvent(selectedImageUri, event);
+        } else {
+            // No image selected, save event directly without poster
+            saveEventToFirestore(event);
+        }
     }
 
     private void uploadImageAndSaveEvent(Uri uri, Map<String, Object> event) {
-        String id = UUID.randomUUID().toString();
-        StorageReference ref = storage.getReference().child("event_posters/" + id);
+        Toast.makeText(this, "Processing image...", Toast.LENGTH_SHORT).show();
 
-        Toast.makeText(this, "Uploading image...", Toast.LENGTH_SHORT).show();
+        // Convert image to base64 and attach to event
+        try {
+            java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
+            Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
 
-        ref.putFile(uri)
-                .addOnSuccessListener(taskSnapshot -> {
-                    Log.d(TAG, "Image uploaded successfully");
-                    ref.getDownloadUrl().addOnSuccessListener(downloadUri -> {
-                        event.put("posterUrl", downloadUri.toString());
-                        saveEventToFirestore(event);
-                    }).addOnFailureListener(e -> {
-                        Log.e(TAG, "Failed to get download URL", e);
-                        setLoading(false);
-                        Toast.makeText(this, "Failed to get image URL: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    });
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Upload failed", e);
-                    setLoading(false);
-                    Toast.makeText(this, "Image upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                });
+            // Resize bitmap if too large to avoid base64 string being too big
+            int maxWidth = 800;
+            int maxHeight = 800;
+            if (bitmap != null && (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight)) {
+                float scale = Math.min(
+                        (float) maxWidth / bitmap.getWidth(),
+                        (float) maxHeight / bitmap.getHeight()
+                );
+                int newWidth = Math.round(bitmap.getWidth() * scale);
+                int newHeight = Math.round(bitmap.getHeight() * scale);
+                bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
+            }
+
+            if (bitmap != null) {
+                // Convert to base64 (no wrap to save bytes)
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+                byte[] imageBytes = baos.toByteArray();
+                String posterBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
+
+                // Save base64 to event
+                event.put("posterBase64", posterBase64);
+            } else {
+                Log.w(TAG, "Bitmap decoding returned null; skipping posterBase64");
+            }
+
+            if (inputStream != null) {
+                inputStream.close();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error converting image to base64", e);
+        }
+
+        // Directly save event to Firestore without using Firebase Storage
+        saveEventToFirestore(event);
     }
 
     private void saveEventToFirestore(Map<String, Object> event) {
@@ -452,7 +490,7 @@ public class CreateEventActivity extends AppCompatActivity {
         }
 
         // Base64 encode the byte array to a string
-        String qrCodeBase64 = Base64.encodeToString(qrCodeBytes, Base64.DEFAULT);
+        String qrCodeBase64 = Base64.encodeToString(qrCodeBytes, Base64.NO_WRAP);
 
         // Update the event document with the Base64 string
         eventRef.update("qrCodeBase64", qrCodeBase64)
@@ -495,5 +533,24 @@ public class CreateEventActivity extends AppCompatActivity {
         if (et == null) return "";
         CharSequence cs = et.getText();
         return cs == null ? "" : cs.toString().trim();
+    }
+
+    private void openLocationSearch() {
+        Intent intent = new Intent(this, LocationSearchActivity.class);
+        startActivityForResult(intent, LOCATION_REQUEST_CODE);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == LOCATION_REQUEST_CODE && resultCode == RESULT_OK && data != null) {
+            String address = data.getStringExtra("address");
+            double latitude = data.getDoubleExtra("latitude", 0.0);
+            double longitude = data.getDoubleExtra("longitude", 0.0);
+            String placeId = data.getStringExtra("placeId");
+
+            selectedLocation = new EventLocation(address, latitude, longitude, placeId);
+            etLocation.setText(address);
+        }
     }
 }
