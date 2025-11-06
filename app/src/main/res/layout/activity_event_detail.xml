@@ -43,6 +43,19 @@
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"/>
 
+        <ImageView
+            android:id="@+id/btnEdit"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginEnd="16dp"
+            android:src="@drawable/ic_edit"
+            android:contentDescription="Edit Event"
+            app:tint="#FFFFFF"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- SCROLLABLE CONTENT -->
@@ -314,6 +327,21 @@
                     android:textStyle="bold"
                     android:textAllCaps="false"
                     android:backgroundTint="#68F0C9"
+                    app:cornerRadius="999dp"
+                    app:elevation="0dp"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnManageNotifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:text="Manage Notifications"
+                    android:textColor="#003932"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:backgroundTint="#68F0C9"
+                    android:visibility="gone"
                     app:cornerRadius="999dp"
                     app:elevation="0dp"/>
 
