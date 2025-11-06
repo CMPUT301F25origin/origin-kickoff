@@ -1,14 +1,16 @@
 package ca.team.originkickoff;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -17,9 +19,17 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 
+import com.google.android.material.bottomsheet.BottomSheetBehavior;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.android.material.button.MaterialButton;
 
+import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
+import ca.team.originkickoff.models.User;
+import ca.team.originkickoff.services.WaitingListService;
+import ca.team.originkickoff.WaitingListActivity; // explicit import
 
 public class EventDetailActivity extends AppCompatActivity {
     private static final String TAG = "EventDetailActivity";
@@ -34,8 +44,8 @@ public class EventDetailActivity extends AppCompatActivity {
     private TextView pillTotalEntrants;
     private TextView pillSpotsLeft;
     private TextView pillToBeSelected;
-    private Button btnJoinWaitingList;
-    private Button btnLotteryCriteria;
+    private MaterialButton btnJoinWaitingList;
+    private MaterialButton btnLotteryCriteria;
     private ImageView ivQrCode;
     private LinearLayout qrCodeSection;
     private CardView locationCard;
@@ -44,6 +54,10 @@ public class EventDetailActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private String eventId;
     private Event currentEvent;
+
+    private final WaitingListService waitingListService = new WaitingListService();
+    private final UserRepository userRepository = new UserRepository();
+    private User currentUser; // resolved from device_id
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,6 +80,9 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // Set up listeners
         setupListeners();
+
+        // Resolve user from device ID
+        resolveCurrentUser();
 
         // Load event data
         loadEventData();
@@ -96,8 +113,10 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // Action buttons
         btnJoinWaitingList.setOnClickListener(v -> {
-            if (currentEvent != null) {
-                joinWaitingList();
+            if (currentEvent != null && currentUser != null) {
+                toggleJoinLeave();
+            } else {
+                Toast.makeText(this, "Loading user...", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -116,19 +135,13 @@ public class EventDetailActivity extends AppCompatActivity {
         });
 
         LinearLayout navEvents = findViewById(R.id.navEvents);
-        navEvents.setOnClickListener(v -> {
-            Toast.makeText(this, "My Events", Toast.LENGTH_SHORT).show();
-        });
+        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events", Toast.LENGTH_SHORT).show());
 
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
-        navNotifications.setOnClickListener(v -> {
-            Toast.makeText(this, "Notifications", Toast.LENGTH_SHORT).show();
-        });
+        navNotifications.setOnClickListener(v -> Toast.makeText(this, "Notifications", Toast.LENGTH_SHORT).show());
 
         LinearLayout navProfile = findViewById(R.id.navProfile);
-        navProfile.setOnClickListener(v -> {
-            Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show();
-        });
+        navProfile.setOnClickListener(v -> Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show());
 
         // Location card click
         locationCard.setOnClickListener(v -> {
@@ -136,6 +149,88 @@ public class EventDetailActivity extends AppCompatActivity {
                 openMapPreview();
             }
         });
+    }
+
+    private void resolveCurrentUser() {
+        // Use ANDROID_ID as device id source
+        String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+        userRepository.findUserByDeviceId(deviceId).observe(this, user -> {
+            currentUser = user;
+            // After we know user, refresh join button label
+            refreshJoinButton();
+        });
+    }
+
+    private void refreshJoinButton() {
+        if (currentEvent == null || currentUser == null) return;
+        waitingListService.isOnWaitlist(currentEvent.getId(), currentUser.getId())
+                .addOnSuccessListener(isOn -> {
+                    updateJoinLeaveButtonStyle(isOn);
+                });
+    }
+
+    private void updateJoinLeaveButtonStyle(boolean isOnList) {
+        if (isOnList) {
+            btnJoinWaitingList.setText("Leave Waiting List");
+            btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); // red
+            btnJoinWaitingList.setTextColor(Color.WHITE);
+        } else {
+            btnJoinWaitingList.setText("Join Waiting List");
+            btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0"))); // teal
+            btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
+        }
+    }
+
+    private void toggleJoinLeave() {
+        String eventId = currentEvent.getId();
+        String userId = currentUser.getId();
+        waitingListService.isOnWaitlist(eventId, userId)
+                .addOnSuccessListener(isOn -> {
+                    if (isOn) {
+                        waitingListService.leave(eventId, userId)
+                                .addOnSuccessListener(changed -> {
+                                    if (changed) Toast.makeText(this, "Left waiting list", Toast.LENGTH_SHORT).show();
+                                    currentEvent.setWaitlistCount(Math.max(0, currentEvent.getWaitlistCount() - (changed ? 1 : 0)));
+                                    updateUI();
+                                    updateJoinLeaveButtonStyle(false);
+                                })
+                                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    } else {
+                        showJoinConfirmationDialog(eventId, userId);
+                    }
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    private void showJoinConfirmationDialog(String eventId, String userId) {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View content = inflater.inflate(R.layout.dialog_join_waitlist, null, false);
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        dialog.setContentView(content);
+        // Make background transparent so our card keeps rounded corners
+        android.widget.FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) sheet.setBackgroundResource(android.R.color.transparent);
+        BottomSheetBehavior<?> behavior = dialog.getBehavior();
+        behavior.setSkipCollapsed(true);
+        behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+        content.findViewById(R.id.btnYes).setOnClickListener(v -> {
+            dialog.dismiss();
+            doJoin(eventId, userId);
+        });
+        content.findViewById(R.id.btnNo).setOnClickListener(v -> dialog.dismiss());
+        dialog.show();
+    }
+
+    private void doJoin(String eventId, String userId) {
+        waitingListService.join(eventId, userId, false, null, null, null, "list")
+                .addOnSuccessListener(changed -> {
+                    if (changed) Toast.makeText(this, "Joined waiting list", Toast.LENGTH_SHORT).show();
+                    currentEvent.setWaitlistCount(currentEvent.getWaitlistCount() + (changed ? 1 : 0));
+                    updateUI();
+                    updateJoinLeaveButtonStyle(true);
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     private void loadEventData() {
@@ -202,6 +297,7 @@ public class EventDetailActivity extends AppCompatActivity {
 
                             // Update UI
                             updateUI();
+                            refreshJoinButton();
 
                         } catch (Exception e) {
                             Log.e(TAG, "Error parsing event data", e);
@@ -276,23 +372,23 @@ public class EventDetailActivity extends AppCompatActivity {
             // Keep default placeholder
         }
 
+        // When organizer views, show button to open waiting list entrants screen
+        if (currentUser != null && currentEvent != null && currentUser.isOrganizer() &&
+                currentEvent.getOrganizerId() != null && currentEvent.getOrganizerId().equals(currentUser.getId())) {
+            // repurpose second button for viewing list
+            btnLotteryCriteria.setText("View Waiting List");
+            btnLotteryCriteria.setOnClickListener(v -> {
+                Intent i = new Intent(this, ca.team.originkickoff.WaitingListActivity.class);
+                i.putExtra(ca.team.originkickoff.WaitingListActivity.EXTRA_EVENT_ID, currentEvent.getId());
+                startActivity(i);
+            });
+        }
         // TODO: Load map preview image
         // imageMapPreview.setImageBitmap(...);
     }
 
-    private void joinWaitingList() {
-        Toast.makeText(this, "Joining waiting list for: " + currentEvent.getName(), Toast.LENGTH_SHORT).show();
-
-        // TODO: Implement join waiting list logic
-        // 1. Check if user is already on the waiting list
-        // 2. Check if geolocation is required and verify location
-        // 3. Add user to the waiting list in Firebase
-        // 4. Update the UI
-    }
-
     private void openLotteryCriteria() {
         Toast.makeText(this, "Opening lottery criteria", Toast.LENGTH_SHORT).show();
-
         // TODO: Navigate to lottery criteria screen or show dialog
     }
 
