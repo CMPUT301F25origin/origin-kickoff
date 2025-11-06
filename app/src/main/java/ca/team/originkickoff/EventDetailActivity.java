@@ -116,7 +116,8 @@ public class EventDetailActivity extends AppCompatActivity {
 
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
         navNotifications.setOnClickListener(v -> {
-            Toast.makeText(this, "Notifications", Toast.LENGTH_SHORT).show();
+            Intent i = new Intent(this, NotificationsActivity.class);
+            startActivity(i);
         });
 
         LinearLayout navProfile = findViewById(R.id.navProfile);
