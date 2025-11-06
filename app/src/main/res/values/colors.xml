@@ -18,4 +18,10 @@
     <color name="ko_success">#2ECC71</color>
     <color name="ko_danger">#D54A45</color>
     <color name="ko_card_tint">#152823</color>
+
+    <!-- Additional colors used by organized list -->
+    <color name="dark_card_background">#121212</color>
+    <color name="light_gray">#BFBFBF</color>
+    <color name="very_dark_gray">#1F1F1F</color>
+    <color name="ko_warning">#D4A200</color>
 </resources>

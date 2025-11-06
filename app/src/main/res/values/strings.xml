@@ -80,4 +80,11 @@ All your data will be erased!</string>
     <string name="notifications_settings_title">Settings</string>
     <string name="notifications_prefs_title">Notification Preferences</string>
     <string name="notifications_prefs_subtitle">Opt out of receiving notifications from organizers and admins.</string>
+    <string name="more">More</string>
+    <string name="date_tbd">Date TBD</string>
+    <string name="entrants_count">%1$s Entrants</string>
+    <string name="winners_selected">Winners Selected</string>
+    <string name="lottery_pending">Lottery Pending</string>
+    <string name="entrants_desc">Entrants</string>
+    <string name="lottery_status_desc">Lottery status</string>
 </resources>

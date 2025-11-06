@@ -1,9 +1,28 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.KickOff" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <!-- Make the app top bar and surfaces use the same dark surface color -->
+        <item name="colorPrimary">@color/ko_surface</item>
+        <item name="colorOnPrimary">@color/ko_text_primary</item>
+        <item name="colorSurface">@color/ko_surface</item>
+        <item name="colorOnSurface">@color/ko_text_primary</item>
+        <item name="android:statusBarColor">@color/ko_surface</item>
+        <!-- Make the window background match the same dark surface so the top area is consistent -->
+        <item name="android:windowBackground">@color/ko_surface</item>
+        <!-- Keep status bar icons light (good for dark status bar) -->
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
     <style name="Theme.KickOff" parent="Base.Theme.KickOff" />
+
+    <!-- Toolbar widget style that uses the dark surface background and white title text -->
+    <style name="Widget.KickOff.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/ko_surface</item>
+        <item name="titleTextAppearance">@style/TextAppearance.KickOff.ToolbarTitle</item>
+    </style>
+
+    <style name="TextAppearance.KickOff.ToolbarTitle" parent="TextAppearance.Material3.TitleLarge">
+        <item name="android:textColor">@color/ko_text_primary</item>
+        <item name="android:textSize">20sp</item>
+    </style>
 </resources>
