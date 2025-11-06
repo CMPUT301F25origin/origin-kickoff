@@ -29,11 +29,12 @@ import java.util.Map;
 public class ProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "ProfileActivity";
-    private SwitchMaterial switchWon;
-    private SwitchMaterial switchLost;
+    private SwitchMaterial switchLottery;
     private TextView tvDeviceId;
     private TextView tvUserName;
     private TextView tvUserEmail;
+    private String deviceId;
+    private FirebaseFirestore db;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +46,9 @@ public class ProfileActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        db = FirebaseFirestore.getInstance();
+        deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
         setupTopBar();
         setupToggles();
@@ -72,18 +76,28 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void setupToggles() {
-        switchWon = findViewById(R.id.switchWon);
-        switchLost = findViewById(R.id.switchLost);
+        switchLottery = findViewById(R.id.switchLottery);
 
-        boolean won = getSharedPreferences("profile", MODE_PRIVATE).getBoolean("won_updates", true);
-        boolean lost = getSharedPreferences("profile", MODE_PRIVATE).getBoolean("lost_updates", true);
-        switchWon.setChecked(won);
-        switchLost.setChecked(lost);
+        if (TextUtils.isEmpty(deviceId)) return;
 
-        switchWon.setOnCheckedChangeListener((buttonView, isChecked) ->
-                getSharedPreferences("profile", MODE_PRIVATE).edit().putBoolean("won_updates", isChecked).apply());
-        switchLost.setOnCheckedChangeListener((buttonView, isChecked) ->
-                getSharedPreferences("profile", MODE_PRIVATE).edit().putBoolean("lost_updates", isChecked).apply());
+        db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
+                        Boolean notifService = doc.getBoolean("notif_service");
+                        switchLottery.setChecked(notifService != null && notifService);
+                    }
+                });
+
+        switchLottery.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                            String docId = task.getResult().getDocuments().get(0).getId();
+                            db.collection("users").document(docId).update("notif_service", isChecked);
+                        }
+                    });
+        });
     }
 
     private void setupButtons() {
@@ -101,13 +115,12 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void clearUserData() {
-        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         if (TextUtils.isEmpty(deviceId)) {
             Toast.makeText(this, "Error: Could not get device ID.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        FirebaseFirestore.getInstance().collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+        db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful() && !task.getResult().isEmpty()) {
                         String docId = task.getResult().getDocuments().get(0).getId();
@@ -122,10 +135,9 @@ public class ProfileActivity extends AppCompatActivity {
                         updates.put("notif_service", true); // Reset to default
                         updates.put("updated_at", FieldValue.serverTimestamp());
 
-                        FirebaseFirestore.getInstance().collection("users").document(docId).update(updates)
+                        db.collection("users").document(docId).update(updates)
                                 .addOnSuccessListener(aVoid -> {
                                     Toast.makeText(ProfileActivity.this, "Profile data cleared.", Toast.LENGTH_SHORT).show();
-                                    getSharedPreferences("profile", MODE_PRIVATE).edit().clear().apply();
                                     updateProfileHeader();
                                     setupToggles();
                                 })
@@ -150,29 +162,33 @@ public class ProfileActivity extends AppCompatActivity {
             startActivity(new Intent(ProfileActivity.this, MainActivity.class));
             finish();
         });
-        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events coming soon", Toast.LENGTH_SHORT).show());
-        navNotifications.setOnClickListener(v -> Toast.makeText(this, "Notifications coming soon", Toast.LENGTH_SHORT).show());
+        navEvents.setOnClickListener(v -> {
+            startActivity(new Intent(ProfileActivity.this, EventDetailActivity.class));
+            finish();
+        });
+        navNotifications.setOnClickListener(v -> {
+            startActivity(new Intent(ProfileActivity.this, NotificationsActivity.class));
+            finish();
+        });
         navProfile.setOnClickListener(v -> {}); // already here
     }
 
     private void setupDeviceId() {
         tvDeviceId = findViewById(R.id.tvDeviceId);
-        String id = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
-        tvDeviceId.setText(getString(R.string.device_id, id != null ? id : "-"));
+        tvDeviceId.setText(getString(R.string.device_id, deviceId != null ? deviceId : "-"));
     }
 
     private void updateProfileHeader() {
         if (tvUserName == null) tvUserName = findViewById(R.id.tvUserName);
         if (tvUserEmail == null) tvUserEmail = findViewById(R.id.tvUserEmail);
 
-        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         if (TextUtils.isEmpty(deviceId)) {
             tvUserName.setText("");
             tvUserEmail.setText("");
             return;
         }
 
-        FirebaseFirestore.getInstance().collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+        db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
