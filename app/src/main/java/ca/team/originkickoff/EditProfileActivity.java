@@ -47,7 +47,7 @@ public class EditProfileActivity extends AppCompatActivity {
     private ImageView ivProfile;
     private FirebaseFirestore db;
     private String deviceId;
-    private String userDocId; // To store the user's document ID
+    private String userDocId;
 
     private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -86,12 +86,8 @@ public class EditProfileActivity extends AppCompatActivity {
 
         loadUserData();
 
-        View btnClose = findViewById(R.id.btnClose);
-        btnClose.setOnClickListener(v -> finish());
-
-        MaterialButton btnSave = findViewById(R.id.btnSave);
-        btnSave.setOnClickListener(v -> onSave());
-
+        findViewById(R.id.btnClose).setOnClickListener(v -> finish());
+        findViewById(R.id.btnSave).setOnClickListener(v -> onSave());
         findViewById(R.id.btnEditPicture).setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
             imagePickerLauncher.launch(intent);
@@ -110,11 +106,10 @@ public class EditProfileActivity extends AppCompatActivity {
                         etPhone.setText(documentSnapshot.getString("phone"));
 
                         String imageId = documentSnapshot.getString("profile_image_id");
-                        if (imageId != null) {
+                        if (imageId != null && !imageId.isEmpty()) {
                             loadAndSetProfileImage(imageId);
                         } else {
-                            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                            Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
+                            showPlaceholderImage();
                         }
                     }
                 }).addOnFailureListener(e -> {
@@ -136,15 +131,21 @@ public class EditProfileActivity extends AppCompatActivity {
                                 .apply(RequestOptions.circleCropTransform())
                                 .into(ivProfile);
                     } catch (Exception e) {
-                        Log.e(TAG, "Error decoding Base64 image", e);
-                        ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
-                        Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
+                        showPlaceholderImage();
                     }
+                } else {
+                    showPlaceholderImage();
                 }
+            } else {
+                showPlaceholderImage();
             }
-        });
+        }).addOnFailureListener(e -> showPlaceholderImage());
     }
 
+    private void showPlaceholderImage() {
+        ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+        Glide.with(this).load(R.drawable.ic_person).apply(RequestOptions.circleCropTransform()).into(ivProfile);
+    }
 
     private void onSave() {
         String name = etName.getText().toString().trim();
@@ -192,15 +193,15 @@ public class EditProfileActivity extends AppCompatActivity {
 
         try {
             Bitmap bitmap = uriToBitmap(imageUri);
-
             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
             bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
 
-            if (byteArray.length > 1048576) {
+            if (byteArray.length > 1048576) { // 1 MiB limit
                 Toast.makeText(this, "Image is too large. Please select an image under 1MB.", Toast.LENGTH_LONG).show();
                 return;
             }
+
             String base64Image = Base64.encodeToString(byteArray, Base64.DEFAULT);
             String imageId = UUID.randomUUID().toString();
 
@@ -216,22 +217,16 @@ public class EditProfileActivity extends AppCompatActivity {
             image.put("created_at", FieldValue.serverTimestamp());
 
             db.collection("images").document(imageId).set(image)
-                    .addOnSuccessListener(aVoid -> {
-                        db.collection("users").document(userDocId)
-                                .update("profile_image_id", imageId)
-                                .addOnSuccessListener(aVoid1 -> {
-                                    Toast.makeText(EditProfileActivity.this, "Profile picture updated.", Toast.LENGTH_SHORT).show();
-                                    ivProfile.setImageTintList(null);
-                                    Glide.with(this)
-                                            .load(byteArray)
-                                            .apply(RequestOptions.circleCropTransform())
-                                            .into(ivProfile);
-                                })
-                                .addOnFailureListener(e -> {
-                                    Log.e(TAG, "Failed to link image to profile.", e);
-                                    Toast.makeText(EditProfileActivity.this, "Error linking profile image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                });
-                    })
+                    .addOnSuccessListener(aVoid -> db.collection("users").document(userDocId)
+                            .update("profile_image_id", imageId)
+                            .addOnSuccessListener(aVoid1 -> {
+                                Toast.makeText(EditProfileActivity.this, "Profile picture updated.", Toast.LENGTH_SHORT).show();
+                                loadAndSetProfileImage(imageId);
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "Failed to link image to profile.", e);
+                                Toast.makeText(EditProfileActivity.this, "Error linking profile image: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            }))
                     .addOnFailureListener(e -> {
                         Log.e(TAG, "Error uploading image to Firestore", e);
                         Toast.makeText(EditProfileActivity.this, "Image upload failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
