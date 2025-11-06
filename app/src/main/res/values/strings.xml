@@ -30,4 +30,54 @@
     <string name="my_events">My Events</string>
     <string name="notifications">Notifications</string>
     <string name="profile">Profile</string>
+
+    <!-- Profile Screen -->
+    <string name="profile_title">Profile</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="won_lottery_updates">Won Lottery Updates</string>
+    <string name="lost_lottery_updates">Lost Lottery Updates</string>
+    <string name="event_history">Event History</string>
+    <string name="delete_profile">Delete Profile</string>
+    <string name="log_out">Log Out</string>
+    <string name="device_id">Device ID: %1$s</string>
+    <string name="selected">Selected</string>
+    <string name="not_selected">Not Selected</string>
+    <string name="sample_user_name">Ethan Carter</string>
+    <string name="sample_user_email">ethan.carter@email.com</string>
+    <string name="sample_event_1_name">Tech Conference</string>
+    <string name="sample_event_1_location">San Francisco, CA</string>
+    <string name="sample_event_2_name">Music Festival</string>
+    <string name="sample_event_2_location">Los Angeles, CA</string>
+
+    <!-- Edit Profile Screen -->
+    <string name="edit_profile_title">Edit Profile</string>
+    <string name="edit_profile_picture">Edit Profile Picture</string>
+    <string name="name_label">Name</string>
+    <string name="email_label">Email</string>
+    <string name="phone_label">Phone</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="phone_hint">780-123-4567</string>
+
+    <!-- Delete Profile Confirmation -->
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="delete_profile_confirm_title">Delete Profile?</string>
+    <string name="delete_profile_confirm_message">Are you sure you want to delete your profile?
+All your data will be erased!</string>
+    <!-- Notifications Screen -->
+    <string name="no_notifications">No notifications yet</string>
+    <string name="no_notifications_subtitle">You will see updates here when they arrive.</string>
+    <string name="back">Back</string>
+    <string name="notifications_today">Today</string>
+    <string name="notification_lottery_title">Lottery Result</string>
+    <string name="text_lottery_win">You won the lottery for the event \'Tech Innovators Summit\'.</string>
+    <string name="notification_event_update_title">Event Update</string>
+    <string name="text_event_postponed">The event \'Artisan Craft Fair\' has been postponed to next month.</string>
+    <string name="notifications_yesterday">Yesterday</string>
+    <string name="text_lottery_lose">You did not win the lottery for the event \'Global Music Festival\'.</string>
+    <string name="notification_new_event_title">New Event</string>
+    <string name="text_new_event_open">The event \'Local Food Tasting\' is now open for lottery entries.</string>
+    <string name="notifications_settings_title">Settings</string>
+    <string name="notifications_prefs_title">Notification Preferences</string>
+    <string name="notifications_prefs_subtitle">Opt out of receiving notifications from organizers and admins.</string>
 </resources>
