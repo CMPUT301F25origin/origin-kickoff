@@ -24,12 +24,9 @@ public class MyEventsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Use runtime lookup for layout resource to avoid stale generated R issues in the analysis tool.
-        int layoutId = getResources().getIdentifier("activity_my_events", "layout", getPackageName());
-        if (layoutId != 0) setContentView(layoutId);
-        else setContentView(getResources().getIdentifier("activity_my_events", "layout", getPackageName()));
+        setContentView(R.layout.activity_my_events);
 
-        Toolbar toolbar = findViewById(getResources().getIdentifier("toolbar", "id", getPackageName()));
+        Toolbar toolbar = findViewById(R.id.toolbar);
         if (toolbar != null) {
             setSupportActionBar(toolbar);
         }
@@ -39,8 +36,8 @@ public class MyEventsActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("My Events");
         }
 
-        tabLayout = findViewById(getResources().getIdentifier("tabLayout", "id", getPackageName()));
-        viewPager = findViewById(getResources().getIdentifier("viewPager", "id", getPackageName()));
+        tabLayout = findViewById(R.id.tabLayout);
+        viewPager = findViewById(R.id.viewPager);
 
         viewPager.setAdapter(new FragmentStateAdapter(this) {
             @NonNull
@@ -67,7 +64,7 @@ public class MyEventsActivity extends AppCompatActivity {
         }).attach();
 
         // Wire FAB: only visible on Events Organized (index 1)
-        FloatingActionButton fab = findViewById(getResources().getIdentifier("fabCreate", "id", getPackageName()));
+        FloatingActionButton fab = findViewById(R.id.fabCreate);
         if (fab != null) {
             fab.setOnClickListener(v -> startActivity(new Intent(MyEventsActivity.this, CreateEventActivity.class)));
 
