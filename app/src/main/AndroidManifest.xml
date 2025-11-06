@@ -40,6 +40,8 @@
         <activity android:name=".CreateEventActivity" android:exported="false" />
         <activity android:name=".EventDetailActivity" android:exported="false" />
         <activity android:name=".ScanActivity" android:exported="false" />
+        <activity android:name=".ProfileActivity" android:exported="false" />
+        <activity android:name=".EditProfileActivity" android:exported="false" />
         <activity android:name=".NotificationsActivity" android:exported="false" />
         <activity android:name=".LocationSearchActivity" android:exported="false" />
         <activity android:name=".LocationPickerActivity" android:exported="false" />

@@ -139,6 +139,20 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         dateFilter = findViewById(R.id.dateFilter);
         locationFilter = findViewById(R.id.locationFilter);
 
+        // Bottom nav
+        LinearLayout navHome = findViewById(R.id.navHome);
+        LinearLayout navEvents = findViewById(R.id.navEvents);
+        LinearLayout navNotifications = findViewById(R.id.navNotifications);
+        LinearLayout navProfile = findViewById(R.id.navProfile);
+
+        navHome.setOnClickListener(v -> { /* already here */ });
+        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events coming soon", Toast.LENGTH_SHORT).show());
+        navNotifications.setOnClickListener(v -> Toast.makeText(this, "Notifications coming soon", Toast.LENGTH_SHORT).show());
+        navProfile.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
+
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) { filterEvents(); }

@@ -1,7 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Existing colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="teal_700">#FF00897B</color>
     <color name="teal_200">#FF80CBC4</color>
+
+    <!-- Profile screen palette -->
+    <color name="ko_background">#0F1917</color>
+    <color name="ko_surface">#13211D</color>
+    <color name="ko_surface_alt">#0F0F0F</color>
+    <color name="ko_teal">#00D9C5</color>
+    <color name="ko_teal_soft">#4DE8C0</color>
+    <color name="ko_text_primary">#FFFFFFFF</color>
+    <color name="ko_text_muted">#BFBFBF</color>
+    <color name="ko_divider">#1F2A27</color>
+    <color name="ko_success">#2ECC71</color>
+    <color name="ko_danger">#D54A45</color>
+    <color name="ko_card_tint">#152823</color>
 </resources>
