@@ -101,18 +101,13 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="8dp">
 
-                <FrameLayout
+                <ImageView
+                    android:id="@+id/ivProfile"
                     android:layout_width="96dp"
                     android:layout_height="96dp"
-                    android:background="@drawable/bg_circle_dark">
-                    <ImageView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:padding="24dp"
-                        android:src="@drawable/ic_person"
-                        android:contentDescription="@string/profile"
-                        app:tint="@color/ko_teal"/>
-                </FrameLayout>
+                    android:background="@drawable/bg_circle_dark"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_person" />
 
                 <TextView
                     android:id="@+id/tvUserName"
@@ -153,41 +148,17 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/won_lottery_updates"
+                        android:text="Lottery Updates"
                         android:textColor="@color/ko_text_primary"
                         android:textSize="14sp"/>
 
                     <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchWon"
+                        android:id="@+id/switchLottery"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:checked="true"
                         app:thumbTint="@color/white"
-                        app:trackTint="@color/ko_teal_soft"/>
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:paddingTop="8dp"
-                    android:paddingBottom="8dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/lost_lottery_updates"
-                        android:textColor="@color/ko_text_primary"
-                        android:textSize="14sp"/>
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchLost"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:checked="true"
-                        app:thumbTint="@color/white"
-                        app:trackTint="@color/ko_teal_soft"/>
+                        app:trackTint="@color/switch_track_selector"/>
                 </LinearLayout>
             </LinearLayout>
 
@@ -297,7 +268,7 @@
                         android:id="@+id/tvEvent2Title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_below="@+id/status2"
+                        android:layout_below="@id/status2"
                         android:layout_marginTop="6dp"
                         android:text="@string/sample_event_2_name"
                         android:textColor="@color/ko_text_primary"
