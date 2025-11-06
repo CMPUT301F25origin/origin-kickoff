@@ -1,0 +1,207 @@
+# Location Handling Implementation - Setup Guide
+
+## Overview
+I've implemented a complete location handling system for your event app with:
+- **Google Places API** for location search with autocomplete
+- **Google Maps API** for custom location picking on a map
+- Location coordinates stored with each event in Firestore
+
+## What Was Implemented
+
+### 1. New Model Classes
+- `EventLocation.java` - Model for storing location data (address, lat/lng, place ID)
+- Updated `Event.java` - Added fields for locationLatitude, locationLongitude, locationPlaceId
+
+### 2. New Activities
+- `LocationSearchActivity.java` - Search locations using Google Places Autocomplete API
+- `LocationPickerActivity.java` - Pick custom location on Google Map by tapping
+
+### 3. Updated Activities
+- `CreateEventActivity.java` - Now opens location search when user taps location field
+- Location data is saved to Firestore with coordinates
+
+### 4. New Adapters
+- `LocationSuggestionsAdapter.java` - Displays location search results in RecyclerView
+
+### 5. Layout Files Created
+- `activity_location_search.xml` - Layout for location search screen
+- `activity_location_picker.xml` - Layout with Google Map fragment
+- `item_location_suggestion.xml` - Layout for individual location search results
+
+### 6. Updated Files
+- `AndroidManifest.xml` - Added location permissions and new activities
+- `build.gradle.kts` - Added Google Maps and Places dependencies
+- `strings.xml` - Added Google Maps API key placeholder
+
+## Setup Instructions
+
+### Step 1: Sync Gradle Dependencies
+The following dependencies were added to `app/build.gradle.kts`:
+```kotlin
+implementation("com.google.android.gms:play-services-maps:18.2.0")
+implementation("com.google.android.gms:play-services-location:21.1.0")
+implementation("com.google.android.libraries.places:places:3.3.0")
+```
+
+**Action Required:**
+1. In Android Studio, click: File → Sync Project with Gradle Files
+2. Or run from terminal: `./gradlew build --refresh-dependencies`
+
+### Step 2: Get Google Maps API Key (FREE)
+Google Maps Platform has a generous free tier (28,000 map loads per month free).
+
+**Get Your API Key:**
+1. Go to: https://console.cloud.google.com/
+2. Create a new project or select existing one
+3. Enable these APIs:
+   - Maps SDK for Android
+   - Places API
+4. Go to: Credentials → Create Credentials → API Key
+5. Restrict the key to Android apps (add your package name and SHA-1 fingerprint)
+
+**Get SHA-1 Fingerprint:**
+Run in terminal:
+```bash
+cd /Users/gurmannnpreet/AndroidStudioProjects/origin-kickoff
+./gradlew signingReport
+```
+Copy the SHA-1 from the debug keystore.
+
+### Step 3: Add API Key to Project
+Open: `app/src/main/res/values/strings.xml`
+
+Replace this line:
+```xml
+<string name="google_maps_key">YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
+```
+
+With your actual API key:
+```xml
+<string name="google_maps_key">AIzaSyC...</string>
+```
+
+### Step 4: Build the Project
+After syncing Gradle and adding the API key:
+```bash
+./gradlew clean build
+```
+
+## How It Works
+
+### User Flow:
+1. **Create Event** → Tap "Location" field
+2. **Location Search Screen** opens with two options:
+   - Type to search locations (uses Google Places API)
+   - Tap "Select custom location on map" for manual pin placement
+3. **Select Location** from search results OR pick on map
+4. **Location saved** with coordinates to Firestore
+
+### Data Stored in Firestore:
+```javascript
+{
+  "location": "123 Main St, Toronto, ON",  // Human-readable address
+  "locationLatitude": 43.6532,              // Latitude coordinate
+  "locationLongitude": -79.3832,            // Longitude coordinate
+  "locationPlaceId": "ChIJ..."              // Google Place ID (optional)
+}
+```
+
+## Features Implemented
+
+✅ Location search with autocomplete suggestions
+✅ Custom location picking on interactive map
+✅ Reverse geocoding (coordinates → address)
+✅ Location coordinates stored in Firestore
+✅ Works offline for custom locations (using coordinates)
+✅ Clean UI matching your app's dark theme
+
+## Pricing Info - Google Maps Platform
+
+**FREE TIER:**
+- $200 free credit every month
+- Places Autocomplete: $2.83 per 1000 requests (after free tier)
+- Maps SDK: Free for most usage
+- This is essentially FREE for small to medium apps
+
+## Testing
+
+1. Build and run the app
+2. Click "Create Event"
+3. Tap the Location field
+4. Try searching for "Toronto City Hall" or any location
+5. Try tapping "Select custom location on map" to pick manually
+6. Create an event and verify coordinates are saved in Firestore
+
+## Troubleshooting
+
+**If you see compilation errors:**
+- Make sure you synced Gradle (File → Sync Project with Gradle Files)
+- Clean and rebuild: Build → Clean Project, then Build → Rebuild Project
+
+**If map doesn't load:**
+- Check your API key is correct in strings.xml
+- Verify you enabled "Maps SDK for Android" in Google Cloud Console
+- Check AndroidManifest.xml has the meta-data for the API key
+
+**If Places search doesn't work:**
+- Verify you enabled "Places API" in Google Cloud Console
+- Check API key restrictions allow your app's package name
+
+## Next Steps (Optional Enhancements)
+
+1. **Show location on map** in Event Detail screen ✅ **IMPLEMENTED!**
+2. **Get user's current location** as default for map picker
+3. **Distance calculation** - show how far events are from user
+4. **Filter events by proximity** - show nearby events first
+5. **Add location validation** - ensure coordinates are valid
+
+## NEW: Event Detail Map Preview Feature
+
+### What's New:
+The Event Detail screen now has an interactive location preview:
+
+**Features:**
+- ✅ **Clickable Location Card** - Tap the location section to view on map
+- ✅ **Full-Screen Map Viewer** - Shows event location with marker
+- ✅ **Open in Google Maps** - Button to launch Google Maps navigation
+- ✅ **Fallback Support** - Works even without coordinates (opens Google Maps search)
+- ✅ **Visual Indicator** - Location card shows "Tap to view on map" with location icon
+
+**How It Works:**
+1. Open any event in Event Detail screen
+2. The location card shows the event address with a map icon
+3. Tap anywhere on the location card
+4. If coordinates are available: Opens full-screen interactive map
+5. If no coordinates: Opens Google Maps app or browser with address search
+6. In the map viewer, tap "Open in Google Maps" to get directions
+
+**New Activity Created:**
+- `MapViewActivity.java` - Full-screen map viewer with navigation button
+- Displays event location with marker and zoom controls
+- Clean UI with location name header
+
+## Files Modified/Created Summary
+
+**Created:**
+- `EventLocation.java`
+- `LocationSearchActivity.java`
+- `LocationPickerActivity.java`
+- `MapViewActivity.java` ⭐ NEW
+- `LocationSuggestionsAdapter.java`
+- `activity_location_search.xml`
+- `activity_location_picker.xml`
+- `activity_map_view.xml` ⭐ NEW
+- `item_location_suggestion.xml`
+- `ic_location.xml` - Location pin icon
+- `ic_map_placeholder.xml` - Map icon
+
+**Modified:**
+- `Event.java` - Added location coordinate fields
+- `CreateEventActivity.java` - Integrated location search
+- `EventDetailActivity.java` - Added clickable map preview ⭐ UPDATED
+- `activity_event_detail.xml` - Made location card clickable ⭐ UPDATED
+- `AndroidManifest.xml` - Added permissions and activities
+- `build.gradle.kts` - Added dependencies
+- `strings.xml` - Added API key placeholder
+
+All done! Just sync Gradle, add your API key, and you're ready to go! 🚀

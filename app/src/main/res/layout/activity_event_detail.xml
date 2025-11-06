@@ -144,8 +144,11 @@
                 android:layout_marginStart="16dp"
                 android:layout_marginEnd="16dp"
                 android:layout_marginTop="16dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?android:attr/selectableItemBackground"
                 app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
+                app:cardElevation="2dp"
                 app:cardBackgroundColor="#0C211E">
 
                 <LinearLayout
@@ -154,6 +157,14 @@
                     android:orientation="horizontal"
                     android:padding="16dp"
                     android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_location"
+                        app:tint="#4DE8C0"
+                        android:contentDescription="Location"
+                        android:layout_marginEnd="12dp"/>
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -175,8 +186,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
-                            android:text="New York, NY"
-                            android:textColor="#C7D3D0"
+                            android:text="Tap to view on map"
+                            android:textColor="#4DE8C0"
                             android:textSize="13sp"/>
 
                     </LinearLayout>
@@ -186,13 +197,14 @@
                         android:layout_height="56dp"
                         app:cardCornerRadius="8dp"
                         app:cardElevation="0dp"
-                        app:cardBackgroundColor="#D9E7DC">
+                        app:cardBackgroundColor="#1A2828">
 
                         <ImageView
                             android:id="@+id/imageMapPreview"
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:scaleType="centerCrop"
+                            android:src="@drawable/ic_map_placeholder"
                             android:contentDescription="Map Preview"/>
 
                     </androidx.cardview.widget.CardView>

@@ -1,6 +1,9 @@
 package ca.team.originkickoff.ui.fragments;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -139,16 +142,28 @@ public class EventDetailFragment extends Fragment {
             detailRegistrationPeriod.setText(registrationPeriod);
         }
 
-        // Poster Image
-        if (event.getPosterUrl() != null && !event.getPosterUrl().isEmpty()) {
-            Glide.with(this)
-                    .load(event.getPosterUrl())
-                    .placeholder(R.drawable.ic_launcher_background)
-                    .error(R.drawable.ic_launcher_background)
-                    .into(detailEventPoster);
-        } else {
-            detailEventPoster.setImageResource(R.drawable.ic_launcher_background);
+        // Poster Image preference: Base64 first, then URL fallback
+        boolean loadedPoster = false;
+        if (event.getPosterBase64() != null && !event.getPosterBase64().isEmpty()) {
+            try {
+                byte[] decoded = Base64.decode(event.getPosterBase64(), Base64.DEFAULT);
+                Bitmap bmp = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                if (bmp != null) {
+                    detailEventPoster.setImageBitmap(bmp);
+                    loadedPoster = true;
+                }
+            } catch (Exception ignored) { }
+        }
+        if (!loadedPoster) {
+            if (event.getPosterUrl() != null && !event.getPosterUrl().isEmpty()) {
+                Glide.with(this)
+                        .load(event.getPosterUrl())
+                        .placeholder(R.drawable.ic_launcher_background)
+                        .error(R.drawable.ic_launcher_background)
+                        .into(detailEventPoster);
+            } else {
+                detailEventPoster.setImageResource(R.drawable.ic_launcher_background);
+            }
         }
     }
 }
-
