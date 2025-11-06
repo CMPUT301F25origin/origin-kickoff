@@ -46,10 +46,12 @@ public class EventDetailActivity extends AppCompatActivity {
     private TextView pillToBeSelected;
     private MaterialButton btnJoinWaitingList;
     private MaterialButton btnLotteryCriteria;
+    private MaterialButton btnManageNotifications;
     private ImageView ivQrCode;
     private LinearLayout qrCodeSection;
     private CardView locationCard;
     private ImageView imageMapPreview;
+    private ImageView btnEdit;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -58,6 +60,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private final WaitingListService waitingListService = new WaitingListService();
     private final UserRepository userRepository = new UserRepository();
     private User currentUser; // resolved from device_id
+    private boolean isOrganizer = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -100,10 +103,12 @@ public class EventDetailActivity extends AppCompatActivity {
         pillToBeSelected = findViewById(R.id.pillToBeSelected);
         btnJoinWaitingList = findViewById(R.id.btnJoinWaitingList);
         btnLotteryCriteria = findViewById(R.id.btnLotteryCriteria);
+        btnManageNotifications = findViewById(R.id.btnManageNotifications);
         ivQrCode = findViewById(R.id.ivQrCode);
         qrCodeSection = findViewById(R.id.qrCodeSection);
         locationCard = findViewById(R.id.locationCard);
         imageMapPreview = findViewById(R.id.imageMapPreview);
+        btnEdit = findViewById(R.id.btnEdit);
     }
 
     private void setupListeners() {
@@ -159,6 +164,13 @@ public class EventDetailActivity extends AppCompatActivity {
         String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
         userRepository.findUserByDeviceId(deviceId).observe(this, user -> {
             currentUser = user;
+            if (currentUser != null) {
+                Log.d(TAG, "Current user loaded: " + currentUser.getId());
+                // After user is loaded, check if we need to update the organizer view
+                if (currentEvent != null) {
+                    checkAndSetupOrganizerView();
+                }
+            }
             // After we know user, refresh join button label
             refreshJoinButton();
         });
@@ -166,6 +178,13 @@ public class EventDetailActivity extends AppCompatActivity {
 
     private void refreshJoinButton() {
         if (currentEvent == null || currentUser == null) return;
+
+        // Don't update button style if user is the organizer
+        if (isOrganizer) {
+            Log.d(TAG, "User is organizer, skipping join button refresh");
+            return;
+        }
+
         waitingListService.isOnWaitlist(currentEvent.getId(), currentUser.getId())
                 .addOnSuccessListener(isOn -> {
                     updateJoinLeaveButtonStyle(isOn);
@@ -173,6 +192,11 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void updateJoinLeaveButtonStyle(boolean isOnList) {
+        // Don't update button style if user is the organizer
+        if (isOrganizer) {
+            return;
+        }
+
         if (isOnList) {
             btnJoinWaitingList.setText("Leave Waiting List");
             btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); // red
@@ -327,7 +351,7 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // Set location
         textLocationTitle.setText(currentEvent.getLocation());
-        textLocationSubtitle.setText("Event Location"); // You can parse this from location string
+        textLocationSubtitle.setText("Event Location");
 
         // Calculate statistics
         int totalEntrants = currentEvent.getWaitlistCount();
@@ -339,9 +363,9 @@ public class EventDetailActivity extends AppCompatActivity {
         pillSpotsLeft.setText("Spots left: " + spotsLeft);
         pillToBeSelected.setText("To be selected: " + toBeSelected);
 
-        // Set date (you can format this based on your needs)
+        // Set date
         if (currentEvent.getRegistrationStartTime() != null) {
-            textDate.setText("Registration Open"); // Format the date as needed
+            textDate.setText("Registration Open");
         }
 
         // Show QR code if it exists
@@ -368,26 +392,83 @@ public class EventDetailActivity extends AppCompatActivity {
                 Log.d(TAG, "Poster image loaded from base64");
             } catch (Exception e) {
                 Log.e(TAG, "Error decoding Base64 poster image", e);
-                // Keep default placeholder if decoding fails
             }
         } else {
             Log.d(TAG, "No base64 poster image available");
-            // Keep default placeholder
         }
 
-        // When organizer views, show button to open waiting list entrants screen
-        if (currentUser != null && currentEvent != null && currentUser.isOrganizer() &&
-                currentEvent.getOrganizerId() != null && currentEvent.getOrganizerId().equals(currentUser.getId())) {
-            // repurpose second button for viewing list
-            btnLotteryCriteria.setText("View Waiting List");
-            btnLotteryCriteria.setOnClickListener(v -> {
-                Intent i = new Intent(this, ca.team.originkickoff.WaitingListActivity.class);
-                i.putExtra(ca.team.originkickoff.WaitingListActivity.EXTRA_EVENT_ID, currentEvent.getId());
-                startActivity(i);
-            });
+        // Check if current user is the organizer
+        checkAndSetupOrganizerView();
+    }
+
+    private void checkAndSetupOrganizerView() {
+        if (currentUser != null && currentEvent != null &&
+                currentEvent.getOrganizerId() != null &&
+                currentEvent.getOrganizerId().equals(currentUser.getId())) {
+
+            isOrganizer = true;
+            Log.d(TAG, "Current user is the organizer - showing organizer view");
+
+            // Show Edit button
+            btnEdit.setVisibility(View.VISIBLE);
+            btnEdit.setOnClickListener(v -> openEditEvent());
+
+            // Change buttons to organizer management buttons
+            btnJoinWaitingList.setText("Manage Entrants");
+            btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+            btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
+            btnJoinWaitingList.setOnClickListener(v -> openManageEntrants());
+
+            btnLotteryCriteria.setText("Manage Lottery");
+            btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+            btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
+
+            btnManageNotifications.setVisibility(View.VISIBLE);
+            btnManageNotifications.setOnClickListener(v -> openManageNotifications());
+
+        } else {
+            isOrganizer = false;
+            Log.d(TAG, "Current user is not the organizer - showing entrant view");
+
+            // Hide Edit button
+            btnEdit.setVisibility(View.GONE);
+
+            // Hide Manage Notifications button
+            btnManageNotifications.setVisibility(View.GONE);
+
+            // Keep default button behavior for entrants
+            // btnJoinWaitingList and btnLotteryCriteria retain their default listeners
         }
-        // TODO: Load map preview image
-        // imageMapPreview.setImageBitmap(...);
+    }
+
+    private void openEditEvent() {
+        Toast.makeText(this, "Edit Event - Coming Soon", Toast.LENGTH_SHORT).show();
+        // TODO: Navigate to edit event activity
+        // Intent intent = new Intent(this, EditEventActivity.class);
+        // intent.putExtra(EditEventActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        // startActivity(intent);
+    }
+
+    private void openManageEntrants() {
+        Intent intent = new Intent(this, WaitingListActivity.class);
+        intent.putExtra(WaitingListActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        startActivity(intent);
+    }
+
+    private void openManageLottery() {
+        Toast.makeText(this, "Manage Lottery - Coming Soon", Toast.LENGTH_SHORT).show();
+        // TODO: Navigate to lottery management activity
+        // Intent intent = new Intent(this, ManageLotteryActivity.class);
+        // intent.putExtra(ManageLotteryActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        // startActivity(intent);
+    }
+
+    private void openManageNotifications() {
+        Toast.makeText(this, "Manage Notifications - Coming Soon", Toast.LENGTH_SHORT).show();
+        // TODO: Navigate to notification management activity
+        // Intent intent = new Intent(this, ManageNotificationsActivity.class);
+        // intent.putExtra(ManageNotificationsActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        // startActivity(intent);
     }
 
     private void openLotteryCriteria() {

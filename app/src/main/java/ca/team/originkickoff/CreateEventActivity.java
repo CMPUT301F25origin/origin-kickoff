@@ -24,8 +24,6 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.Timestamp;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.Calendar;
@@ -34,6 +32,8 @@ import java.util.Locale;
 import java.util.Map;
 
 import ca.team.originkickoff.models.EventLocation;
+import ca.team.originkickoff.models.User;
+import ca.team.originkickoff.util.DeviceUtils;
 import ca.team.originkickoff.utils.QRCodeGenerator;
 
 public class CreateEventActivity extends AppCompatActivity {
@@ -53,7 +53,6 @@ public class CreateEventActivity extends AppCompatActivity {
 
     private Uri selectedImageUri;
     private FirebaseFirestore db;
-    private FirebaseAuth auth;
 
     // Location data
     private EventLocation selectedLocation;
@@ -68,6 +67,9 @@ public class CreateEventActivity extends AppCompatActivity {
     // Activity Result launcher for image picking
     private ActivityResultLauncher<Intent> pickImageLauncher;
 
+    // Current user from Firestore
+    private User currentUser;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -80,7 +82,9 @@ public class CreateEventActivity extends AppCompatActivity {
         }
 
         db = FirebaseFirestore.getInstance();
-        auth = FirebaseAuth.getInstance();
+
+        // Get current user from Firestore
+        getCurrentUserFromFirestore();
 
         bindViews();
 
@@ -102,6 +106,35 @@ public class CreateEventActivity extends AppCompatActivity {
         );
 
         attachListeners();
+    }
+
+    private void getCurrentUserFromFirestore() {
+        // Get device ID and query Firestore for the user
+        String deviceId = DeviceUtils.getDeviceId(this);
+        if (deviceId != null) {
+            db.collection("users")
+                    .whereEqualTo("device_id", deviceId)
+                    .limit(1)
+                    .get()
+                    .addOnSuccessListener(queryDocumentSnapshots -> {
+                        if (!queryDocumentSnapshots.isEmpty()) {
+                            currentUser = queryDocumentSnapshots.getDocuments().get(0).toObject(User.class);
+                            if (currentUser != null) {
+                                Log.d(TAG, "Current user loaded: " + currentUser.getId());
+                            }
+                        } else {
+                            Log.w(TAG, "No user found with device_id: " + deviceId);
+                            currentUser = null;
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e(TAG, "Error fetching user", e);
+                        currentUser = null;
+                    });
+        } else {
+            Log.w(TAG, "Device ID is null, cannot fetch user");
+            currentUser = null;
+        }
     }
 
     @Override
@@ -136,7 +169,9 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void attachListeners() {
+        // Make location field clickable but not editable via keyboard
         etLocation.setFocusable(false);
+        etLocation.setFocusableInTouchMode(false);
         etLocation.setClickable(true);
         etLocation.setOnClickListener(v -> openLocationSearch());
 
@@ -351,21 +386,30 @@ public class CreateEventActivity extends AppCompatActivity {
         // Show loading state
         setLoading(true);
 
-        // Assemble event map matching Firestore schema exactly
-        Map<String, Object> event = new HashMap<>();
-        com.google.firebase.auth.FirebaseUser current = auth.getCurrentUser();
+        // Get organizer information from currentUser
         String organizerId;
         String organizerName;
 
-        if (current != null) {
-            organizerId = current.getUid();
-            organizerName = current.getDisplayName() != null ? current.getDisplayName() : "Anonymous User";
+        if (currentUser != null) {
+            organizerId = currentUser.getId();
+            organizerName = currentUser.getDisplayName();
+
+            // Use a fallback if display name is empty
+            if (TextUtils.isEmpty(organizerName)) {
+                organizerName = "User";
+            }
+
+            Log.d(TAG, "Creating event with organizer ID: " + organizerId);
         } else {
-            // Create event with a default organizer for testing
-            Log.w(TAG, "No user signed in, using default organizer");
-            organizerId = "anonymous";
-            organizerName = "Anonymous User";
+            // Fallback: if user not loaded yet, get device ID directly
+            String deviceId = DeviceUtils.getDeviceId(this);
+            Log.w(TAG, "Current user not loaded, using device ID as fallback: " + deviceId);
+            organizerId = deviceId != null ? deviceId : "unknown";
+            organizerName = "User";
         }
+
+        // Assemble event map matching Firestore schema exactly
+        Map<String, Object> event = new HashMap<>();
 
         // Match exact field names from Firestore sample
         event.put("name", title);
@@ -549,8 +593,17 @@ public class CreateEventActivity extends AppCompatActivity {
             double longitude = data.getDoubleExtra("longitude", 0.0);
             String placeId = data.getStringExtra("placeId");
 
-            selectedLocation = new EventLocation(address, latitude, longitude, placeId);
-            etLocation.setText(address);
+            if (address != null && !address.isEmpty()) {
+                selectedLocation = new EventLocation(address, latitude, longitude, placeId);
+                etLocation.setText(address);
+                etLocation.setError(null); // Clear any previous error
+                Log.d(TAG, "Location selected: " + address + " (lat: " + latitude + ", lng: " + longitude + ")");
+            } else {
+                Toast.makeText(this, "Invalid location data received", Toast.LENGTH_SHORT).show();
+                Log.w(TAG, "Received empty or null address from LocationSearchActivity");
+            }
+        } else if (requestCode == LOCATION_REQUEST_CODE && resultCode != RESULT_OK) {
+            Log.d(TAG, "Location selection cancelled or failed");
         }
     }
 }
