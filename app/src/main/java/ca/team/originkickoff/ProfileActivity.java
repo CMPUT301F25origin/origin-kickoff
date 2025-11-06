@@ -3,6 +3,8 @@ package ca.team.originkickoff;
 import android.content.Intent;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -17,10 +19,16 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class ProfileActivity extends AppCompatActivity {
 
+    private static final String TAG = "ProfileActivity";
     private SwitchMaterial switchWon;
     private SwitchMaterial switchLost;
     private TextView tvDeviceId;
@@ -67,7 +75,6 @@ public class ProfileActivity extends AppCompatActivity {
         switchWon = findViewById(R.id.switchWon);
         switchLost = findViewById(R.id.switchLost);
 
-        // simple local persistence using SharedPreferences
         boolean won = getSharedPreferences("profile", MODE_PRIVATE).getBoolean("won_updates", true);
         boolean lost = getSharedPreferences("profile", MODE_PRIVATE).getBoolean("lost_updates", true);
         switchWon.setChecked(won);
@@ -81,28 +88,56 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void setupButtons() {
         MaterialButton btnDelete = findViewById(R.id.btnDelete);
-
-        btnDelete.setOnClickListener(v -> showDeleteProfileSheet());
+        btnDelete.setOnClickListener(v -> showDeleteConfirmationDialog());
     }
 
-    private void showDeleteProfileSheet() {
-        BottomSheetDialog dialog = new BottomSheetDialog(this);
-        View view = getLayoutInflater().inflate(R.layout.bottomsheet_delete_profile, null);
-        dialog.setContentView(view);
+    private void showDeleteConfirmationDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Profile Data")
+                .setMessage("Are you sure you want to clear your profile data? Your profile will be reset.")
+                .setPositiveButton("Clear Data", (dialog, which) -> clearUserData())
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
 
-        View btnCancel = view.findViewById(R.id.btnCancel);
-        View btnDelete = view.findViewById(R.id.btnDelete);
+    private void clearUserData() {
+        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        if (TextUtils.isEmpty(deviceId)) {
+            Toast.makeText(this, "Error: Could not get device ID.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        btnCancel.setOnClickListener(v -> dialog.dismiss());
-        btnDelete.setOnClickListener(v -> {
-            getSharedPreferences("profile", MODE_PRIVATE).edit().clear().apply();
-            setupToggles();
-            updateProfileHeader();
-            Toast.makeText(this, getString(R.string.delete_profile), Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
-        });
+        FirebaseFirestore.getInstance().collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful() && !task.getResult().isEmpty()) {
+                        String docId = task.getResult().getDocuments().get(0).getId();
 
-        dialog.show();
+                        Map<String, Object> updates = new HashMap<>();
+                        updates.put("display_name", "");
+                        updates.put("email", null);
+                        updates.put("phone", null);
+                        updates.put("is_admin", false);
+                        updates.put("is_organizer", false);
+                        updates.put("notif_marketing", false);
+                        updates.put("notif_service", true); // Reset to default
+                        updates.put("updated_at", FieldValue.serverTimestamp());
+
+                        FirebaseFirestore.getInstance().collection("users").document(docId).update(updates)
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(ProfileActivity.this, "Profile data cleared.", Toast.LENGTH_SHORT).show();
+                                    getSharedPreferences("profile", MODE_PRIVATE).edit().clear().apply();
+                                    updateProfileHeader();
+                                    setupToggles();
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "Failed to clear profile data", e);
+                                    Toast.makeText(ProfileActivity.this, "Failed to clear profile.", Toast.LENGTH_SHORT).show();
+                                });
+                    } else {
+                        Log.e(TAG, "Could not find profile to clear", task.getException());
+                        Toast.makeText(ProfileActivity.this, "Could not find profile to clear.", Toast.LENGTH_SHORT).show();
+                    }
+                });
     }
 
     private void setupBottomBar() {
@@ -129,9 +164,32 @@ public class ProfileActivity extends AppCompatActivity {
     private void updateProfileHeader() {
         if (tvUserName == null) tvUserName = findViewById(R.id.tvUserName);
         if (tvUserEmail == null) tvUserEmail = findViewById(R.id.tvUserEmail);
-        String name = getSharedPreferences("profile", MODE_PRIVATE).getString("name", getString(R.string.sample_user_name));
-        String email = getSharedPreferences("profile", MODE_PRIVATE).getString("email", getString(R.string.sample_user_email));
-        tvUserName.setText(name);
-        tvUserEmail.setText(email);
+
+        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        if (TextUtils.isEmpty(deviceId)) {
+            tvUserName.setText("");
+            tvUserEmail.setText("");
+            return;
+        }
+
+        FirebaseFirestore.getInstance().collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
+                        String name = doc.getString("display_name");
+                        String email = doc.getString("email");
+
+                        tvUserName.setText(name);
+                        tvUserEmail.setText(email);
+                    } else {
+                        tvUserName.setText("");
+                        tvUserEmail.setText("");
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load user data from Firestore", e);
+                    tvUserName.setText("");
+                    tvUserEmail.setText("");
+                });
     }
 }
