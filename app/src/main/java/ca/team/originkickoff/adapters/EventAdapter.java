@@ -1,5 +1,8 @@
 package ca.team.originkickoff.adapters;
 
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -8,6 +11,8 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.bumptech.glide.Glide;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -115,9 +120,33 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
                 }
             });
 
-            // TODO: Load image from posterUrl using Glide or Picasso
-            // For now, use a placeholder
-            ivEventImage.setImageResource(R.drawable.sample_event_1);
+            // Load image: Base64 first, then URL fallback, else placeholder
+            boolean imageSet = false;
+            String b64 = event.getPosterBase64();
+            if (b64 != null && !b64.isEmpty()) {
+                try {
+                    byte[] decoded = Base64.decode(b64, Base64.DEFAULT);
+                    Bitmap bmp = BitmapFactory.decodeByteArray(decoded, 0, decoded.length);
+                    if (bmp != null) {
+                        ivEventImage.setImageBitmap(bmp);
+                        imageSet = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (!imageSet) {
+                String url = event.getPosterUrl();
+                if (url != null && !url.isEmpty()) {
+                    Glide.with(itemView.getContext())
+                            .load(url)
+                            .placeholder(R.drawable.sample_event_1)
+                            .error(R.drawable.sample_event_1)
+                            .into(ivEventImage);
+                    imageSet = true;
+                }
+            }
+            if (!imageSet) {
+                ivEventImage.setImageResource(R.drawable.sample_event_1);
+            }
         }
     }
 }

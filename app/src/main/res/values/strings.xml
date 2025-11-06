@@ -6,6 +6,9 @@
     <string name="date_time_format">%1$s at %2$s</string>
     <string name="organizer_label">By %1$s</string>
 
+    <!-- Google Maps API Key - REPLACE WITH YOUR ACTUAL KEY -->
+    <string name="google_maps_key">AIzaSyCWoeJYaGpmy_QA2dd29cUhd_ZAhFUYi58</string>
+
     <!-- Create Event Screen -->
     <string name="create_event">Create Event</string>
     <string name="close">Close</string>
