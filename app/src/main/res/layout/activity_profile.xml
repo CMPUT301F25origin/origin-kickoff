@@ -101,18 +101,13 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="8dp">
 
-                <FrameLayout
+                <ImageView
+                    android:id="@+id/ivProfile"
                     android:layout_width="96dp"
                     android:layout_height="96dp"
-                    android:background="@drawable/bg_circle_dark">
-                    <ImageView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:padding="24dp"
-                        android:src="@drawable/ic_person"
-                        android:contentDescription="@string/profile"
-                        app:tint="@color/ko_teal"/>
-                </FrameLayout>
+                    android:background="@drawable/bg_circle_dark"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_person" />
 
                 <TextView
                     android:id="@+id/tvUserName"
@@ -317,7 +312,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android.layout_gravity="center_horizontal"
+                android:layout_gravity="center_horizontal"
                 android:textColor="@color/ko_text_muted"
                 android:textSize="12sp"
                 tools:text="Device ID: 1234567890"/>
@@ -353,7 +348,7 @@
             app:layout_constraintEnd_toStartOf="@id/navEvents"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app.layout_constraintHorizontal_chainStyle="spread">
+            app:layout_constraintHorizontal_chainStyle="spread">
 
             <ImageView
                 android:layout_width="22dp"
@@ -440,7 +435,7 @@
                 android:layout_width="22dp"
                 android:layout_height="22dp"
                 android:src="@drawable/ic_person"
-                android.contentDescription="@string/profile"
+                android:contentDescription="@string/profile"
                 app:tint="@color/ko_teal"/>
 
             <TextView

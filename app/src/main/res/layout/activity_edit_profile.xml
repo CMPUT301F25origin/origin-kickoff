@@ -72,18 +72,13 @@
                 android:paddingTop="12dp"
                 android:paddingBottom="8dp">
 
-                <FrameLayout
+                <ImageView
+                    android:id="@+id/ivProfile"
                     android:layout_width="96dp"
                     android:layout_height="96dp"
-                    android:background="@drawable/bg_circle_dark">
-                    <ImageView
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:padding="24dp"
-                        android:src="@drawable/ic_person"
-                        android:contentDescription="@string/profile"
-                        app:tint="@color/ko_teal"/>
-                </FrameLayout>
+                    android:background="@drawable/bg_circle_dark"
+                    android:scaleType="centerCrop"
+                    android:src="@drawable/ic_person" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnEditPicture"

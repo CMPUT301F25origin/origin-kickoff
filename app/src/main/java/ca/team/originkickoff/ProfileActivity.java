@@ -1,22 +1,29 @@
 package ca.team.originkickoff;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -33,6 +40,7 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView tvDeviceId;
     private TextView tvUserName;
     private TextView tvUserEmail;
+    private ImageView ivProfile;
     private String deviceId;
     private FirebaseFirestore db;
 
@@ -49,6 +57,8 @@ public class ProfileActivity extends AppCompatActivity {
 
         db = FirebaseFirestore.getInstance();
         deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+
+        ivProfile = findViewById(R.id.ivProfile);
 
         setupTopBar();
         setupToggles();
@@ -106,12 +116,24 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void showDeleteConfirmationDialog() {
-        new AlertDialog.Builder(this)
-                .setTitle("Delete Profile Data")
-                .setMessage("Are you sure you want to clear your profile data? Your profile will be reset.")
-                .setPositiveButton("Clear Data", (dialog, which) -> clearUserData())
-                .setNegativeButton("Cancel", null)
-                .show();
+        final BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
+        bottomSheetDialog.setContentView(R.layout.bottomsheet_delete_profile);
+
+        MaterialButton btnCancel = bottomSheetDialog.findViewById(R.id.btnCancel);
+        MaterialButton btnDelete = bottomSheetDialog.findViewById(R.id.btnDelete);
+
+        if (btnCancel != null) {
+            btnCancel.setOnClickListener(v -> bottomSheetDialog.dismiss());
+        }
+
+        if (btnDelete != null) {
+            btnDelete.setOnClickListener(v -> {
+                clearUserData();
+                bottomSheetDialog.dismiss();
+            });
+        }
+
+        bottomSheetDialog.show();
     }
 
     private void clearUserData() {
@@ -129,10 +151,11 @@ public class ProfileActivity extends AppCompatActivity {
                         updates.put("display_name", "");
                         updates.put("email", null);
                         updates.put("phone", null);
+                        updates.put("profile_image_id", null);
                         updates.put("is_admin", false);
                         updates.put("is_organizer", false);
                         updates.put("notif_marketing", false);
-                        updates.put("notif_service", true); // Reset to default
+                        updates.put("notif_service", true);
                         updates.put("updated_at", FieldValue.serverTimestamp());
 
                         db.collection("users").document(docId).update(updates)
@@ -170,7 +193,7 @@ public class ProfileActivity extends AppCompatActivity {
             startActivity(new Intent(ProfileActivity.this, NotificationsActivity.class));
             finish();
         });
-        navProfile.setOnClickListener(v -> {}); // already here
+        navProfile.setOnClickListener(v -> {});
     }
 
     private void setupDeviceId() {
@@ -185,6 +208,8 @@ public class ProfileActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(deviceId)) {
             tvUserName.setText("");
             tvUserEmail.setText("");
+            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+            Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
             return;
         }
 
@@ -192,20 +217,49 @@ public class ProfileActivity extends AppCompatActivity {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
-                        String name = doc.getString("display_name");
-                        String email = doc.getString("email");
+                        tvUserName.setText(doc.getString("display_name"));
+                        tvUserEmail.setText(doc.getString("email"));
 
-                        tvUserName.setText(name);
-                        tvUserEmail.setText(email);
+                        String imageId = doc.getString("profile_image_id");
+                        if (imageId != null) {
+                            db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
+                                if (imageDoc.exists()) {
+                                    String base64Image = imageDoc.getString("storage_path");
+                                    if (base64Image != null && !base64Image.isEmpty()) {
+                                        try {
+                                            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+                                            ivProfile.setImageTintList(null);
+                                            Glide.with(ProfileActivity.this)
+                                                    .load(decodedString)
+                                                    .apply(RequestOptions.circleCropTransform())
+                                                    .into(ivProfile);
+                                        } catch (Exception e) {
+                                            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+                                            Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
+                                        }
+                                    }
+                                } else {
+                                    ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+                                    Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
+                                }
+                            });
+                        } else {
+                            ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+                            Glide.with(ProfileActivity.this).load(R.drawable.ic_person).into(ivProfile);
+                        }
                     } else {
                         tvUserName.setText("");
                         tvUserEmail.setText("");
+                        ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+                        Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to load user data from Firestore", e);
                     tvUserName.setText("");
                     tvUserEmail.setText("");
+                    ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
+                    Glide.with(this).load(R.drawable.ic_person).into(ivProfile);
                 });
     }
 }
