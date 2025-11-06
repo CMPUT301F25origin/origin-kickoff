@@ -147,7 +147,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
 
         navHome.setOnClickListener(v -> { /* already here */ });
         navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events coming soon", Toast.LENGTH_SHORT).show());
-        navNotifications.setOnClickListener(v -> Toast.makeText(this, "Notifications coming soon", Toast.LENGTH_SHORT).show());
+        navNotifications.setOnClickListener(v -> {
+            Intent i = new Intent(MainActivity.this, NotificationsActivity.class);
+            startActivity(i);
+        });
         navProfile.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
             startActivity(intent);
@@ -174,15 +177,6 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
             Intent intent = new Intent(MainActivity.this, ScanActivity.class);
             startActivity(intent);
         });
-
-        // Open Notifications page when bottom bar button is clicked
-        LinearLayout navNotifications = findViewById(R.id.navNotifications);
-        if (navNotifications != null) {
-            navNotifications.setOnClickListener(v -> {
-                Intent i = new Intent(MainActivity.this, NotificationsActivity.class);
-                startActivity(i);
-            });
-        }
     }
 
     @Override
