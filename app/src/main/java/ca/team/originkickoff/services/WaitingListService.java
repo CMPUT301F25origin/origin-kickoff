@@ -107,6 +107,29 @@ public class WaitingListService {
         return q.get().continueWith(t -> t.isSuccessful() ? t.getResult().size() : 0);
     }
 
+    public Task<List<String>> getAllActiveUserIds(@NonNull String eventId) {
+        Query q = db.collection(WAITLIST_COLL)
+                .whereEqualTo("event_id", eventId)
+                .whereEqualTo("state", "active");
+
+        return q.get().continueWith(task -> {
+            if (!task.isSuccessful()) {
+                throw task.getException();
+            }
+            List<String> userIds = new ArrayList<>();
+            QuerySnapshot snaps = task.getResult();
+            if (snaps != null) {
+                for (DocumentSnapshot s : snaps.getDocuments()) {
+                    String userId = s.getString("user_id");
+                    if (userId != null) {
+                        userIds.add(userId);
+                    }
+                }
+            }
+            return userIds;
+        });
+    }
+
     public Task<List<WaitingListEntry>> listActive(@NonNull String eventId) {
         Query q = db.collection(WAITLIST_COLL)
                 .whereEqualTo("event_id", eventId)

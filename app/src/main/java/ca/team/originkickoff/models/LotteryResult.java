@@ -28,6 +28,9 @@ public class LotteryResult {
     @PropertyName("winner_ids")
     private List<String> winnerIds;
 
+    @PropertyName("all_entrant_ids")
+    private List<String> allEntrantIds; // All users who were in the waiting list
+
     @PropertyName("conducted_by")
     private String conductedBy; // organizer user ID
 
@@ -77,9 +80,13 @@ public class LotteryResult {
     @PropertyName("winner_ids")
     public void setWinnerIds(List<String> winnerIds) { this.winnerIds = winnerIds; }
 
+    @PropertyName("all_entrant_ids")
+    public List<String> getAllEntrantIds() { return allEntrantIds; }
+    @PropertyName("all_entrant_ids")
+    public void setAllEntrantIds(List<String> allEntrantIds) { this.allEntrantIds = allEntrantIds; }
+
     @PropertyName("conducted_by")
     public String getConductedBy() { return conductedBy; }
     @PropertyName("conducted_by")
     public void setConductedBy(String conductedBy) { this.conductedBy = conductedBy; }
 }
-

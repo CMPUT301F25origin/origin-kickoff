@@ -100,6 +100,7 @@ public class CreateEventActivity extends AppCompatActivity {
                             selectedImageUri = uri;
                             if (ivPosterPreview != null) {
                                 ivPosterPreview.setImageURI(selectedImageUri);
+                                ivPosterPreview.setVisibility(View.VISIBLE); // Show preview
                             }
                             Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
                         }
@@ -167,9 +168,9 @@ public class CreateEventActivity extends AppCompatActivity {
         btnCreateEvent = findViewById(R.id.btnCreateEvent);
         btnClose = findViewById(R.id.btnClose);
         layoutUploadImage = findViewById(R.id.layoutUploadImage);
+        ivPosterPreview = findViewById(R.id.ivPosterPreview);
 
         // Optional views that don't exist in the new layout - leaving them null
-        // ivPosterPreview = findViewById(R.id.ivPosterPreview);
         // switchGenerateQr = findViewById(R.id.switchGenerateQr);
         // progressBar = findViewById(R.id.progressBar);
     }
@@ -360,32 +361,19 @@ public class CreateEventActivity extends AppCompatActivity {
             etCapacity.requestFocus();
             return;
         }
-        if (android.text.TextUtils.isEmpty(selectionSizeStr)) {
-            etSelectionSize.setError("Users to be selected is required");
-            etSelectionSize.requestFocus();
-            return;
-        }
 
         int capacity;
         int selectionSize;
         try {
             capacity = Integer.parseInt(capacityStr);
-            selectionSize = Integer.parseInt(selectionSizeStr);
             if (capacity <= 0) {
                 etCapacity.setError("Capacity must be > 0");
                 return;
             }
-            if (selectionSize <= 0) {
-                etSelectionSize.setError("Selection size must be > 0");
-                return;
-            }
+            // Auto-populate selectionSize with capacity since field is hidden
+            selectionSize = capacity;
         } catch (NumberFormatException ex) {
             Toast.makeText(this, "Invalid number input", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (selectionSize > capacity) {
-            etSelectionSize.setError("Cannot select more users than capacity");
             return;
         }
 

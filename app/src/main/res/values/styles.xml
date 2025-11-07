@@ -4,4 +4,25 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">8dp</item>
     </style>
+
+    <!-- Custom Alert Dialog Style -->
+    <style name="CustomAlertDialog" parent="ThemeOverlay.MaterialComponents.MaterialAlertDialog">
+        <item name="materialAlertDialogTitleTextStyle">@style/CustomAlertDialogTitle</item>
+        <item name="materialAlertDialogBodyTextStyle">@style/CustomAlertDialogBody</item>
+        <item name="backgroundTint">#151515</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.App.Dialog</item>
+    </style>
+
+    <style name="CustomAlertDialogTitle" parent="MaterialAlertDialog.MaterialComponents.Title.Text">
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+
+    <style name="CustomAlertDialogBody" parent="MaterialAlertDialog.MaterialComponents.Body.Text">
+        <item name="android:textColor">#CCCCCC</item>
+    </style>
+
+    <style name="ShapeAppearance.App.Dialog" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">16dp</item>
+    </style>
 </resources>

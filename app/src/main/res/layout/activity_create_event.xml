@@ -178,6 +178,17 @@
 
             </LinearLayout>
 
+            <!-- Image Preview (Initially hidden) -->
+            <ImageView
+                android:id="@+id/ivPosterPreview"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:layout_marginTop="16dp"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_create_event_field"
+                android:visibility="gone"
+                android:contentDescription="Event poster preview"/>
+
             <!-- Registration Period Section Title -->
             <TextView
                 android:layout_width="wrap_content"
@@ -277,41 +288,33 @@
             </LinearLayout>
 
             <!-- Capacity Row: Event Capacity & Users to be Selected -->
-            <LinearLayout
+            <!-- Event Capacity - Now full width and required -->
+            <EditText
+                android:id="@+id/etCapacity"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
                 android:layout_marginTop="16dp"
-                android:orientation="horizontal"
-                android:weightSum="2">
+                android:background="@drawable/bg_create_event_field"
+                android:hint="Event Capacity (required)"
+                android:textColorHint="#B8C4C0"
+                android:textColor="#FFFFFF"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:inputType="number"/>
 
-                <EditText
-                    android:id="@+id/etCapacity"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:background="@drawable/bg_create_event_field"
-                    android:hint="Event Capacity"
-                    android:textColorHint="#B8C4C0"
-                    android:textColor="#FFFFFF"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:inputType="number"/>
-
-                <EditText
-                    android:id="@+id/etSelectionSize"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/bg_create_event_field"
-                    android:hint="Users to be Selected"
-                    android:textColorHint="#B8C4C0"
-                    android:textColor="#FFFFFF"
-                    android:paddingStart="16dp"
-                    android:paddingEnd="16dp"
-                    android:inputType="number"/>
-            </LinearLayout>
+            <!-- Users to be Selected - Hidden, keep for backward compatibility -->
+            <EditText
+                android:id="@+id/etSelectionSize"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_create_event_field"
+                android:hint="Users to be Selected"
+                android:textColorHint="#B8C4C0"
+                android:textColor="#FFFFFF"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:inputType="number"
+                android:visibility="gone"/>
 
             <!-- Toggle: Require Geolocation -->
             <LinearLayout

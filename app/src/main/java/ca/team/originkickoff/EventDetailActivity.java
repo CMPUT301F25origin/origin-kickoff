@@ -33,6 +33,8 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.util.List;
+
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
@@ -107,6 +109,15 @@ public class EventDetailActivity extends AppCompatActivity {
         loadEventData();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload event data to refresh lottery status when returning from ManageLotteryActivity
+        if (currentEvent != null && isOrganizer) {
+            checkLotteryStatusAndUpdateButton();
+        }
+    }
+
     private void initializeViews() {
         posterImage = findViewById(R.id.posterImage);
         textTitle = findViewById(R.id.textTitle);
@@ -147,6 +158,13 @@ public class EventDetailActivity extends AppCompatActivity {
         btnLotteryCriteria.setOnClickListener(v -> {
             if (currentEvent != null) {
                 openLotteryCriteria();
+            }
+        });
+
+        // Make poster image clickable to view enlarged
+        posterImage.setOnClickListener(v -> {
+            if (currentEvent != null && currentEvent.getPosterBase64() != null && !currentEvent.getPosterBase64().isEmpty()) {
+                openImageViewer(currentEvent.getPosterBase64());
             }
         });
 
@@ -384,6 +402,12 @@ public class EventDetailActivity extends AppCompatActivity {
                             Boolean geolocationRequired = documentSnapshot.getBoolean("geolocationRequired");
                             currentEvent.setGeolocationRequired(geolocationRequired != null && geolocationRequired);
 
+                            // Load lottery status
+                            String lotteryStatus = documentSnapshot.getString("lotteryStatus");
+                            if (lotteryStatus != null) {
+                                currentEvent.setLotteryStatus(lotteryStatus);
+                            }
+
                             // Handle timestamp fields
                             com.google.firebase.Timestamp regStart = documentSnapshot.getTimestamp("registrationStartTime");
                             if (regStart != null) {
@@ -427,14 +451,24 @@ public class EventDetailActivity extends AppCompatActivity {
         textLocationSubtitle.setText("Event Location");
 
         // Calculate statistics
+        int eventCapacity = currentEvent.getCapacity();
         int totalEntrants = currentEvent.getWaitlistCount();
-        int spotsLeft = currentEvent.getCapacity() - currentEvent.getWaitlistCount();
-        if (spotsLeft < 0) spotsLeft = 0;
         int toBeSelected = currentEvent.getSelectionSize() > 0 ? currentEvent.getSelectionSize() : currentEvent.getCapacity();
 
-        pillTotalEntrants.setText("Total Entrants: " + totalEntrants);
-        pillSpotsLeft.setText("Spots left: " + spotsLeft);
-        pillToBeSelected.setText("To be selected: " + toBeSelected);
+        // Update pills with new information
+        pillTotalEntrants.setText("Event Capacity: " + eventCapacity);
+        pillSpotsLeft.setText("Entrants in Waitlist: " + totalEntrants);
+
+        // Show spots left on waitlist only if there is a limit
+        if (currentEvent.isLimitWaitlist() && currentEvent.getWaitlistLimit() > 0) {
+            int waitlistLimit = currentEvent.getWaitlistLimit();
+            int spotsLeftOnWaitlist = waitlistLimit - totalEntrants;
+            if (spotsLeftOnWaitlist < 0) spotsLeftOnWaitlist = 0;
+            pillToBeSelected.setText("Spots left on Waitlist: " + spotsLeftOnWaitlist);
+            pillToBeSelected.setVisibility(View.VISIBLE);
+        } else {
+            pillToBeSelected.setVisibility(View.GONE);
+        }
 
         // Set date
         if (currentEvent.getRegistrationStartTime() != null) {
@@ -541,27 +575,18 @@ public class EventDetailActivity extends AppCompatActivity {
     private void checkLotteryStatusForEntrant() {
         // Check if lottery status is "conducted"
         String lotteryStatus = currentEvent.getLotteryStatus();
+        Log.d(TAG, "Checking lottery status for entrant. Status: " + lotteryStatus);
 
-        db.collection("events").document(currentEvent.getId())
-                .get()
-                .addOnSuccessListener(doc -> {
-                    String status = doc.getString("lotteryStatus");
-
-                    if ("conducted".equals(status)) {
-                        // Lottery has been conducted - check if user was in waiting list
-                        checkUserLotteryResult();
-                    } else {
-                        // Lottery not conducted - show normal buttons
-                        actionButtonsContainer.setVisibility(View.VISIBLE);
-                        lotteryResultCard.setVisibility(View.GONE);
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error checking lottery status", e);
-                    // Default to showing buttons
-                    actionButtonsContainer.setVisibility(View.VISIBLE);
-                    lotteryResultCard.setVisibility(View.GONE);
-                });
+        if ("conducted".equals(lotteryStatus)) {
+            // Lottery has been conducted - check if user was in waiting list
+            Log.d(TAG, "Lottery status is 'conducted', checking user's lottery result");
+            checkUserLotteryResult();
+        } else {
+            // Lottery not conducted - show normal buttons
+            Log.d(TAG, "Lottery not conducted, showing normal buttons");
+            actionButtonsContainer.setVisibility(View.VISIBLE);
+            lotteryResultCard.setVisibility(View.GONE);
+        }
     }
 
     private void checkUserLotteryResult() {
@@ -569,6 +594,8 @@ public class EventDetailActivity extends AppCompatActivity {
 
         String userId = currentUser.getId();
         String eventId = currentEvent.getId();
+
+        Log.d(TAG, "Checking lottery result for user: " + userId + " in event: " + eventId);
 
         // Check if user was in the waiting list by checking invitation_status
         db.collection("invitation_status")
@@ -580,24 +607,56 @@ public class EventDetailActivity extends AppCompatActivity {
                     if (!snapshots.isEmpty()) {
                         // User was in the waiting list - show their result
                         String status = snapshots.getDocuments().get(0).getString("status");
+                        Log.d(TAG, "Found invitation_status: " + status);
                         showLotteryResult(status);
                     } else {
-                        // User was NOT in waiting list - finish activity (hide event)
-                        Toast.makeText(this, "This event's lottery has been conducted", Toast.LENGTH_SHORT).show();
-                        finish();
+                        // User was NOT in the invitation_status collection
+                        // This means they either: 1) weren't in waiting list, or 2) weren't selected
+                        // Check if they were in the waiting list at all
+                        Log.d(TAG, "No invitation_status found, checking if user was in waiting list");
+                        checkIfUserWasInOriginalWaitingList(eventId, userId);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error checking user lottery result", e);
-                    // Default to hiding event to be safe
-                    Toast.makeText(this, "Unable to load event details", Toast.LENGTH_SHORT).show();
-                    finish();
+                    // Default to showing action buttons
+                    actionButtonsContainer.setVisibility(View.VISIBLE);
+                    lotteryResultCard.setVisibility(View.GONE);
+                });
+    }
+
+    private void checkIfUserWasInOriginalWaitingList(String eventId, String userId) {
+        // Check the waiting_list collection to see if user was originally in the waiting list
+        db.collection("waiting_list")
+                .whereEqualTo("event_id", eventId)
+                .whereEqualTo("user_id", userId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    if (!snapshots.isEmpty()) {
+                        // User was in waiting list but not selected (no invitation_status entry)
+                        Log.d(TAG, "User was in waiting list but not selected");
+                        showLotteryResult("not_selected");
+                    } else {
+                        // User was never in the waiting list - show normal buttons
+                        Log.d(TAG, "User was never in the waiting list");
+                        actionButtonsContainer.setVisibility(View.VISIBLE);
+                        lotteryResultCard.setVisibility(View.GONE);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking waiting list", e);
+                    actionButtonsContainer.setVisibility(View.VISIBLE);
+                    lotteryResultCard.setVisibility(View.GONE);
                 });
     }
 
     private void showLotteryResult(String status) {
+        Log.d(TAG, "showLotteryResult called with status: " + status);
+
         // Hide action buttons and lottery criteria button
         actionButtonsContainer.setVisibility(View.GONE);
+        btnLotteryCriteria.setVisibility(View.GONE);
 
         // Show lottery result card
         lotteryResultCard.setVisibility(View.VISIBLE);
@@ -609,9 +668,12 @@ public class EventDetailActivity extends AppCompatActivity {
             tvLotteryResult.setText("You were selected but cancelled your enrollment");
             tvLotteryResult.setTextColor(Color.parseColor("#FFD60A")); // Warning yellow
         } else {
+            // This covers "not_selected" and any other status
             tvLotteryResult.setText("Unfortunately, you were not selected in the lottery");
             tvLotteryResult.setTextColor(Color.parseColor("#FF3B30")); // Red
         }
+
+        Log.d(TAG, "Lottery result card visibility set to VISIBLE, action buttons set to GONE");
     }
 
     private void openEditEvent() {
@@ -668,6 +730,22 @@ public class EventDetailActivity extends AppCompatActivity {
                 Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(browserUri));
                 startActivity(browserIntent);
             }
+        }
+    }
+
+    private void openImageViewer(String base64Image) {
+        try {
+            // Decode the Base64 string
+            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+            Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+
+            // Start ImageViewerActivity to show the image
+            Intent intent = new Intent(this, ImageViewerActivity.class);
+            intent.putExtra(ImageViewerActivity.EXTRA_IMAGE_BITMAP, decodedByte);
+            startActivity(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Error decoding Base64 image", e);
+            Toast.makeText(this, "Error opening image", Toast.LENGTH_SHORT).show();
         }
     }
 }
