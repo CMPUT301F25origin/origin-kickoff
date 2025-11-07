@@ -361,6 +361,13 @@ public class EventDetailActivity extends AppCompatActivity {
                             Long waitlistCount = documentSnapshot.getLong("waitlistCount");
                             currentEvent.setWaitlistCount(waitlistCount != null ? waitlistCount.intValue() : 0);
 
+                            Long selectionSize = documentSnapshot.getLong("selectionSize");
+                            if (selectionSize != null) currentEvent.setSelectionSize(selectionSize.intValue());
+                            Boolean limitWaitlist = documentSnapshot.getBoolean("limitWaitlist");
+                            if (limitWaitlist != null) currentEvent.setLimitWaitlist(limitWaitlist);
+                            Long waitlistLimit = documentSnapshot.getLong("waitlistLimit");
+                            if (waitlistLimit != null) currentEvent.setWaitlistLimit(waitlistLimit.intValue());
+
                             Double price = documentSnapshot.getDouble("price");
                             currentEvent.setPrice(price != null ? price : 0.0);
 
@@ -417,7 +424,7 @@ public class EventDetailActivity extends AppCompatActivity {
         int totalEntrants = currentEvent.getWaitlistCount();
         int spotsLeft = currentEvent.getCapacity() - currentEvent.getWaitlistCount();
         if (spotsLeft < 0) spotsLeft = 0;
-        int toBeSelected = currentEvent.getCapacity();
+        int toBeSelected = currentEvent.getSelectionSize() > 0 ? currentEvent.getSelectionSize() : currentEvent.getCapacity();
 
         pillTotalEntrants.setText("Total Entrants: " + totalEntrants);
         pillSpotsLeft.setText("Spots left: " + spotsLeft);

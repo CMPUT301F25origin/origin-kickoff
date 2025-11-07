@@ -22,6 +22,7 @@ import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -44,10 +45,11 @@ public class CreateEventActivity extends AppCompatActivity {
             etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime;
     // Optional fields that may not be in the layout
     private EditText etCategory, etPrice, etCapacity, etCriteria;
+    private EditText etSelectionSize, etWaitlistLimit;
     private ImageView ivPosterPreview, btnClose;
     private LinearLayout layoutUploadImage;
     private Button btnCreateEvent;
-    private androidx.appcompat.widget.SwitchCompat switchGenerateQr;
+    private SwitchCompat switchGenerateQr, switchGeoRequired, switchLimitWaitlist;
     private ProgressBar progressBar;
     private View formContainer;
 
@@ -157,10 +159,14 @@ public class CreateEventActivity extends AppCompatActivity {
         etRegEndDate = findViewById(R.id.etRegEndDate);
         etRegEndTime = findViewById(R.id.etRegEndTime);
         etCapacity = findViewById(R.id.etCapacity);
+        etSelectionSize = findViewById(R.id.etSelectionSize);
+        etWaitlistLimit = findViewById(R.id.etWaitlistLimit);
+        switchGeoRequired = findViewById(R.id.switchGeoRequired);
+        switchLimitWaitlist = findViewById(R.id.switchLimitWaitlist);
         etCriteria = findViewById(R.id.etCriteria);
+        btnCreateEvent = findViewById(R.id.btnCreateEvent);
         btnClose = findViewById(R.id.btnClose);
         layoutUploadImage = findViewById(R.id.layoutUploadImage);
-        btnCreateEvent = findViewById(R.id.btnCreateEvent);
 
         // Optional views that don't exist in the new layout - leaving them null
         // ivPosterPreview = findViewById(R.id.ivPosterPreview);
@@ -240,6 +246,15 @@ public class CreateEventActivity extends AppCompatActivity {
         layoutUploadImage.setOnClickListener(v -> pickImage());
 
         btnCreateEvent.setOnClickListener(v -> createEvent());
+
+        switchLimitWaitlist.setOnCheckedChangeListener((btn, checked) -> {
+            if (etWaitlistLimit != null) {
+                etWaitlistLimit.setVisibility(checked ? View.VISIBLE : View.GONE);
+                if (!checked) {
+                    etWaitlistLimit.setText("");
+                }
+            }
+        });
     }
 
     private interface DateChosenCallback {
@@ -290,7 +305,12 @@ public class CreateEventActivity extends AppCompatActivity {
         String description = getText(etDescription);
         String location = getText(etLocation);
         String capacityStr = getText(etCapacity);
+        String selectionSizeStr = getText(etSelectionSize);
+        String waitlistLimitStr = getText(etWaitlistLimit);
         String criteria = getText(etCriteria);
+
+        boolean geoRequired = switchGeoRequired != null && switchGeoRequired.isChecked();
+        boolean limitWaitlist = switchLimitWaitlist != null && switchLimitWaitlist.isChecked();
 
         // Validation - ALL FIELDS ARE MANDATORY
         if (TextUtils.isEmpty(title)) {
@@ -335,23 +355,61 @@ public class CreateEventActivity extends AppCompatActivity {
             return;
         }
 
-        if (TextUtils.isEmpty(capacityStr)) {
+        if (android.text.TextUtils.isEmpty(capacityStr)) {
             etCapacity.setError("Capacity is required");
             etCapacity.requestFocus();
             return;
         }
-
-        if (TextUtils.isEmpty(criteria)) {
-            etCriteria.setError("Lottery criteria is required");
-            etCriteria.requestFocus();
+        if (android.text.TextUtils.isEmpty(selectionSizeStr)) {
+            etSelectionSize.setError("Users to be selected is required");
+            etSelectionSize.requestFocus();
             return;
         }
 
-        // Image is now optional - removed validation
+        int capacity;
+        int selectionSize;
+        try {
+            capacity = Integer.parseInt(capacityStr);
+            selectionSize = Integer.parseInt(selectionSizeStr);
+            if (capacity <= 0) {
+                etCapacity.setError("Capacity must be > 0");
+                return;
+            }
+            if (selectionSize <= 0) {
+                etSelectionSize.setError("Selection size must be > 0");
+                return;
+            }
+        } catch (NumberFormatException ex) {
+            Toast.makeText(this, "Invalid number input", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
+        if (selectionSize > capacity) {
+            etSelectionSize.setError("Cannot select more users than capacity");
+            return;
+        }
+
+        int waitlistLimit = 0;
+        if (limitWaitlist) {
+            if (android.text.TextUtils.isEmpty(waitlistLimitStr)) {
+                etWaitlistLimit.setError("Specify waitlist limit");
+                etWaitlistLimit.requestFocus();
+                return;
+            }
+            try {
+                waitlistLimit = Integer.parseInt(waitlistLimitStr);
+                if (waitlistLimit <= capacity) {
+                    etWaitlistLimit.setError("Must be greater than event capacity");
+                    return;
+                }
+            } catch (NumberFormatException ex) {
+                etWaitlistLimit.setError("Invalid waitlist limit");
+                return;
+            }
+        }
 
         // Validate event is in the future
+        long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
         if (eventTimestampMillis < System.currentTimeMillis()) {
             Toast.makeText(this, "Event date and time must be in the future", Toast.LENGTH_SHORT).show();
             return;
@@ -366,20 +424,6 @@ public class CreateEventActivity extends AppCompatActivity {
         // Validate registration start is before end
         if (regStartMillis >= regEndMillis) {
             Toast.makeText(this, "Registration start must be before registration end", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        int capacity = 0;
-        try {
-            capacity = Integer.parseInt(capacityStr);
-            if (capacity <= 0) {
-                etCapacity.setError("Capacity must be greater than 0");
-                etCapacity.requestFocus();
-                return;
-            }
-        } catch (NumberFormatException e) {
-            etCapacity.setError("Invalid capacity");
-            etCapacity.requestFocus();
             return;
         }
 
@@ -429,10 +473,13 @@ public class CreateEventActivity extends AppCompatActivity {
 
         event.put("category", "General");
         event.put("capacity", capacity);
+        event.put("selectionSize", selectionSize);
+        event.put("limitWaitlist", limitWaitlist);
+        if (limitWaitlist) event.put("waitlistLimit", waitlistLimit);
         event.put("lotteryCriteria", criteria);
         event.put("price", 0);
         event.put("waitlistCount", 0);
-        event.put("geolocationRequired", false);
+        event.put("geolocationRequired", geoRequired);
         event.put("status", "draft");
         event.put("createdAt", System.currentTimeMillis());
         event.put("eventDate", new Timestamp(new java.util.Date(eventTimestampMillis)));
