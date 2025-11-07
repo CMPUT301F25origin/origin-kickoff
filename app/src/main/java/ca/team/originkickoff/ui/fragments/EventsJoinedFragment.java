@@ -14,7 +14,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.QuerySnapshot;
+import com.google.firebase.firestore.DocumentSnapshot;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,6 +36,9 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
     private EventAdapter adapter;
     private final List<Event> events = new ArrayList<>();
     private final Map<String, String> eventStatusMap = new HashMap<>();
+
+    private ListenerRegistration waitlistListener; // real-time updates
+    private String currentUserId; // cached user id
 
     @Nullable
     @Override
@@ -53,129 +59,143 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
 
         db = FirebaseFirestore.getInstance();
 
-        loadJoinedEvents();
+        // Replace one-off load with real-time listener
+        resolveUserAndListen();
 
         return v;
     }
 
-    private void loadJoinedEvents() {
-        Log.d(TAG, "Loading joined events...");
-
-        // Get current user ID
+    private void resolveUserAndListen() {
         String deviceId = DeviceUtils.getDeviceId(requireContext());
         if (deviceId == null) {
-            Toast.makeText(requireContext(), "Unable to identify user", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Device ID null - cannot load joined events");
+            adapter.setEvents(new ArrayList<>());
             return;
         }
-
-        // First, get the user ID from device_id
         db.collection("users")
                 .whereEqualTo("device_id", deviceId)
                 .limit(1)
                 .get()
-                .addOnSuccessListener(userSnapshots -> {
-                    if (userSnapshots.isEmpty()) {
+                .addOnSuccessListener(q -> {
+                    if (q.isEmpty()) {
                         Log.w(TAG, "No user found for device_id");
                         adapter.setEvents(new ArrayList<>());
                         return;
                     }
-
-                    String userId = userSnapshots.getDocuments().get(0).getId();
-
-                    // Query waiting_list_entries for this user
-                    db.collection("waiting_list_entries")
-                            .whereEqualTo("user_id", userId)
-                            .whereEqualTo("state", "active")
-                            .get()
-                            .addOnSuccessListener(entrySnapshots -> {
-                                if (entrySnapshots.isEmpty()) {
-                                    Log.d(TAG, "No waiting list entries found");
-                                    adapter.setEvents(new ArrayList<>());
-                                    return;
-                                }
-
-                                // Get all event IDs
-                                List<String> eventIds = new ArrayList<>();
-                                for (QueryDocumentSnapshot doc : entrySnapshots) {
-                                    String eventId = doc.getString("event_id");
-                                    if (eventId != null) {
-                                        eventIds.add(eventId);
-                                    }
-                                }
-
-                                if (eventIds.isEmpty()) {
-                                    adapter.setEvents(new ArrayList<>());
-                                    return;
-                                }
-
-                                // Load events and check their lottery status
-                                loadEventsWithStatus(userId, eventIds);
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error loading waiting list entries", e);
-                                Toast.makeText(requireContext(), "Error loading events: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
+                    currentUserId = q.getDocuments().get(0).getId();
+                    attachWaitlistListener();
                 })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Error loading user", e);
-                    Toast.makeText(requireContext(), "Error loading user: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                .addOnFailureListener(e -> Log.e(TAG, "Failed to resolve user", e));
+    }
+
+    private void attachWaitlistListener() {
+        if (currentUserId == null) return;
+        if (waitlistListener != null) {
+            waitlistListener.remove();
+        }
+        Log.d(TAG, "Attaching waitlist listener for user " + currentUserId);
+        waitlistListener = db.collection("waiting_list_entries")
+                .whereEqualTo("user_id", currentUserId)
+                .whereEqualTo("state", "active")
+                .addSnapshotListener((snap, err) -> {
+                    if (err != null) {
+                        Log.e(TAG, "Waitlist listener error", err);
+                        return;
+                    }
+                    if (snap == null) {
+                        adapter.setEvents(new ArrayList<>());
+                        return;
+                    }
+                    List<String> eventIds = new ArrayList<>();
+                    for (DocumentSnapshot d : snap.getDocuments()) {
+                        String eid = d.getString("event_id");
+                        if (eid != null) eventIds.add(eid);
+                    }
+                    Log.d(TAG, "Waitlist listener received " + eventIds.size() + " event IDs");
+                    if (eventIds.isEmpty()) {
+                        events.clear();
+                        eventStatusMap.clear();
+                        adapter.setEvents(new ArrayList<>());
+                    } else {
+                        fetchEventsInBatches(eventIds);
+                    }
                 });
     }
 
-    private void loadEventsWithStatus(String userId, List<String> eventIds) {
+    // Batch fetch events (Firestore whereIn limit = 10) then enrich with lottery status
+    private void fetchEventsInBatches(List<String> allEventIds) {
         events.clear();
         eventStatusMap.clear();
+        // Fetch each event doc individually; simpler and avoids whereIn and batch completion race
+        for (String eid : allEventIds) {
+            db.collection("events").document(eid).get()
+                    .addOnSuccessListener(this::handleEventDoc)
+                    .addOnFailureListener(e -> Log.e(TAG, "Failed to load event doc " + eid, e));
+        }
+    }
 
-        // Load each event and check lottery status
-        for (String eventId : eventIds) {
-            db.collection("events").document(eventId).get()
-                    .addOnSuccessListener(eventDoc -> {
-                        if (eventDoc.exists()) {
-                            try {
-                                Event event = eventDoc.toObject(Event.class);
-                                event.setId(eventDoc.getId());
+    private void addOrReplaceEvent(Event event) {
+        int idx = -1;
+        for (int i = 0; i < events.size(); i++) {
+            if (events.get(i).getId().equals(event.getId())) { idx = i; break; }
+        }
+        if (idx >= 0) {
+            events.set(idx, event);
+        } else {
+            events.add(event);
+        }
+        adapter.setEventsWithStatus(new ArrayList<>(events), new HashMap<>(eventStatusMap));
+    }
 
-                                // Check lottery status
-                                String lotteryStatus = eventDoc.getString("lotteryStatus");
-
-                                if ("conducted".equals(lotteryStatus)) {
-                                    // Check invitation_status to get user's result
-                                    db.collection("invitation_status")
-                                            .whereEqualTo("event_id", eventId)
-                                            .whereEqualTo("user_id", userId)
-                                            .limit(1)
-                                            .get()
-                                            .addOnSuccessListener(invitationSnapshots -> {
-                                                String status = "YET TO DRAW";
-                                                if (!invitationSnapshots.isEmpty()) {
-                                                    String invitationStatus = invitationSnapshots.getDocuments().get(0).getString("status");
-                                                    if ("chosen".equals(invitationStatus) || "enrolled".equals(invitationStatus)) {
-                                                        status = "YOU WERE SELECTED";
-                                                    } else {
-                                                        status = "YOU WERE NOT SELECTED";
-                                                    }
-                                                }
-                                                eventStatusMap.put(eventId, status);
-                                                events.add(event);
-                                                adapter.setEventsWithStatus(events, eventStatusMap);
-                                            })
-                                            .addOnFailureListener(e -> {
-                                                eventStatusMap.put(eventId, "YET TO DRAW");
-                                                events.add(event);
-                                                adapter.setEventsWithStatus(events, eventStatusMap);
-                                            });
+    private void handleEventDoc(DocumentSnapshot eventDoc) {
+        if (eventDoc == null || !eventDoc.exists()) return;
+        try {
+            Event event = eventDoc.toObject(Event.class);
+            if (event == null) return;
+            event.setId(eventDoc.getId());
+            String lotteryStatus = eventDoc.getString("lotteryStatus");
+            if ("conducted".equals(lotteryStatus)) {
+                // Determine user-specific status (invitation_status collection)
+                db.collection("invitation_status")
+                        .whereEqualTo("event_id", event.getId())
+                        .whereEqualTo("user_id", currentUserId)
+                        .limit(1)
+                        .get()
+                        .addOnSuccessListener(invSnap -> {
+                            String status;
+                            if (!invSnap.isEmpty()) {
+                                String invitationStatus = invSnap.getDocuments().get(0).getString("status");
+                                if ("chosen".equals(invitationStatus) || "enrolled".equals(invitationStatus)) {
+                                    status = "YOU WERE SELECTED";
                                 } else {
-                                    // Lottery not conducted yet
-                                    eventStatusMap.put(eventId, "YET TO DRAW");
-                                    events.add(event);
-                                    adapter.setEventsWithStatus(events, eventStatusMap);
+                                    status = "YOU WERE NOT SELECTED";
                                 }
-                            } catch (Exception ex) {
-                                Log.e(TAG, "Error parsing event", ex);
+                            } else {
+                                status = "YOU WERE NOT SELECTED";
                             }
-                        }
-                    })
-                    .addOnFailureListener(e -> Log.e(TAG, "Error loading event: " + eventId, e));
+                            eventStatusMap.put(event.getId(), status);
+                            addOrReplaceEvent(event);
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Invitation status check failed", e);
+                            eventStatusMap.put(event.getId(), "YOU WERE NOT SELECTED");
+                            addOrReplaceEvent(event);
+                        });
+            } else {
+                eventStatusMap.put(event.getId(), "YET TO DRAW");
+                addOrReplaceEvent(event);
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, "Error parsing event doc", ex);
+        }
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        if (waitlistListener != null) {
+            waitlistListener.remove();
+            waitlistListener = null;
         }
     }
 

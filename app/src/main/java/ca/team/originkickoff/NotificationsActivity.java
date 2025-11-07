@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -46,6 +47,8 @@ public class NotificationsActivity extends AppCompatActivity {
     private TextView tvEmptyState;
     private NotificationService notificationService;
     private FirebaseFirestore db;
+    private ListenerRegistration notificationsListener; // real-time listener handle
+    private String currentUserId;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -73,8 +76,19 @@ public class NotificationsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload notifications when returning to activity
-        loadNotifications();
+        // Real-time listener already active; no need to reload unless userId changed
+        if (currentUserId == null) {
+            loadNotifications();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (notificationsListener != null) {
+            notificationsListener.remove();
+            notificationsListener = null;
+        }
+        super.onDestroy();
     }
 
     private void setupTopBar() {
@@ -98,7 +112,7 @@ public class NotificationsActivity extends AppCompatActivity {
         // Use device ID to get the user, just like other parts of the app
         String deviceId = DeviceUtils.getDeviceId(this);
 
-        Log.d(TAG, "=== LOADING NOTIFICATIONS ===");
+        Log.d(TAG, "=== LOADING NOTIFICATIONS (real-time) ===");
         Log.d(TAG, "Device ID: " + deviceId);
 
         if (deviceId == null) {
@@ -122,58 +136,51 @@ public class NotificationsActivity extends AppCompatActivity {
                         return;
                     }
 
-                    // Get the user's document ID (this is what's stored in notifications)
-                    String userId = userSnapshots.getDocuments().get(0).getId();
-                    Log.d(TAG, "Found user ID: " + userId);
-                    Log.d(TAG, "Now querying notifications for this user...");
-
-                    // Now fetch notifications for this user
-                    notificationService.getNotificationsForUser(userId)
-                            .addOnSuccessListener(notifications -> {
-                                showLoading(false);
-                                Log.d(TAG, "Query completed. Found " + notifications.size() + " notifications");
-
-                                // Format timestamps for display
-                                SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
-                                for (NotificationItem item : notifications) {
-                                    if (item.getCreatedAt() != null) {
-                                        Date date = item.getCreatedAt().toDate();
-                                        item.setTimestamp(dateFormat.format(date));
-                                    } else {
-                                        item.setTimestamp("Recent");
-                                    }
-                                }
-
-                                if (notifications.isEmpty()) {
-                                    Log.d(TAG, "No notifications found for user - showing empty state");
-                                    showEmptyState();
-                                } else {
-                                    Log.d(TAG, "Displaying " + notifications.size() + " notifications");
-                                    adapter.setItems(notifications);
-                                    recyclerView.setVisibility(View.VISIBLE);
-                                    tvEmptyState.setVisibility(View.GONE);
-                                }
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Failed to load notifications: " + e.getMessage(), e);
-                                Log.e(TAG, "Exception class: " + e.getClass().getName());
-
-                                // Check if it's a missing index error
-                                if (e.getMessage() != null && e.getMessage().contains("index")) {
-                                    Log.e(TAG, "*** FIRESTORE INDEX REQUIRED ***");
-                                    Log.e(TAG, "You need to create a composite index in Firestore.");
-                                    Log.e(TAG, "Check the full error message above for a link to create the index.");
-                                }
-
-                                showLoading(false);
-                                showEmptyState();
-                            });
+                    currentUserId = userSnapshots.getDocuments().get(0).getId();
+                    Log.d(TAG, "Resolved userId: " + currentUserId);
+                    attachNotificationsListener();
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Failed to load user: " + e.getMessage(), e);
                     showLoading(false);
                     showEmptyState();
                 });
+    }
+
+    private void attachNotificationsListener() {
+        if (currentUserId == null) return;
+        if (notificationsListener != null) {
+            notificationsListener.remove();
+        }
+        notificationsListener = notificationService.listenNotificationsForUser(
+                currentUserId,
+                notifications -> {
+                    runOnUiThread(() -> {
+                        showLoading(false);
+                        if (notifications.isEmpty()) {
+                            showEmptyState();
+                            return;
+                        }
+                        // Format timestamps
+                        java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault());
+                        for (ca.team.originkickoff.models.NotificationItem item : notifications) {
+                            if (item.getCreatedAt() != null) {
+                                java.util.Date date = item.getCreatedAt().toDate();
+                                item.setTimestamp(dateFormat.format(date));
+                            } else {
+                                item.setTimestamp("Recent");
+                            }
+                        }
+                        recyclerView.setVisibility(View.VISIBLE);
+                        tvEmptyState.setVisibility(View.GONE);
+                        adapter.setItems(notifications);
+                    });
+                },
+                err -> runOnUiThread(() -> {
+                    showLoading(false);
+                    if (adapter.getItemCount() == 0) showEmptyState();
+                })
+        );
     }
 
     private void onNotificationClick(NotificationItem notification) {

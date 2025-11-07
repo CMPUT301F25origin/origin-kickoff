@@ -7,6 +7,8 @@ import androidx.annotation.NonNull;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 
@@ -89,6 +91,46 @@ public class NotificationService {
 
                     Log.d(TAG, "Returning " + notifications.size() + " notifications");
                     return notifications;
+                });
+    }
+
+    /**
+     * Real-time updates: listen for notifications for a user. Automatically sorts DESC by createdAt.
+     */
+    public ListenerRegistration listenNotificationsForUser(@NonNull String userId,
+                                                            @NonNull java.util.function.Consumer<List<NotificationItem>> onUpdate,
+                                                            @NonNull java.util.function.Consumer<Exception> onError) {
+        // Use simple whereEqualTo; ordering with snapshot requires composite index; we'll sort client-side
+        return db.collection(NOTIFICATIONS_COLL)
+                .whereEqualTo("userId", userId)
+                .addSnapshotListener((snap, err) -> {
+                    if (err != null) {
+                        Log.e(TAG, "Notification listener error", err);
+                        onError.accept(err);
+                        return;
+                    }
+                    List<NotificationItem> notifications = new ArrayList<>();
+                    if (snap != null) {
+                        for (DocumentSnapshot doc : snap.getDocuments()) {
+                            try {
+                                NotificationItem item = doc.toObject(NotificationItem.class);
+                                if (item != null) {
+                                    item.setId(doc.getId());
+                                    notifications.add(item);
+                                }
+                            } catch (Exception ex) {
+                                Log.e(TAG, "Failed to parse notification " + doc.getId(), ex);
+                            }
+                        }
+                    }
+                    // Client-side sort
+                    Collections.sort(notifications, (a, b) -> {
+                        if (a.getCreatedAt() == null && b.getCreatedAt() == null) return 0;
+                        if (a.getCreatedAt() == null) return 1;
+                        if (b.getCreatedAt() == null) return -1;
+                        return b.getCreatedAt().compareTo(a.getCreatedAt());
+                    });
+                    onUpdate.accept(notifications);
                 });
     }
 
