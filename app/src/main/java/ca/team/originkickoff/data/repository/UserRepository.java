@@ -37,7 +37,8 @@ public class UserRepository {
 
     private void createNewUser(String deviceId, MutableLiveData<User> userLiveData) {
         User newUser = new User();
-        String userId = UUID.randomUUID().toString();
+        // Use deviceId as both document id and internal id to align with rest of app and simplify lookups
+        String userId = deviceId;
         newUser.setId(userId);
         newUser.setDeviceId(deviceId);
         newUser.setDisplayName(""); // Default empty display name

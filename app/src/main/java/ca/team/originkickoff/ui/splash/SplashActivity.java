@@ -27,21 +27,50 @@ public class SplashActivity extends AppCompatActivity {
 
         String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
 
+        // First try legacy approach: document id == deviceId
         db.collection("users").document(deviceId).get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    if (documentSnapshot.exists()) {
-                        // User exists, navigate to MainActivity
+                .addOnSuccessListener(legacyDoc -> {
+                    if (legacyDoc.exists()) {
                         startActivity(new Intent(this, MainActivity.class));
+                        finish();
                     } else {
-                        // No user found, navigate to SignUpActivity
-                        startActivity(new Intent(this, SignUpActivity.class));
+                        // Fallback: query by device_id field (new format where doc id != device id)
+                        db.collection("users")
+                                .whereEqualTo("device_id", deviceId)
+                                .limit(1)
+                                .get()
+                                .addOnSuccessListener(querySnapshots -> {
+                                    if (!querySnapshots.isEmpty()) {
+                                        startActivity(new Intent(this, MainActivity.class));
+                                    } else {
+                                        startActivity(new Intent(this, SignUpActivity.class));
+                                    }
+                                    finish();
+                                })
+                                .addOnFailureListener(e -> {
+                                    startActivity(new Intent(this, SignUpActivity.class));
+                                    finish();
+                                });
                     }
-                    finish(); // Finish SplashActivity so it's not in the back stack
                 })
                 .addOnFailureListener(e -> {
-                    // In case of error, default to sign-up
-                    startActivity(new Intent(this, SignUpActivity.class));
-                    finish();
+                    // In case of error, fallback to field query
+                    db.collection("users")
+                            .whereEqualTo("device_id", deviceId)
+                            .limit(1)
+                            .get()
+                            .addOnSuccessListener(querySnapshots -> {
+                                if (!querySnapshots.isEmpty()) {
+                                    startActivity(new Intent(this, MainActivity.class));
+                                } else {
+                                    startActivity(new Intent(this, SignUpActivity.class));
+                                }
+                                finish();
+                            })
+                            .addOnFailureListener(err -> {
+                                startActivity(new Intent(this, SignUpActivity.class));
+                                finish();
+                            });
                 });
     }
 }
