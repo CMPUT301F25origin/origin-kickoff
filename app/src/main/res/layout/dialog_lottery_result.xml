@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/bg_card">
+
+    <!-- Dialog Title -->
+    <TextView
+        android:id="@+id/tvDialogTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🎉 Lottery Result - You Won!"
+        android:textColor="#FFFFFF"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Dialog Message -->
+    <TextView
+        android:id="@+id/tvDialogMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Congratulations! You were selected in the lottery for Event Name"
+        android:textColor="#CCCCCC"
+        android:textSize="16sp"
+        android:gravity="center"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Button: Go to Event -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnGoToEvent"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Go to Event"
+        android:textColor="#1A2625"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        app:backgroundTint="#00D9C5"
+        app:cornerRadius="12dp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Button: Close -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnClose"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Close"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        app:backgroundTint="#2A3A38"
+        app:cornerRadius="12dp"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        app:strokeColor="#3A4A48"
+        app:strokeWidth="1dp" />
+
+</LinearLayout>
+

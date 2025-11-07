@@ -1,31 +1,51 @@
 package ca.team.originkickoff;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.Log;
+import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import ca.team.originkickoff.R;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.firebase.firestore.FirebaseFirestore;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+
+import ca.team.originkickoff.adapters.NotificationAdapter;
+import ca.team.originkickoff.models.NotificationItem;
+import ca.team.originkickoff.services.NotificationService;
+import ca.team.originkickoff.util.DeviceUtils;
 
 public class NotificationsActivity extends AppCompatActivity {
 
-    private static final String PREFS_NAME = "app_prefs";
-    private static final String KEY_NOTIFS_ENABLED = "notifications_enabled";
+    private static final String TAG = "NotificationsActivity";
 
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
+
+    private RecyclerView recyclerView;
+    private NotificationAdapter adapter;
+    private ProgressBar progressBar;
+    private TextView tvEmptyState;
+    private NotificationService notificationService;
+    private FirebaseFirestore db;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -40,9 +60,21 @@ public class NotificationsActivity extends AppCompatActivity {
             return insets;
         });
 
+        // Initialize Firestore
+        db = FirebaseFirestore.getInstance();
+        notificationService = new NotificationService();
+
         setupTopBar();
         setupBottomNav();
-        setupSwitch();
+        setupRecyclerView();
+        loadNotifications();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload notifications when returning to activity
+        loadNotifications();
     }
 
     private void setupTopBar() {
@@ -50,16 +82,160 @@ public class NotificationsActivity extends AppCompatActivity {
         if (back != null) back.setOnClickListener(v -> finish());
     }
 
-    private void setupSwitch() {
-        SwitchCompat sw = findViewById(R.id.switch_notifications);
-        if (sw == null) return;
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        boolean enabled = prefs.getBoolean(KEY_NOTIFS_ENABLED, true);
-        sw.setChecked(enabled);
-        sw.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            prefs.edit().putBoolean(KEY_NOTIFS_ENABLED, isChecked).apply();
-            updateFcmSubscription(isChecked);
+    private void setupRecyclerView() {
+        recyclerView = findViewById(R.id.recyclerNotifications);
+        progressBar = findViewById(R.id.progressBar);
+        tvEmptyState = findViewById(R.id.tvEmptyState);
+
+        if (recyclerView != null) {
+            recyclerView.setLayoutManager(new LinearLayoutManager(this));
+            adapter = new NotificationAdapter(this::onNotificationClick);
+            recyclerView.setAdapter(adapter);
+        }
+    }
+
+    private void loadNotifications() {
+        // Use device ID to get the user, just like other parts of the app
+        String deviceId = DeviceUtils.getDeviceId(this);
+
+        Log.d(TAG, "=== LOADING NOTIFICATIONS ===");
+        Log.d(TAG, "Device ID: " + deviceId);
+
+        if (deviceId == null) {
+            Log.e(TAG, "Device ID is null");
+            showEmptyState();
+            return;
+        }
+
+        showLoading(true);
+
+        // First, get the user document ID from device_id
+        db.collection("users")
+                .whereEqualTo("device_id", deviceId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(userSnapshots -> {
+                    if (userSnapshots.isEmpty()) {
+                        Log.w(TAG, "No user found for device_id: " + deviceId);
+                        showLoading(false);
+                        showEmptyState();
+                        return;
+                    }
+
+                    // Get the user's document ID (this is what's stored in notifications)
+                    String userId = userSnapshots.getDocuments().get(0).getId();
+                    Log.d(TAG, "Found user ID: " + userId);
+                    Log.d(TAG, "Now querying notifications for this user...");
+
+                    // Now fetch notifications for this user
+                    notificationService.getNotificationsForUser(userId)
+                            .addOnSuccessListener(notifications -> {
+                                showLoading(false);
+                                Log.d(TAG, "Query completed. Found " + notifications.size() + " notifications");
+
+                                // Format timestamps for display
+                                SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault());
+                                for (NotificationItem item : notifications) {
+                                    if (item.getCreatedAt() != null) {
+                                        Date date = item.getCreatedAt().toDate();
+                                        item.setTimestamp(dateFormat.format(date));
+                                    } else {
+                                        item.setTimestamp("Recent");
+                                    }
+                                }
+
+                                if (notifications.isEmpty()) {
+                                    Log.d(TAG, "No notifications found for user - showing empty state");
+                                    showEmptyState();
+                                } else {
+                                    Log.d(TAG, "Displaying " + notifications.size() + " notifications");
+                                    adapter.setItems(notifications);
+                                    recyclerView.setVisibility(View.VISIBLE);
+                                    tvEmptyState.setVisibility(View.GONE);
+                                }
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e(TAG, "Failed to load notifications: " + e.getMessage(), e);
+                                Log.e(TAG, "Exception class: " + e.getClass().getName());
+
+                                // Check if it's a missing index error
+                                if (e.getMessage() != null && e.getMessage().contains("index")) {
+                                    Log.e(TAG, "*** FIRESTORE INDEX REQUIRED ***");
+                                    Log.e(TAG, "You need to create a composite index in Firestore.");
+                                    Log.e(TAG, "Check the full error message above for a link to create the index.");
+                                }
+
+                                showLoading(false);
+                                showEmptyState();
+                            });
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load user: " + e.getMessage(), e);
+                    showLoading(false);
+                    showEmptyState();
+                });
+    }
+
+    private void onNotificationClick(NotificationItem notification) {
+        // Mark as read
+        if (notification.getId() != null && !notification.isRead()) {
+            notificationService.markAsRead(notification.getId())
+                    .addOnSuccessListener(aVoid -> {
+                        notification.setRead(true);
+                        adapter.notifyDataSetChanged();
+                    });
+        }
+
+        // Show dialog if it's a result type
+        if ("result".equals(notification.getType()) && notification.getEventId() != null) {
+            showResultDialog(notification);
+        }
+    }
+
+    private void showResultDialog(NotificationItem notification) {
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_lottery_result, null);
+
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this, R.style.CustomAlertDialog);
+        builder.setView(dialogView);
+
+        TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
+        TextView tvMessage = dialogView.findViewById(R.id.tvDialogMessage);
+        MaterialButton btnGoToEvent = dialogView.findViewById(R.id.btnGoToEvent);
+        MaterialButton btnClose = dialogView.findViewById(R.id.btnClose);
+
+        tvTitle.setText(notification.getTitle());
+        tvMessage.setText(notification.getMessage());
+
+        androidx.appcompat.app.AlertDialog dialog = builder.create();
+
+        btnGoToEvent.setOnClickListener(v -> {
+            dialog.dismiss();
+            navigateToEvent(notification.getEventId());
         });
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    private void navigateToEvent(String eventId) {
+        Intent intent = new Intent(this, EventDetailActivity.class);
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
+        startActivity(intent);
+    }
+
+    private void showLoading(boolean show) {
+        if (progressBar != null) {
+            progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void showEmptyState() {
+        if (recyclerView != null) recyclerView.setVisibility(View.GONE);
+        if (tvEmptyState != null) {
+            tvEmptyState.setVisibility(View.VISIBLE);
+            tvEmptyState.setText("No notifications yet");
+        }
     }
 
     private void setupBottomNav() {
@@ -93,13 +269,5 @@ public class NotificationsActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         startActivity(intent);
         overridePendingTransition(0, 0);
-    }
-
-    private void updateFcmSubscription(boolean enabled) {
-        // If using Firebase Messaging, you can subscribe/unsubscribe to a topic.
-        // Example:
-        // FirebaseMessaging.getInstance().subscribeToTopic("general");
-        // FirebaseMessaging.getInstance().unsubscribeFromTopic("general");
-        // Left as a stub to avoid introducing runtime calls during build/test.
     }
 }

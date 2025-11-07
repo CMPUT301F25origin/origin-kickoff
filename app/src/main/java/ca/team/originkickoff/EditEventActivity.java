@@ -42,10 +42,12 @@ public class EditEventActivity extends AppCompatActivity {
     private EditText etEventName, etDescription, etLocation, etDate, etTime,
             etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime;
     private EditText etCapacity, etCriteria;
+    private EditText etSelectionSize, etWaitlistLimit;
     private ImageView ivPosterPreview, btnClose;
     private LinearLayout layoutUploadImage;
     private Button btnCreateEvent;
     private ProgressBar progressBar;
+    private androidx.appcompat.widget.SwitchCompat switchGeoRequired, switchLimitWaitlist;
 
     private Uri selectedImageUri;
     private FirebaseFirestore db;
@@ -135,9 +137,13 @@ public class EditEventActivity extends AppCompatActivity {
         etRegEndTime = findViewById(R.id.etRegEndTime);
         etCapacity = findViewById(R.id.etCapacity);
         etCriteria = findViewById(R.id.etCriteria);
+        etSelectionSize = findViewById(R.id.etSelectionSize);
+        etWaitlistLimit = findViewById(R.id.etWaitlistLimit);
         btnClose = findViewById(R.id.btnClose);
         layoutUploadImage = findViewById(R.id.layoutUploadImage);
         btnCreateEvent = findViewById(R.id.btnCreateEvent);
+        switchGeoRequired = findViewById(R.id.switchGeoRequired);
+        switchLimitWaitlist = findViewById(R.id.switchLimitWaitlist);
 
         // Change button text to "Update Event"
         btnCreateEvent.setText("Update Event");
@@ -236,9 +242,20 @@ public class EditEventActivity extends AppCompatActivity {
                 byte[] decodedString = Base64.decode(currentEvent.getPosterBase64(), Base64.DEFAULT);
                 Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
                 ivPosterPreview.setImageBitmap(decodedByte);
+                ivPosterPreview.setVisibility(View.VISIBLE); // Show preview
             } catch (Exception e) {
                 Log.e(TAG, "Error decoding poster image", e);
             }
+        }
+
+        // Set switches
+        switchGeoRequired.setChecked(currentEvent.isGeolocationRequired());
+        switchLimitWaitlist.setChecked(currentEvent.getWaitlistLimit() > 0);
+
+        // Show and populate waitlist limit if it exists
+        if (currentEvent.getWaitlistLimit() > 0) {
+            etWaitlistLimit.setText(String.valueOf(currentEvent.getWaitlistLimit()));
+            etWaitlistLimit.setVisibility(View.VISIBLE);
         }
     }
 
@@ -314,6 +331,16 @@ public class EditEventActivity extends AppCompatActivity {
         layoutUploadImage.setOnClickListener(v -> pickImage());
 
         btnCreateEvent.setOnClickListener(v -> updateEvent());
+
+        // Toggle listener for waitlist limit
+        switchLimitWaitlist.setOnCheckedChangeListener((btn, checked) -> {
+            if (etWaitlistLimit != null) {
+                etWaitlistLimit.setVisibility(checked ? View.VISIBLE : View.GONE);
+                if (!checked) {
+                    etWaitlistLimit.setText("");
+                }
+            }
+        });
     }
 
     private interface DateChosenCallback {
@@ -365,6 +392,8 @@ public class EditEventActivity extends AppCompatActivity {
         String location = getText(etLocation);
         String capacityStr = getText(etCapacity);
         String criteria = getText(etCriteria);
+        String selectionSizeStr = getText(etSelectionSize);
+        String waitlistLimitStr = getText(etWaitlistLimit);
 
         // Validation - ALL FIELDS ARE MANDATORY
         if (TextUtils.isEmpty(title)) {
@@ -421,6 +450,50 @@ public class EditEventActivity extends AppCompatActivity {
             return;
         }
 
+        // Validate selection size and waitlist limit if applicable
+        boolean limitWaitlist = switchLimitWaitlist.isChecked();
+        boolean geoRequired = switchGeoRequired.isChecked();
+
+        int waitlistLimit = -1;
+        if (limitWaitlist) {
+            if (TextUtils.isEmpty(waitlistLimitStr)) {
+                etWaitlistLimit.setError("Waitlist limit is required");
+                etWaitlistLimit.requestFocus();
+                return;
+            }
+            try {
+                waitlistLimit = Integer.parseInt(waitlistLimitStr);
+                if (waitlistLimit < 0) {
+                    etWaitlistLimit.setError("Waitlist limit cannot be negative");
+                    etWaitlistLimit.requestFocus();
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                etWaitlistLimit.setError("Invalid waitlist limit");
+                etWaitlistLimit.requestFocus();
+                return;
+            }
+        }
+
+        int selectionSize = -1;
+        if (TextUtils.isEmpty(selectionSizeStr)) {
+            etSelectionSize.setError("Selection size is required");
+            etSelectionSize.requestFocus();
+            return;
+        }
+        try {
+            selectionSize = Integer.parseInt(selectionSizeStr);
+            if (selectionSize <= 0) {
+                etSelectionSize.setError("Selection size must be greater than 0");
+                etSelectionSize.requestFocus();
+                return;
+            }
+        } catch (NumberFormatException e) {
+            etSelectionSize.setError("Invalid selection size");
+            etSelectionSize.requestFocus();
+            return;
+        }
+
         long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
 
         // Validate event is in the future
@@ -468,6 +541,9 @@ public class EditEventActivity extends AppCompatActivity {
         updates.put("eventDate", new Timestamp(new java.util.Date(eventTimestampMillis)));
         updates.put("registrationStartTime", new Timestamp(new java.util.Date(regStartMillis)));
         updates.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
+        updates.put("geolocationRequired", geoRequired);
+        updates.put("waitlistLimit", limitWaitlist ? waitlistLimit : 0);
+        updates.put("selectionSize", selectionSize);
 
         // Add location coordinates if available
         if (selectedLocation != null) {

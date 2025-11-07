@@ -284,14 +284,25 @@ public class ManageLotteryActivity extends AppCompatActivity {
                     // Create invitation statuses for all winners
                     createInvitationStatuses(result.getWinnerIds())
                             .addOnSuccessListener(aVoid -> {
-                                // Mark event as lottery conducted
-                                markLotteryAsConducted();
+                                // Send notifications to winners and losers
+                                sendLotteryNotifications(result.getWinnerIds(), result.getAllEntrantIds())
+                                        .addOnSuccessListener(aVoid1 -> {
+                                            // Mark event as lottery conducted
+                                            markLotteryAsConducted();
 
-                                Toast.makeText(this, "Lottery conducted successfully! " +
-                                        result.getNumWinners() + " winners selected.", Toast.LENGTH_LONG).show();
+                                            Toast.makeText(this, "Lottery conducted successfully! " +
+                                                    result.getNumWinners() + " winners selected.", Toast.LENGTH_LONG).show();
 
-                                // Navigate to invitations page
-                                navigateToResults();
+                                            // Navigate to invitations page
+                                            navigateToResults();
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.e(TAG, "Failed to send lottery notifications", e);
+                                            Toast.makeText(this, "Lottery completed but failed to send notifications: " + e.getMessage(),
+                                                    Toast.LENGTH_LONG).show();
+                                            showLoading(false);
+                                            btnConductLottery.setEnabled(true);
+                                        });
                             })
                             .addOnFailureListener(e -> {
                                 Log.e(TAG, "Failed to create invitation statuses", e);
@@ -342,6 +353,49 @@ public class ManageLotteryActivity extends AppCompatActivity {
             data.put("invited_at", now);
 
             batch.set(db.collection("invitation_status").document(docId), data);
+        }
+
+        return batch.commit();
+    }
+
+    private com.google.android.gms.tasks.Task<Void> sendLotteryNotifications(List<String> winnerIds, List<String> allEntrantIds) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        WriteBatch batch = db.batch();
+        Timestamp now = Timestamp.now();
+
+        // Get event name for notification
+        String eventName = currentEvent != null ? currentEvent.getName() : "Event";
+
+        // Send notifications to winners
+        for (String userId : winnerIds) {
+            String notificationId = db.collection("notifications").document().getId();
+            Map<String, Object> notification = new HashMap<>();
+            notification.put("userId", userId);
+            notification.put("eventId", eventId);
+            notification.put("type", "result");
+            notification.put("title", "🎉 Lottery Result - You Won!");
+            notification.put("message", "Congratulations! You were selected in the lottery for " + eventName);
+            notification.put("createdAt", now);
+            notification.put("read", false);
+
+            batch.set(db.collection("notifications").document(notificationId), notification);
+        }
+
+        // Send notifications to losers (entrants who didn't win)
+        for (String userId : allEntrantIds) {
+            if (!winnerIds.contains(userId)) {
+                String notificationId = db.collection("notifications").document().getId();
+                Map<String, Object> notification = new HashMap<>();
+                notification.put("userId", userId);
+                notification.put("eventId", eventId);
+                notification.put("type", "result");
+                notification.put("title", "Lottery Result");
+                notification.put("message", "Unfortunately, you were not selected in the lottery for " + eventName);
+                notification.put("createdAt", now);
+                notification.put("read", false);
+
+                batch.set(db.collection("notifications").document(notificationId), notification);
+            }
         }
 
         return batch.commit();

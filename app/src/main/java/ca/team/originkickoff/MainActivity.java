@@ -15,6 +15,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -159,6 +160,12 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         LinearLayout navEvents = findViewById(R.id.navEvents);
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
         LinearLayout navProfile = findViewById(R.id.navProfile);
+
+        // Highlight current tab (Home)
+        ImageView ivHome = findViewById(R.id.ivHome);
+        TextView tvHome = findViewById(R.id.tvHome);
+        if (ivHome != null) ivHome.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
+        if (tvHome != null) tvHome.setTextColor(0xFF00D9C5);
 
         navHome.setOnClickListener(v -> { /* already here */ });
         navEvents.setOnClickListener(v -> navigateBottomTab(MyEventsActivity.class));

@@ -14,8 +14,17 @@ import java.util.List;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.NotificationItem;
 
-public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapter.VH> {
+public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapter.NotificationViewHolder> {
     private final List<NotificationItem> items = new ArrayList<>();
+    private final OnNotificationClickListener clickListener;
+
+    public interface OnNotificationClickListener {
+        void onNotificationClick(NotificationItem notification);
+    }
+
+    public NotificationAdapter(OnNotificationClickListener clickListener) {
+        this.clickListener = clickListener;
+    }
 
     public void setItems(List<NotificationItem> newItems) {
         items.clear();
@@ -25,18 +34,29 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
 
     @NonNull
     @Override
-    public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public NotificationViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.item_notification, parent, false);
-        return new VH(view);
+        return new NotificationViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull VH holder, int position) {
+    public void onBindViewHolder(@NonNull NotificationViewHolder holder, int position) {
         NotificationItem it = items.get(position);
         holder.title.setText(it.getTitle());
         holder.message.setText(it.getMessage());
         holder.time.setText(it.getTimestamp());
+
+        // Visual feedback for unread notifications
+        float alpha = it.isRead() ? 0.7f : 1.0f;
+        holder.title.setAlpha(alpha);
+        holder.message.setAlpha(alpha);
+
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onNotificationClick(it);
+            }
+        });
     }
 
     @Override
@@ -44,11 +64,12 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         return items.size();
     }
 
-    static class VH extends RecyclerView.ViewHolder {
+    public static class NotificationViewHolder extends RecyclerView.ViewHolder {
         final TextView title;
         final TextView message;
         final TextView time;
-        VH(@NonNull View itemView) {
+
+        NotificationViewHolder(@NonNull View itemView) {
             super(itemView);
             title = itemView.findViewById(R.id.tvTitle);
             message = itemView.findViewById(R.id.tvMessage);
@@ -56,4 +77,3 @@ public class NotificationAdapter extends RecyclerView.Adapter<NotificationAdapte
         }
     }
 }
-

@@ -87,18 +87,29 @@ public class LotteryOrchestrator {
 
                                 List<String> winnerIds = lotteryTask.getResult();
 
-                                // Step 4: Create and save lottery result
-                                LotteryResult result = new LotteryResult(
-                                    eventId,
-                                    Timestamp.now(),
-                                    method.getValue(),
-                                    totalEntrants,
-                                    winnerIds.size(),
-                                    winnerIds,
-                                    organizerId
-                                );
+                                // Fetch all entrant IDs for notifications
+                                return waitingListService.getAllActiveUserIds(eventId)
+                                        .continueWithTask(allEntrantsTask -> {
+                                            if (!allEntrantsTask.isSuccessful()) {
+                                                return Tasks.forException(allEntrantsTask.getException());
+                                            }
 
-                                return saveLotteryResult(result);
+                                            List<String> allEntrantIds = allEntrantsTask.getResult();
+
+                                            // Step 4: Create and save lottery result
+                                            LotteryResult result = new LotteryResult(
+                                                eventId,
+                                                Timestamp.now(),
+                                                method.getValue(),
+                                                totalEntrants,
+                                                winnerIds.size(),
+                                                winnerIds,
+                                                organizerId
+                                            );
+                                            result.setAllEntrantIds(allEntrantIds);
+
+                                            return saveLotteryResult(result);
+                                        });
                             });
                 });
     }
@@ -171,4 +182,3 @@ public class LotteryOrchestrator {
                 });
     }
 }
-

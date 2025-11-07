@@ -52,6 +52,7 @@
         <activity android:name=".WaitingListMapActivity" android:exported="false" />
         <activity android:name=".ManageLotteryActivity" android:exported="false" />
         <activity android:name=".ManageInvitationsActivity" android:exported="false" />
+        <activity android:name=".ImageViewerActivity" android:exported="false" />
 
         <!-- My Events activity -->
         <activity android:name=".MyEventsActivity" android:exported="false" android:launchMode="singleTop" />
