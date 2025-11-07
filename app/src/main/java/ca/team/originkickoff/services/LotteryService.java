@@ -1,6 +1,7 @@
 package ca.team.originkickoff.services;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.VisibleForTesting;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
@@ -28,8 +29,13 @@ public class LotteryService {
     private static final double EARLY_PRIORITY_DECAY = 0.5;
 
     public LotteryService() {
-        this.secureRandom = new SecureRandom();
-        this.waitingListService = new WaitingListService();
+        this(new WaitingListService(), new SecureRandom());
+    }
+
+    @VisibleForTesting
+    LotteryService(WaitingListService waitingListService, SecureRandom secureRandom) {
+        this.waitingListService = waitingListService;
+        this.secureRandom = secureRandom;
     }
 
     /**
@@ -206,4 +212,3 @@ public class LotteryService {
         }
     }
 }
-
