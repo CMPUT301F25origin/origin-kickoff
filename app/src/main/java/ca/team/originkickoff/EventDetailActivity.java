@@ -461,6 +461,12 @@ public class EventDetailActivity extends AppCompatActivity {
                                 currentEvent.setLotteryStatus(lotteryStatus);
                             }
 
+                            // Load lottery criteria
+                            String lotteryCriteria = documentSnapshot.getString("lotteryCriteria");
+                            if (lotteryCriteria != null) {
+                                currentEvent.setLotteryCriteria(lotteryCriteria);
+                            }
+
                             // Handle timestamp fields
                             com.google.firebase.Timestamp regStart = documentSnapshot.getTimestamp("registrationStartTime");
                             if (regStart != null) {
@@ -762,8 +768,34 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void openLotteryCriteria() {
-        Toast.makeText(this, "Opening lottery criteria", Toast.LENGTH_SHORT).show();
-        // TODO: Navigate to lottery criteria screen or show dialog
+        // Show popup with lottery criteria from Firestore
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View content = inflater.inflate(R.layout.dialog_lottery_criteria, null, false);
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        dialog.setContentView(content);
+
+        // Make background transparent so our card keeps rounded corners
+        android.widget.FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) sheet.setBackgroundResource(android.R.color.transparent);
+
+        BottomSheetBehavior<?> behavior = dialog.getBehavior();
+        behavior.setSkipCollapsed(true);
+        behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+        // Set the lottery criteria text
+        TextView tvLotteryCriteria = content.findViewById(R.id.tvLotteryCriteria);
+        String criteria = currentEvent.getLotteryCriteria();
+
+        if (criteria != null && !criteria.trim().isEmpty()) {
+            tvLotteryCriteria.setText(criteria);
+        } else {
+            tvLotteryCriteria.setText("No lottery criteria specified for this event.");
+        }
+
+        // Close button
+        content.findViewById(R.id.btnClose).setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     private void openMapPreview() {
