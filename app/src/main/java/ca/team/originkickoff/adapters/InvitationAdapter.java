@@ -1,3 +1,7 @@
+/**
+ * RecyclerView adapter presenting invitation statuses for an event.
+ * Handles lazy loading of user names and profile images with Firestore caching.
+ */
 package ca.team.originkickoff.adapters;
 
 import android.content.res.ColorStateList;
@@ -27,7 +31,7 @@ import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.InvitationStatus;
 
 /**
- * Adapter for displaying invitation status items
+ * Adapter for displaying {@link ca.team.originkickoff.models.InvitationStatus} items.
  */
 public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.ViewHolder> {
     private List<InvitationStatus> invitations;
@@ -35,10 +39,18 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+    /**
+     * Creates a new adapter instance.
+     * @param invitations initial invitation list (nullable)
+     */
     public InvitationAdapter(List<InvitationStatus> invitations) {
         this.invitations = invitations;
     }
 
+    /**
+     * Replaces current dataset and clears name & image caches.
+     * @param newInvitations new list of invitation statuses
+     */
     public void updateData(List<InvitationStatus> newInvitations) {
         this.invitations = newInvitations;
         nameCache.clear();
@@ -46,6 +58,12 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         notifyDataSetChanged();
     }
 
+    /**
+     * Inflates a new invitation item view.
+     * @param parent parent ViewGroup
+     * @param viewType unused view type
+     * @return view holder for invitation item
+     */
     @NonNull
     @Override
     public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -54,22 +72,37 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         return new ViewHolder(view);
     }
 
+    /**
+     * Binds the invitation status at the given position.
+     * @param holder holder to bind
+     * @param position adapter position
+     */
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         InvitationStatus invitation = invitations.get(position);
         holder.bind(invitation, position);
     }
 
+    /**
+     * @return number of invitations displayed
+     */
     @Override
     public int getItemCount() {
         return invitations.size();
     }
 
+    /**
+     * ViewHolder representing a single invitation status row.
+     */
     class ViewHolder extends RecyclerView.ViewHolder {
         private final TextView tvUserName;
         private final TextView tvSelectedDate;
         private final ImageView ivProfilePic;
 
+        /**
+         * Constructs the holder and binds view references.
+         * @param itemView inflated item view
+         */
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
             tvUserName = itemView.findViewById(R.id.tv_user_name);
@@ -77,16 +110,19 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             ivProfilePic = itemView.findViewById(R.id.ivProfilePic);
         }
 
+        /**
+         * Populates the row with invitation details and triggers async user fetch.
+         * @param invitation the invitation status model
+         * @param position adapter position (used for targeted refresh)
+         */
         public void bind(InvitationStatus invitation, int position) {
             String userId = invitation.getUserId();
 
-            // Display user name (fetch from users collection)
             tvUserName.setText(nameCache.containsKey(userId) ? nameCache.get(userId) : "Loading...");
             if (!nameCache.containsKey(userId)) {
                 fetchUserData(userId, position);
             }
 
-            // Format date as MM/DD/YYYY
             if (invitation.getInvitedAt() != null) {
                 SimpleDateFormat sdf = new SimpleDateFormat("MM/dd/yyyy", Locale.getDefault());
                 String dateStr = sdf.format(invitation.getInvitedAt().toDate());
@@ -95,10 +131,14 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                 tvSelectedDate.setText("Selected: Unknown");
             }
 
-            // Load profile picture
             loadProfilePicture(userId);
         }
 
+        /**
+         * Fetches user metadata (name & profile image id) and updates caches.
+         * @param userId Firestore user document ID
+         * @param adapterPos position to refresh after data loads
+         */
         private void fetchUserData(String userId, int adapterPos) {
             if (userId == null || userId.isEmpty()) return;
 
@@ -106,12 +146,11 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                 String name = extractName(doc);
                 nameCache.put(userId, name);
 
-                // Cache profile image ID if available
                 String imageId = doc.getString("profile_image_id");
                 if (imageId != null && !imageId.isEmpty()) {
                     imageCache.put(userId, imageId);
                 } else {
-                    imageCache.put(userId, ""); // Mark as checked but empty
+                    imageCache.put(userId, "");
                 }
 
                 if (adapterPos >= 0 && adapterPos < invitations.size()) {
@@ -126,13 +165,16 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             });
         }
 
+        /**
+         * Loads a cached or fetched profile picture for a user.
+         * @param userId Firestore user document ID
+         */
         private void loadProfilePicture(String userId) {
             if (userId == null || userId.isEmpty()) {
                 showPlaceholderImage();
                 return;
             }
 
-            // Check if we already have the image ID cached
             if (imageCache.containsKey(userId)) {
                 String imageId = imageCache.get(userId);
                 if (imageId != null && !imageId.isEmpty()) {
@@ -141,11 +183,14 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                     showPlaceholderImage();
                 }
             } else {
-                // Will be loaded when user data is fetched
                 showPlaceholderImage();
             }
         }
 
+        /**
+         * Retrieves the image document and attempts to decode the Base64 image.
+         * @param imageId Firestore image document ID
+         */
         private void loadImageFromFirestore(String imageId) {
             db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
                 if (imageDoc.exists()) {
@@ -170,6 +215,9 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             }).addOnFailureListener(e -> showPlaceholderImage());
         }
 
+        /**
+         * Shows a placeholder avatar when no custom image is available.
+         */
         private void showPlaceholderImage() {
             ivProfilePic.setImageTintList(ColorStateList.valueOf(
                     ContextCompat.getColor(itemView.getContext(), R.color.ko_teal)));
@@ -179,9 +227,13 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                     .into(ivProfilePic);
         }
 
+        /**
+         * Attempts to derive a displayable name from a user document.
+         * @param doc Firestore user document snapshot
+         * @return best-effort display name or fallback string
+         */
         private String extractName(DocumentSnapshot doc) {
             if (doc == null || !doc.exists()) return "Unknown User";
-            // Try common name fields used across this project
             String[] keys = new String[]{"display_name", "displayName", "name", "username", "email"};
             for (String k : keys) {
                 Object v = doc.get(k);
