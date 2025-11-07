@@ -51,6 +51,7 @@
 
         <!-- My Events activity -->
         <activity android:name=".MyEventsActivity" android:exported="false" android:launchMode="singleTop" />
+        <activity android:name=".WaitlistMapActivity" android:exported="false" />
 
     </application>
 

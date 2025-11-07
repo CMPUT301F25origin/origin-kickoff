@@ -6,13 +6,32 @@
     android:background="#0E2823"
     android:padding="16dp">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Waiting List Entrants"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"
-        android:textSize="18sp"/>
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/waiting_list_entrants"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:textSize="18sp"/>
+
+        <Button
+            android:id="@+id/btnViewMap"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/view_map"
+            android:textAllCaps="false"
+            android:paddingLeft="12dp"
+            android:paddingRight="12dp"
+            android:background="@android:color/transparent"
+            android:textColor="#4DE8C0"/>
+    </LinearLayout>
 
     <ProgressBar
         android:id="@+id/progress"
@@ -31,4 +50,3 @@
         android:layout_marginTop="8dp"/>
 
 </LinearLayout>
-
