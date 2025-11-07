@@ -112,7 +112,6 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     private void getCurrentUserFromFirestore() {
-        // Get device ID and query Firestore for the user
         String deviceId = DeviceUtils.getDeviceId(this);
         if (deviceId != null) {
             db.collection("users")
@@ -123,6 +122,8 @@ public class CreateEventActivity extends AppCompatActivity {
                         if (!queryDocumentSnapshots.isEmpty()) {
                             currentUser = queryDocumentSnapshots.getDocuments().get(0).toObject(User.class);
                             if (currentUser != null) {
+                                // Ensure id field is set from document id
+                                currentUser.setId(queryDocumentSnapshots.getDocuments().get(0).getId());
                                 Log.d(TAG, "Current user loaded: " + currentUser.getId());
                             }
                         } else {
@@ -419,26 +420,14 @@ public class CreateEventActivity extends AppCompatActivity {
         setLoading(true);
 
         // Get organizer information from currentUser
-        String organizerId;
-        String organizerName;
-
-        if (currentUser != null) {
-            organizerId = currentUser.getId();
-            organizerName = currentUser.getDisplayName();
-
-            // Use a fallback if display name is empty
-            if (TextUtils.isEmpty(organizerName)) {
-                organizerName = "User";
-            }
-
-            Log.d(TAG, "Creating event with organizer ID: " + organizerId);
-        } else {
-            // Fallback: if user not loaded yet, get device ID directly
-            String deviceId = DeviceUtils.getDeviceId(this);
-            Log.w(TAG, "Current user not loaded, using device ID as fallback: " + deviceId);
-            organizerId = deviceId != null ? deviceId : "unknown";
-            organizerName = "User";
+        if (currentUser == null || currentUser.getId() == null) {
+            Toast.makeText(this, "User not loaded yet. Please wait a moment and try again.", Toast.LENGTH_SHORT).show();
+            return; // Prevent creating event with incorrect organizerId
         }
+        String organizerId = currentUser.getId();
+        String organizerName = currentUser.getDisplayName();
+        if (android.text.TextUtils.isEmpty(organizerName)) organizerName = "User";
+        Log.d(TAG, "Creating event with organizer ID: " + organizerId);
 
         // Assemble event map matching Firestore schema exactly
         Map<String, Object> event = new HashMap<>();
