@@ -3,6 +3,7 @@ package ca.team.originkickoff;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Base64;
@@ -47,6 +48,9 @@ public class ProfileActivity extends AppCompatActivity {
     private String deviceId;
     private FirebaseFirestore db;
     private String userDocId;
+
+    // Debounce for bottom-nav taps
+    private long lastNavTapAtMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -150,18 +154,29 @@ public class ProfileActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to clear profile.", Toast.LENGTH_SHORT).show());
     }
 
+    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    private void navigateBottomTab(Class<?> targetActivity) {
+        if (targetActivity == null) return;
+        if (getClass().equals(targetActivity)) return; // already on this tab
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        lastNavTapAtMs = now;
+        Intent intent = new Intent(this, targetActivity);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+        // Remove activity transition animations to avoid jank
+        overridePendingTransition(0, 0);
+    }
+
     private void setupBottomBar() {
         findViewById(R.id.navHome).setOnClickListener(v -> {
-            startActivity(new Intent(ProfileActivity.this, MainActivity.class));
-            finish();
+            navigateBottomTab(MainActivity.class);
         });
         findViewById(R.id.navEvents).setOnClickListener(v -> {
-            startActivity(new Intent(ProfileActivity.this, MyEventsActivity.class));
-            finish();
+            navigateBottomTab(MyEventsActivity.class);
         });
         findViewById(R.id.navNotifications).setOnClickListener(v -> {
-            startActivity(new Intent(ProfileActivity.this, NotificationsActivity.class));
-            finish();
+            navigateBottomTab(NotificationsActivity.class);
         });
         findViewById(R.id.navProfile).setOnClickListener(v -> {});
     }

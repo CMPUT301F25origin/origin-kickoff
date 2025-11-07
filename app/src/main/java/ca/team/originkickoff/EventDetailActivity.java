@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -69,6 +70,9 @@ public class EventDetailActivity extends AppCompatActivity {
     private User currentUser; // resolved from device_id
     private boolean isOrganizer = false;
     private FusedLocationProviderClient fusedLocationClient;
+
+    // Debounce for bottom-nav taps
+    private long lastNavTapAtMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,23 +146,16 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // Bottom navigation
         LinearLayout navHome = findViewById(R.id.navHome);
-        navHome.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
-        });
+        navHome.setOnClickListener(v -> navigateBottomTab(MainActivity.class));
 
         LinearLayout navEvents = findViewById(R.id.navEvents);
-        navEvents.setOnClickListener(v -> Toast.makeText(this, "My Events", Toast.LENGTH_SHORT).show());
+        navEvents.setOnClickListener(v -> navigateBottomTab(MyEventsActivity.class));
 
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
-        navNotifications.setOnClickListener(v -> {
-            Intent i = new Intent(this, NotificationsActivity.class);
-            startActivity(i);
-        });
+        navNotifications.setOnClickListener(v -> navigateBottomTab(NotificationsActivity.class));
 
         LinearLayout navProfile = findViewById(R.id.navProfile);
-        navProfile.setOnClickListener(v -> Toast.makeText(this, "Profile", Toast.LENGTH_SHORT).show());
+        navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
 
         // Location card click
         locationCard.setOnClickListener(v -> {
@@ -166,6 +163,19 @@ public class EventDetailActivity extends AppCompatActivity {
                 openMapPreview();
             }
         });
+    }
+
+    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    private void navigateBottomTab(Class<?> targetActivity) {
+        if (targetActivity == null) return;
+        if (getClass().equals(targetActivity)) return; // already on this tab
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        lastNavTapAtMs = now;
+        Intent intent = new Intent(this, targetActivity);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 
     private void resolveCurrentUser() {

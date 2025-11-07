@@ -379,126 +379,13 @@
     </ScrollView>
 
     <!-- BOTTOM NAVIGATION (FIXED) -->
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <include
         android:id="@+id/bottomNav"
+        layout="@layout/bottom_navigation"
         android:layout_width="0dp"
         android:layout_height="60dp"
-        android:background="#102E29"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
-
-        <!-- Home -->
-        <LinearLayout
-            android:id="@+id/navHome"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toStartOf="@id/navEvents"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintHorizontal_chainStyle="spread">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/ic_home"
-                android:contentDescription="Home"
-                app:tint="#00D9C5"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Home"
-                android:textColor="#00D9C5"
-                android:textSize="11sp"/>
-        </LinearLayout>
-
-        <!-- My Events -->
-        <LinearLayout
-            android:id="@+id/navEvents"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/navHome"
-            app:layout_constraintEnd_toStartOf="@id/navNotifications">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/ic_calendar"
-                android:contentDescription="My Events"
-                app:tint="#AFAFAF"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="My Events"
-                android:textColor="#AFAFAF"
-                android:textSize="11sp"/>
-        </LinearLayout>
-
-        <!-- Notifications -->
-        <LinearLayout
-            android:id="@+id/navNotifications"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/navEvents"
-            app:layout_constraintEnd_toStartOf="@id/navProfile">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/ic_notifications"
-                android:contentDescription="Notifications"
-                app:tint="#AFAFAF"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Notifications"
-                android:textColor="#AFAFAF"
-                android:textSize="11sp"/>
-        </LinearLayout>
-
-        <!-- Profile -->
-        <LinearLayout
-            android:id="@+id/navProfile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintStart_toEndOf="@id/navNotifications">
-
-            <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:src="@drawable/ic_person"
-                android:contentDescription="Profile"
-                app:tint="#AFAFAF"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Profile"
-                android:textColor="#AFAFAF"
-                android:textSize="11sp"/>
-        </LinearLayout>
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

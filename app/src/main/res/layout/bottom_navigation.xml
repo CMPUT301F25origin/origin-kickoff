@@ -4,7 +4,7 @@
     android:id="@+id/bottomBar"
     android:layout_width="match_parent"
     android:layout_height="60dp"
-    android:background="#111111"
+    android:background="@color/ko_surface_alt"
     android:paddingStart="24dp"
     android:paddingEnd="24dp">
 
