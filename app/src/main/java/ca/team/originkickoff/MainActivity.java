@@ -1,3 +1,7 @@
+/*
+ * Main feed displaying upcoming events with filtering by category, date, and location.
+ * Hosts navigation bar and entry points for scanning and event creation.
+ */
 package ca.team.originkickoff;
 
 import android.app.AlertDialog;
@@ -38,6 +42,9 @@ import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.ui.fragments.EventDetailFragment;
 
+/**
+ * Launcher activity showing the event feed and filters.
+ */
 public class MainActivity extends AppCompatActivity implements EventAdapter.OnEventClickListener {
     private static final String TAG = "MainActivity";
     private FirebaseFirestore db;
@@ -49,12 +56,16 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     private final List<Event> allEvents = new ArrayList<>();
     private String selectedCategory = null;
     private Long selectedDate = null;
-    private String selectedLocation = null; // treated as a query (substring match)
+    private String selectedLocation = null;
     private View loadingView;
 
-    // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
 
+    /**
+     * Sets up UI, applies insets, initializes Firestore and loads events.
+     *
+     * @param savedInstanceState previously saved state bundle
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,27 +79,30 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
 
         db = FirebaseFirestore.getInstance();
 
-        // Initialize loading view
         loadingView = findViewById(R.id.loadingView);
 
-        // Set up RecyclerView
         setupRecyclerView();
         setupClickListeners();
         loadEventsFromFirestore();
     }
 
+    /**
+     * Reloads events when activity resumes to keep the feed current.
+     */
     @Override
     protected void onResume() {
         super.onResume();
         loadEventsFromFirestore();
     }
 
+    /**
+     * Configures the RecyclerView and its adapter for the event list.
+     */
     private void setupRecyclerView() {
         rvEvents = findViewById(R.id.rvEvents);
         rvEvents.setLayoutManager(new LinearLayoutManager(this));
 
         eventAdapter = new EventAdapter(event -> {
-            // Handle event click - open event details
             Intent intent = new Intent(MainActivity.this, EventDetailActivity.class);
             intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, event.getId());
             startActivity(intent);
@@ -98,13 +112,14 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         rvEvents.setAdapter(eventAdapter);
     }
 
+    /**
+     * Fetches events from Firestore, removes conducted events, and applies filters.
+     */
     private void loadEventsFromFirestore() {
         Log.d(TAG, "Loading events from Firestore...");
 
-        // Show loading screen
         loadingView.setVisibility(View.VISIBLE);
 
-        // Get current user ID to filter events
         String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
 
         db.collection("events")
@@ -116,10 +131,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                             Event event = document.toObject(Event.class);
                             event.setId(document.getId());
 
-                            // Filter out events with conducted lottery
                             String lotteryStatus = document.getString("lotteryStatus");
                             if ("conducted".equals(lotteryStatus)) {
-                                // Skip this event - it shouldn't appear in the main feed
                                 continue;
                             }
 
@@ -128,10 +141,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                             Log.e(TAG, "Error parsing event document: " + document.getId(), e);
                         }
                     }
-                    // Update adapter based on filters
                     filterEvents();
 
-                    // Hide loading and log
                     loadingView.setVisibility(View.GONE);
                     Log.d(TAG, "Loaded " + allEvents.size() + " events from Firestore");
 
@@ -142,32 +153,32 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading events from Firestore", e);
 
-                    // Hide loading screen even on error
                     loadingView.setVisibility(View.GONE);
 
                     Toast.makeText(this, "Error loading events: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 });
     }
 
+    /**
+     * Sets up listeners for search, filters, bottom nav, and quick actions.
+     */
     private void setupClickListeners() {
         searchInput = findViewById(R.id.searchInput);
         categoryFilter = findViewById(R.id.categoryFilter);
         dateFilter = findViewById(R.id.dateFilter);
         locationFilter = findViewById(R.id.locationFilter);
 
-        // Bottom nav
         LinearLayout navHome = findViewById(R.id.navHome);
         LinearLayout navEvents = findViewById(R.id.navEvents);
         LinearLayout navNotifications = findViewById(R.id.navNotifications);
         LinearLayout navProfile = findViewById(R.id.navProfile);
 
-        // Highlight current tab (Home)
         ImageView ivHome = findViewById(R.id.ivHome);
         TextView tvHome = findViewById(R.id.tvHome);
         if (ivHome != null) ivHome.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
         if (tvHome != null) tvHome.setTextColor(0xFF00D9C5);
 
-        navHome.setOnClickListener(v -> { /* already here */ });
+        navHome.setOnClickListener(v -> { });
         navEvents.setOnClickListener(v -> navigateBottomTab(MyEventsActivity.class));
         navNotifications.setOnClickListener(v -> navigateBottomTab(NotificationsActivity.class));
         navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
@@ -195,12 +206,16 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         });
     }
 
-    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    /**
+     * Navigates to a bottom-tab destination with debounce and no transition.
+     *
+     * @param targetActivity activity class to open
+     */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
-        if (getClass().equals(targetActivity)) return; // already on this tab
+        if (getClass().equals(targetActivity)) return;
         long now = SystemClock.elapsedRealtime();
-        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        if (now - lastNavTapAtMs < 300) return;
         lastNavTapAtMs = now;
         Intent intent = new Intent(this, targetActivity);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
@@ -208,6 +223,11 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         overridePendingTransition(0, 0);
     }
 
+    /**
+     * Handles event clicks from the adapter and shows the detail fragment.
+     *
+     * @param event event model that was clicked
+     */
     @Override
     public void onEventClick(Event event) {
         getSupportFragmentManager().beginTransaction()
@@ -216,6 +236,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 .commit();
     }
 
+    /**
+     * Shows a dialog listing event categories for filtering.
+     */
     private void showCategoryFilterDialog() {
         List<String> categories = allEvents.stream()
                 .map(Event::getCategory)
@@ -223,10 +246,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 .distinct()
                 .sorted()
                 .collect(Collectors.toList());
-        // Add an "All" option at the top for quick clear
         categories.add(0, "All Categories");
 
-        // Build a simple searchable dialog with an EditText + ListView
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
@@ -266,6 +287,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         dialog.show();
     }
 
+    /**
+     * Opens a date picker and filters events on the chosen day.
+     */
     private void showDatePickerDialog() {
         Calendar cal = Calendar.getInstance();
         new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
@@ -276,8 +300,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
     }
 
+    /**
+     * Displays a dialog to filter events by location substring or pick from list.
+     */
     private void showLocationFilterDialog() {
-        // Distinct list of locations for suggestions
         List<String> locations = allEvents.stream()
                 .map(Event::getLocation)
                 .filter(l -> l != null && !l.isEmpty())
@@ -303,15 +329,19 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-            .setTitle("Filter by Location")
-            .setView(root)
-            .setNegativeButton("Clear", (d, w) -> { selectedLocation = null; filterEvents(); })
-            .setPositiveButton("Apply", (d, w) -> { selectedLocation = search.getText().toString().trim(); if (selectedLocation.isEmpty()) selectedLocation = null; filterEvents(); })
-            .create();
+                .setTitle("Filter by Location")
+                .setView(root)
+                .setNegativeButton("Clear", (d, w) -> { selectedLocation = null; filterEvents(); })
+                .setPositiveButton("Apply", (d, w) -> {
+                    selectedLocation = search.getText().toString().trim();
+                    if (selectedLocation.isEmpty()) selectedLocation = null;
+                    filterEvents();
+                })
+                .create();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             String choice = adapter.getItem(position);
-            selectedLocation = choice; // selecting suggestion
+            selectedLocation = choice;
             filterEvents();
             dialog.dismiss();
         });
@@ -325,6 +355,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         dialog.show();
     }
 
+    /**
+     * Applies search text, category, date, and location filters to the in-memory list.
+     */
     private void filterEvents() {
         List<Event> tempFiltered = new ArrayList<>(allEvents);
         String query = searchInput.getText() != null ? searchInput.getText().toString().toLowerCase() : "";

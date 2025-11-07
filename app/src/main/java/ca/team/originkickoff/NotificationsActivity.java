@@ -1,3 +1,5 @@
+/* Notifications hub listing real-time updates for the current user.
+ * Wires a live Firestore listener and supports quick navigation to events. */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -34,6 +36,9 @@ import ca.team.originkickoff.models.NotificationItem;
 import ca.team.originkickoff.services.NotificationService;
 import ca.team.originkickoff.util.DeviceUtils;
 
+/**
+ * Activity that shows the user's notifications and reacts to item taps.
+ */
 public class NotificationsActivity extends AppCompatActivity {
 
     private static final String TAG = "NotificationsActivity";
@@ -47,23 +52,26 @@ public class NotificationsActivity extends AppCompatActivity {
     private TextView tvEmptyState;
     private NotificationService notificationService;
     private FirebaseFirestore db;
-    private ListenerRegistration notificationsListener; // real-time listener handle
+    private ListenerRegistration notificationsListener;
     private String currentUserId;
 
+    /**
+     * Sets up UI, attaches listeners, and starts loading notifications.
+     *
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_notifications);
 
-        // Apply window insets to avoid overlapping system bars and keep bottom bar pinned
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.notificationsRoot), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // Initialize Firestore
         db = FirebaseFirestore.getInstance();
         notificationService = new NotificationService();
 
@@ -73,15 +81,20 @@ public class NotificationsActivity extends AppCompatActivity {
         loadNotifications();
     }
 
+    /**
+     * Ensures a listener is active if user was not resolved earlier.
+     */
     @Override
     protected void onResume() {
         super.onResume();
-        // Real-time listener already active; no need to reload unless userId changed
         if (currentUserId == null) {
             loadNotifications();
         }
     }
 
+    /**
+     * Cleans up the Firestore listener to prevent leaks.
+     */
     @Override
     protected void onDestroy() {
         if (notificationsListener != null) {
@@ -91,11 +104,17 @@ public class NotificationsActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
+    /**
+     * Wires back button in the top bar.
+     */
     private void setupTopBar() {
         ImageButton back = findViewById(R.id.btn_back);
         if (back != null) back.setOnClickListener(v -> finish());
     }
 
+    /**
+     * Initializes RecyclerView and adapter for notifications.
+     */
     private void setupRecyclerView() {
         recyclerView = findViewById(R.id.recyclerNotifications);
         progressBar = findViewById(R.id.progressBar);
@@ -108,10 +127,11 @@ public class NotificationsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Resolves current user ID from device and attaches a real-time notification listener.
+     */
     private void loadNotifications() {
-        // Use device ID to get the user, just like other parts of the app
         String deviceId = DeviceUtils.getDeviceId(this);
-
         Log.d(TAG, "=== LOADING NOTIFICATIONS (real-time) ===");
         Log.d(TAG, "Device ID: " + deviceId);
 
@@ -123,7 +143,6 @@ public class NotificationsActivity extends AppCompatActivity {
 
         showLoading(true);
 
-        // First, get the user document ID from device_id
         db.collection("users")
                 .whereEqualTo("device_id", deviceId)
                 .limit(1)
@@ -147,6 +166,9 @@ public class NotificationsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Subscribes to Firestore changes and updates the adapter on new data.
+     */
     private void attachNotificationsListener() {
         if (currentUserId == null) return;
         if (notificationsListener != null) {
@@ -161,7 +183,6 @@ public class NotificationsActivity extends AppCompatActivity {
                             showEmptyState();
                             return;
                         }
-                        // Format timestamps
                         java.text.SimpleDateFormat dateFormat = new java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault());
                         for (ca.team.originkickoff.models.NotificationItem item : notifications) {
                             if (item.getCreatedAt() != null) {
@@ -183,8 +204,12 @@ public class NotificationsActivity extends AppCompatActivity {
         );
     }
 
+    /**
+     * Handles notification item tap to mark read and possibly open event details.
+     *
+     * @param notification clicked item
+     */
     private void onNotificationClick(NotificationItem notification) {
-        // Mark as read
         if (notification.getId() != null && !notification.isRead()) {
             notificationService.markAsRead(notification.getId())
                     .addOnSuccessListener(aVoid -> {
@@ -193,12 +218,16 @@ public class NotificationsActivity extends AppCompatActivity {
                     });
         }
 
-        // Show dialog if it's a result type
         if ("result".equals(notification.getType()) && notification.getEventId() != null) {
             showResultDialog(notification);
         }
     }
 
+    /**
+     * Renders a bottom-sheet dialog for a result notification.
+     *
+     * @param notification source notification
+     */
     private void showResultDialog(NotificationItem notification) {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_lottery_result, null);
 
@@ -225,18 +254,31 @@ public class NotificationsActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    /**
+     * Navigates to an event detail screen.
+     *
+     * @param eventId Firestore event document ID
+     */
     private void navigateToEvent(String eventId) {
         Intent intent = new Intent(this, EventDetailActivity.class);
         intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
         startActivity(intent);
     }
 
+    /**
+     * Shows or hides a spinner while data loads.
+     *
+     * @param show true to show loading, false to hide
+     */
     private void showLoading(boolean show) {
         if (progressBar != null) {
             progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
         }
     }
 
+    /**
+     * Displays an empty-state message and hides the list.
+     */
     private void showEmptyState() {
         if (recyclerView != null) recyclerView.setVisibility(View.GONE);
         if (tvEmptyState != null) {
@@ -245,6 +287,9 @@ public class NotificationsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Binds bottom navigation actions with debounced transitions.
+     */
     private void setupBottomNav() {
         LinearLayout navHome = findViewById(R.id.navHome);
         LinearLayout navEvents = findViewById(R.id.navEvents);
@@ -253,7 +298,6 @@ public class NotificationsActivity extends AppCompatActivity {
 
         if (navHome == null || navEvents == null || navNotifications == null || navProfile == null) return;
 
-        // Highlight current tab (Notifications)
         ImageView iv = findViewById(R.id.ivNotifications);
         TextView tv = findViewById(R.id.tvNotifications);
         if (iv != null) iv.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
@@ -261,16 +305,20 @@ public class NotificationsActivity extends AppCompatActivity {
 
         navHome.setOnClickListener(v -> navigateBottomTab(MainActivity.class));
         navEvents.setOnClickListener(v -> navigateBottomTab(MyEventsActivity.class));
-        navNotifications.setOnClickListener(v -> { /* already here */ });
+        navNotifications.setOnClickListener(v -> {});
         navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
     }
 
-    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    /**
+     * Navigates to a different bottom-tab destination without animation.
+     *
+     * @param targetActivity activity class to open
+     */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
-        if (getClass().equals(targetActivity)) return; // already on this tab
+        if (getClass().equals(targetActivity)) return;
         long now = SystemClock.elapsedRealtime();
-        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        if (now - lastNavTapAtMs < 300) return;
         lastNavTapAtMs = now;
         Intent intent = new Intent(this, targetActivity);
         intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);

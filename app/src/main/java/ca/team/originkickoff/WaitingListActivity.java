@@ -1,3 +1,7 @@
+/*
+ * Compact waiting list manager showing entrants and optional location preview map.
+ * Fetches entrant data and conditionally displays a static map snapshot.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -29,6 +33,10 @@ import ca.team.originkickoff.adapters.WaitingListAdapter;
 import ca.team.originkickoff.models.WaitingListEntry;
 import ca.team.originkickoff.services.WaitingListService;
 
+/**
+ * Activity displaying active waiting list entrants for an event with optional map preview.
+ * Lists entrants and offers a full-screen map when geolocation is required.
+ */
 public class WaitingListActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TAG = "WaitingListActivity";
     public static final String EXTRA_EVENT_ID = "event_id";
@@ -45,6 +53,11 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     private List<WaitingListEntry> currentEntries = new ArrayList<>();
     private boolean isGeolocationRequired = true; // Default to true
 
+    /**
+     * Initializes UI, reads event ID, and begins loading entries.
+     *
+     * @param savedInstanceState saved instance state bundle
+     */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -84,6 +97,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         loadEntries();
     }
 
+    /**
+     * Loads event details to determine if geolocation is required and sets up the map preview accordingly.
+     */
     private void loadEventDetails() {
         com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("events")
@@ -112,6 +128,11 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
                 });
     }
 
+    /**
+     * Callback fired when the preview map is ready; plots any loaded entrant markers.
+     *
+     * @param map google map instance
+     */
     @Override
     public void onMapReady(@NonNull GoogleMap map) {
         googleMap = map;
@@ -126,6 +147,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Resumes the map view and reloads waiting list entries.
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -137,6 +161,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Pauses the map view to match activity lifecycle.
+     */
     @Override
     protected void onPause() {
         super.onPause();
@@ -145,6 +172,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Destroys the map view and cleans up resources.
+     */
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -153,6 +183,11 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Forwards state saving to MapView.
+     *
+     * @param outState state bundle to populate
+     */
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
@@ -161,6 +196,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Notifies MapView of low-memory conditions.
+     */
     @Override
     public void onLowMemory() {
         super.onLowMemory();
@@ -169,6 +207,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Queries the waiting list service for current entries and updates the UI.
+     */
     private void loadEntries() {
         progressBar.setVisibility(View.VISIBLE);
         service.listActive(eventId)
@@ -180,6 +221,11 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
                 });
     }
 
+    /**
+     * Submits the entries to the adapter and plots their locations on the map.
+     *
+     * @param entries list of waiting list entries (may be null)
+     */
     private void showEntries(List<WaitingListEntry> entries) {
         currentEntries = entries != null ? new ArrayList<>(entries) : new ArrayList<>();
         adapter.submit(currentEntries);
@@ -191,6 +237,11 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Draws markers for entrants that have shared location, and adjusts camera bounds.
+     *
+     * @param entries list of waiting list entries
+     */
     private void plotUserLocations(List<WaitingListEntry> entries) {
         if (googleMap == null || entries == null || entries.isEmpty()) {
             return;
@@ -227,6 +278,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Launches the full-screen map activity with entrant coordinates.
+     */
     private void openFullScreenMap() {
         if (currentEntries.isEmpty()) {
             Toast.makeText(this, "No location data available", Toast.LENGTH_SHORT).show();

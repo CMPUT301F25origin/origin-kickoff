@@ -1,3 +1,7 @@
+/*
+ * Full-screen simplified waitlist map showing entrant positions (consent-based).
+ * Provides camera fitting for all markers and graceful fallback when none exist.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;
@@ -21,12 +25,18 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Activity presenting a full-screen map of entrants for a single event.
+ */
 public class WaitlistMapActivity extends AppCompatActivity implements OnMapReadyCallback {
     public static final String EXTRA_EVENT_ID = "event_id";
 
     private GoogleMap map;
     private String eventId;
 
+    /**
+     * Sets up layout and requests map async; validates required extras.
+     */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -47,6 +57,11 @@ public class WaitlistMapActivity extends AppCompatActivity implements OnMapReady
         }
     }
 
+    /**
+     * Google Maps ready callback to initialize UI settings and load markers.
+     *
+     * @param googleMap map instance
+     */
     @Override
     public void onMapReady(@NonNull GoogleMap googleMap) {
         this.map = googleMap;

@@ -1,3 +1,7 @@
+/*
+ * Interactive map picker for selecting a custom geographic location.
+ * Supports reverse geocoding to provide human-readable address.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -21,6 +25,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
 
+/**
+ * Activity allowing a user to pick a location on a map and return its coordinates.
+ */
 public class LocationPickerActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TAG = "LocationPickerActivity";
 
@@ -29,6 +36,9 @@ public class LocationPickerActivity extends AppCompatActivity implements OnMapRe
     private String selectedAddress;
     private Button btnConfirmLocation;
 
+    /**
+     * Sets up map fragment and confirm button UI.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -60,6 +70,11 @@ public class LocationPickerActivity extends AppCompatActivity implements OnMapRe
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Map ready callback; configures default camera and tap listener.
+     *
+     * @param map active GoogleMap instance
+     */
     @Override
     public void onMapReady(GoogleMap map) {
         googleMap = map;
@@ -80,6 +95,11 @@ public class LocationPickerActivity extends AppCompatActivity implements OnMapRe
         });
     }
 
+    /**
+     * Performs reverse geocoding or falls back to raw coordinates.
+     *
+     * @param latLng selected position
+     */
     private void getAddressFromLocation(LatLng latLng) {
         Geocoder geocoder = new Geocoder(this, Locale.getDefault());
         try {
@@ -96,6 +116,9 @@ public class LocationPickerActivity extends AppCompatActivity implements OnMapRe
         }
     }
 
+    /**
+     * Returns selected location details to the calling activity.
+     */
     private void confirmLocation() {
         if (selectedLocation != null) {
             Intent resultIntent = new Intent();
@@ -109,4 +132,3 @@ public class LocationPickerActivity extends AppCompatActivity implements OnMapRe
         }
     }
 }
-

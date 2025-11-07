@@ -1,3 +1,7 @@
+/*
+ * Consolidated view for a user's joined and (if applicable) organized events.
+ * Dynamically configures tabs and FAB visibility based on organizer status.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -24,6 +28,9 @@ import androidx.appcompat.widget.Toolbar;
 
 import ca.team.originkickoff.util.DeviceUtils;
 
+/**
+ * Activity combining tabs for joined and organized events with conditional organizer features.
+ */
 public class MyEventsActivity extends AppCompatActivity {
     private static final String TAG = "MyEventsActivity";
     private TabLayout tabLayout;
@@ -34,6 +41,9 @@ public class MyEventsActivity extends AppCompatActivity {
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
 
+    /**
+     * Initializes UI components and determines organizer state.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -61,6 +71,9 @@ public class MyEventsActivity extends AppCompatActivity {
         setupBottomNav();
     }
 
+    /**
+     * Queries user document to decide whether organizer tab should display.
+     */
     private void checkIfUserIsOrganizer() {
         String deviceId = DeviceUtils.getDeviceId(this);
         if (deviceId == null) {
@@ -121,6 +134,11 @@ public class MyEventsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Sets up ViewPager tabs based on organizer role.
+     *
+     * @param showOrganizerTab whether to include the organized events tab
+     */
     private void setupTabs(boolean showOrganizerTab) {
         // Create adapter with dynamic tab count
         viewPager.setAdapter(new FragmentStateAdapter(this) {

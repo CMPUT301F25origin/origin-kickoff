@@ -1,3 +1,7 @@
+/*
+ * Event editing workflow enabling organizers to modify existing event metadata and registration windows.
+ * Loads current event, allows changes, and updates Firestore document while preserving poster if unchanged.
+ */
 package ca.team.originkickoff;
 
 import android.app.DatePickerDialog;
@@ -34,6 +38,10 @@ import java.util.Map;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.EventLocation;
 
+/**
+ * Activity allowing organizers to edit existing event metadata, timing, and poster.
+ * Handles validation, image processing, and Firestore document updates.
+ */
 public class EditEventActivity extends AppCompatActivity {
     private static final String TAG = "EditEventActivity";
     public static final String EXTRA_EVENT_ID = "event_id";
@@ -52,29 +60,29 @@ public class EditEventActivity extends AppCompatActivity {
     private Uri selectedImageUri;
     private FirebaseFirestore db;
 
-    // Location data
     private EventLocation selectedLocation;
 
-    // Hold chosen date/time in milliseconds
     private long eventDateMillis = -1;
     private long eventTimeMillis = -1;
     private long regStartMillis = -1;
     private long regEndMillis = -1;
 
-    // Activity Result launcher for image picking
     private ActivityResultLauncher<Intent> pickImageLauncher;
 
-    // Event being edited
     private String eventId;
     private Event currentEvent;
     private boolean imageChanged = false;
 
+    /**
+     * Lifecycle entry: loads event ID, binds views, configures pickers, and fetches event.
+     *
+     * @param savedInstanceState prior state bundle if recreating
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_event);
 
-        // Enable back button in action bar
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Edit Event");
@@ -82,7 +90,6 @@ public class EditEventActivity extends AppCompatActivity {
 
         db = FirebaseFirestore.getInstance();
 
-        // Get event ID from intent
         eventId = getIntent().getStringExtra(EXTRA_EVENT_ID);
         if (eventId == null) {
             Toast.makeText(this, "Error: Event ID not provided", Toast.LENGTH_SHORT).show();
@@ -92,7 +99,6 @@ public class EditEventActivity extends AppCompatActivity {
 
         bindViews();
 
-        // Initialize ActivityResultLauncher
         pickImageLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -103,7 +109,7 @@ public class EditEventActivity extends AppCompatActivity {
                             imageChanged = true;
                             if (ivPosterPreview != null) {
                                 ivPosterPreview.setImageURI(selectedImageUri);
-                                ivPosterPreview.setVisibility(View.VISIBLE); // ensure preview visible when editing
+                                ivPosterPreview.setVisibility(View.VISIBLE);
                             }
                             Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
                         }
@@ -113,10 +119,15 @@ public class EditEventActivity extends AppCompatActivity {
 
         attachListeners();
 
-        // Load the event data
         loadEventData();
     }
 
+    /**
+     * Handles action bar Up navigation.
+     *
+     * @param item selected menu item
+     * @return true if consumed, otherwise super handles it
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -126,6 +137,9 @@ public class EditEventActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Binds view references from the layout and sets initial button text.
+     */
     private void bindViews() {
         etEventName = findViewById(R.id.etEventName);
         etDescription = findViewById(R.id.etDescription);
@@ -145,11 +159,13 @@ public class EditEventActivity extends AppCompatActivity {
         btnCreateEvent = findViewById(R.id.btnCreateEvent);
         switchGeoRequired = findViewById(R.id.switchGeoRequired);
         switchLimitWaitlist = findViewById(R.id.switchLimitWaitlist);
-        ivPosterPreview = findViewById(R.id.ivPosterPreview); // added binding for preview image
-        // Change button text to "Update Event"
+        ivPosterPreview = findViewById(R.id.ivPosterPreview);
         btnCreateEvent.setText("Update Event");
     }
 
+    /**
+     * Retrieves event document from Firestore and populates UI on success.
+     */
     private void loadEventData() {
         setLoading(true);
         db.collection("events").document(eventId)
@@ -178,8 +194,10 @@ public class EditEventActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Copies current event model values into editable fields and restores poster image.
+     */
     private void populateFields() {
-        // Populate basic fields
         etEventName.setText(currentEvent.getName());
         etDescription.setText(currentEvent.getDescription());
         etLocation.setText(currentEvent.getLocation());
@@ -189,7 +207,6 @@ public class EditEventActivity extends AppCompatActivity {
             etCriteria.setText(currentEvent.getLotteryCriteria());
         }
 
-        // Store location data
         if (currentEvent.getLocation() != null) {
             selectedLocation = new EventLocation(
                     currentEvent.getLocation(),
@@ -199,7 +216,6 @@ public class EditEventActivity extends AppCompatActivity {
             );
         }
 
-        // Populate event date and time
         if (currentEvent.getEventDate() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(currentEvent.getEventDate());
@@ -213,7 +229,6 @@ public class EditEventActivity extends AppCompatActivity {
                     cal.get(Calendar.MINUTE)));
         }
 
-        // Populate registration start date and time
         if (currentEvent.getRegistrationStartTime() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(currentEvent.getRegistrationStartTime());
@@ -225,7 +240,6 @@ public class EditEventActivity extends AppCompatActivity {
                     cal.get(Calendar.MINUTE)));
         }
 
-        // Populate registration end date and time
         if (currentEvent.getRegistrationEndTime() != null) {
             Calendar cal = Calendar.getInstance();
             cal.setTime(currentEvent.getRegistrationEndTime());
@@ -237,37 +251,36 @@ public class EditEventActivity extends AppCompatActivity {
                     cal.get(Calendar.MINUTE)));
         }
 
-        // Load existing poster if available
         if (ivPosterPreview != null && currentEvent.getPosterBase64() != null && !currentEvent.getPosterBase64().isEmpty()) {
             try {
                 byte[] decodedString = Base64.decode(currentEvent.getPosterBase64(), Base64.DEFAULT);
                 Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
                 ivPosterPreview.setImageBitmap(decodedByte);
-                ivPosterPreview.setVisibility(View.VISIBLE); // Show preview
+                ivPosterPreview.setVisibility(View.VISIBLE);
             } catch (Exception e) {
                 Log.e(TAG, "Error decoding poster image", e);
             }
         }
 
-        // Set switches
         switchGeoRequired.setChecked(currentEvent.isGeolocationRequired());
         switchLimitWaitlist.setChecked(currentEvent.getWaitlistLimit() > 0);
 
-        // Show and populate waitlist limit if it exists
         if (currentEvent.getWaitlistLimit() > 0) {
             etWaitlistLimit.setText(String.valueOf(currentEvent.getWaitlistLimit()));
             etWaitlistLimit.setVisibility(View.VISIBLE);
         }
     }
 
+    /**
+     * Attaches click listeners, date/time pickers, and submission handlers to the form fields.
+     */
     private void attachListeners() {
-        // Make location field clickable but not editable via keyboard
         etLocation.setFocusable(false);
         etLocation.setFocusableInTouchMode(false);
         etLocation.setClickable(true);
         etLocation.setOnClickListener(v -> openLocationSearch());
 
-        etDate.setOnClickListener(v -> showDatePicker((millis) -> {
+        etDate.setOnClickListener(v -> showDatePicker(millis -> {
             eventDateMillis = millis;
             etDate.setText(android.text.format.DateFormat.getDateFormat(this).format(millis));
         }));
@@ -281,7 +294,7 @@ public class EditEventActivity extends AppCompatActivity {
             etTime.setText(String.format(Locale.US, "%02d:%02d", hourOfDay, minute));
         }));
 
-        etRegStartDate.setOnClickListener(v -> showDatePicker((millis) -> {
+        etRegStartDate.setOnClickListener(v -> showDatePicker(millis -> {
             regStartMillis = millis;
             etRegStartDate.setText(android.text.format.DateFormat.getDateFormat(this).format(millis));
         }));
@@ -304,7 +317,7 @@ public class EditEventActivity extends AppCompatActivity {
             etRegStartTime.setText(String.format(Locale.US, "%02d:%02d", hour, minute));
         }));
 
-        etRegEndDate.setOnClickListener(v -> showDatePicker((millis) -> {
+        etRegEndDate.setOnClickListener(v -> showDatePicker(millis -> {
             regEndMillis = millis;
             etRegEndDate.setText(android.text.format.DateFormat.getDateFormat(this).format(millis));
         }));
@@ -333,7 +346,6 @@ public class EditEventActivity extends AppCompatActivity {
 
         btnCreateEvent.setOnClickListener(v -> updateEvent());
 
-        // Toggle listener for waitlist limit
         switchLimitWaitlist.setOnCheckedChangeListener((btn, checked) -> {
             if (etWaitlistLimit != null) {
                 etWaitlistLimit.setVisibility(checked ? View.VISIBLE : View.GONE);
@@ -344,14 +356,36 @@ public class EditEventActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Callback interface for date selection, returning epoch millis.
+     */
     private interface DateChosenCallback {
+        /**
+         * Called when a date is chosen.
+         *
+         * @param millis selected date in milliseconds since epoch
+         */
         void onDateChosen(long millis);
     }
 
+    /**
+     * Callback interface for time selection, returning hour and minute.
+     */
     private interface TimeChosenCallback {
+        /**
+         * Called when a time is chosen.
+         *
+         * @param hourOfDay selected hour in 24h format
+         * @param minute    selected minute
+         */
         void onTimeChosen(int hourOfDay, int minute);
     }
 
+    /**
+     * Presents a date picker dialog and forwards the chosen date to the callback.
+     *
+     * @param cb callback receiving the chosen date in millis
+     */
     private void showDatePicker(DateChosenCallback cb) {
         final Calendar c = Calendar.getInstance();
         int y = c.get(Calendar.YEAR);
@@ -365,6 +399,11 @@ public class EditEventActivity extends AppCompatActivity {
         dlg.show();
     }
 
+    /**
+     * Presents a time picker dialog and forwards the chosen time to the callback.
+     *
+     * @param cb callback receiving hour and minute
+     */
     private void showTimePicker(TimeChosenCallback cb) {
         final Calendar c = Calendar.getInstance();
         int hour = c.get(Calendar.HOUR_OF_DAY);
@@ -373,12 +412,20 @@ public class EditEventActivity extends AppCompatActivity {
         dlg.show();
     }
 
+    /**
+     * Launches system image picker for poster selection.
+     */
     private void pickImage() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         pickImageLauncher.launch(Intent.createChooser(intent, "Select Event Image"));
     }
 
+    /**
+     * Toggles loading state widgets and updates button text.
+     *
+     * @param loading true while an update is in progress
+     */
     private void setLoading(boolean loading) {
         if (progressBar != null) {
             progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
@@ -387,16 +434,18 @@ public class EditEventActivity extends AppCompatActivity {
         btnCreateEvent.setText(loading ? "Updating..." : "Update Event");
     }
 
+    /**
+     * Validates form inputs, constructs the Firestore update map, and performs save.
+     */
     private void updateEvent() {
         String title = getText(etEventName);
         String description = getText(etDescription);
         String location = getText(etLocation);
         String capacityStr = getText(etCapacity);
         String criteria = getText(etCriteria);
-        String selectionSizeStr = getText(etSelectionSize); // may be empty because field hidden
+        String selectionSizeStr = getText(etSelectionSize);
         String waitlistLimitStr = getText(etWaitlistLimit);
 
-        // Validation - ALL VISIBLE REQUIRED FIELDS
         if (TextUtils.isEmpty(title)) {
             etEventName.setError("Event name is required");
             etEventName.requestFocus();
@@ -495,20 +544,18 @@ public class EditEventActivity extends AppCompatActivity {
             return;
         }
 
-        // Derive selectionSize: if field hidden or empty, default to full capacity (matches create flow)
         int selectionSize;
         if (!TextUtils.isEmpty(selectionSizeStr)) {
             try {
                 selectionSize = Integer.parseInt(selectionSizeStr.trim());
-                if (selectionSize <= 0) selectionSize = capacity; // fallback
+                if (selectionSize <= 0) selectionSize = capacity;
             } catch (NumberFormatException e) {
-                selectionSize = capacity; // fallback on parse error
+                selectionSize = capacity;
             }
         } else {
             selectionSize = capacity;
         }
         if (selectionSize > capacity) {
-            // Clamp to capacity to avoid inconsistent state
             selectionSize = capacity;
         }
 
@@ -525,7 +572,7 @@ public class EditEventActivity extends AppCompatActivity {
         updates.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
         updates.put("geolocationRequired", geoRequired);
         updates.put("waitlistLimit", limitWaitlist ? waitlistLimit : 0);
-        updates.put("limitWaitlist", limitWaitlist); // ensure boolean flag updated
+        updates.put("limitWaitlist", limitWaitlist);
         updates.put("selectionSize", selectionSize);
 
         if (selectedLocation != null) {
@@ -543,21 +590,22 @@ public class EditEventActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Converts selected image to Base64 (resizing if needed) and proceeds with Firestore update.
+     *
+     * @param uri     picked image URI
+     * @param updates pending Firestore update map (mutated with posterBase64)
+     */
     private void uploadImageAndUpdateEvent(Uri uri, Map<String, Object> updates) {
         Toast.makeText(this, "Processing image...", Toast.LENGTH_SHORT).show();
-
         try {
             java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
             Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
 
-            // Resize bitmap if too large
             int maxWidth = 800;
             int maxHeight = 800;
             if (bitmap != null && (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight)) {
-                float scale = Math.min(
-                        (float) maxWidth / bitmap.getWidth(),
-                        (float) maxHeight / bitmap.getHeight()
-                );
+                float scale = Math.min((float) maxWidth / bitmap.getWidth(), (float) maxHeight / bitmap.getHeight());
                 int newWidth = Math.round(bitmap.getWidth() * scale);
                 int newHeight = Math.round(bitmap.getHeight() * scale);
                 bitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true);
@@ -581,6 +629,11 @@ public class EditEventActivity extends AppCompatActivity {
         updateEventInFirestore(updates);
     }
 
+    /**
+     * Performs Firestore update and navigates to detail screen on success.
+     *
+     * @param updates field map to apply
+     */
     private void updateEventInFirestore(Map<String, Object> updates) {
         db.collection("events").document(eventId)
                 .update(updates)
@@ -597,6 +650,11 @@ public class EditEventActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Navigates back to event detail view reflecting changes.
+     *
+     * @param eventId target event id
+     */
     private void navigateToEventDetail(String eventId) {
         Intent intent = new Intent(this, EventDetailActivity.class);
         intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
@@ -605,6 +663,13 @@ public class EditEventActivity extends AppCompatActivity {
         finish();
     }
 
+    /**
+     * Merges separate stored date and time millis into unified event timestamp.
+     *
+     * @param dateMillis      date part at midnight
+     * @param timeOfDayMillis time-of-day millis source
+     * @return combined millis representing event start
+     */
     private long mergeDateAndTime(long dateMillis, long timeOfDayMillis) {
         Calendar dateCal = Calendar.getInstance();
         dateCal.setTimeInMillis(dateMillis);
@@ -617,17 +682,33 @@ public class EditEventActivity extends AppCompatActivity {
         return dateCal.getTimeInMillis();
     }
 
+    /**
+     * Safely extracts trimmed text from an EditText.
+     *
+     * @param et source field (nullable)
+     * @return trimmed string or empty if null/blank
+     */
     private String getText(EditText et) {
         if (et == null) return "";
         CharSequence cs = et.getText();
         return cs == null ? "" : cs.toString().trim();
     }
 
+    /**
+     * Opens location search activity to select a place.
+     */
     private void openLocationSearch() {
         Intent intent = new Intent(this, LocationSearchActivity.class);
         startActivityForResult(intent, LOCATION_REQUEST_CODE);
     }
 
+    /**
+     * Receives chosen location and updates location model and UI.
+     *
+     * @param requestCode request identifier
+     * @param resultCode  result status
+     * @param data        intent data containing location extras
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);

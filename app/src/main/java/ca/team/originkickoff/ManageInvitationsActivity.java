@@ -1,3 +1,7 @@
+/*
+ * Tabbed interface for reviewing invitation statuses (chosen, cancelled, enrolled).
+ * Loads event details for context and hosts fragments via pager adapter.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;
@@ -16,10 +20,7 @@ import ca.team.originkickoff.adapters.InvitationsPagerAdapter;
 import ca.team.originkickoff.models.Event;
 
 /**
- * Activity for managing lottery invitations with tabs:
- * - Chosen: Users selected in lottery
- * - Cancelled: Users who declined/cancelled
- * - Enrolled: Users who accepted and enrolled
+ * Activity for managing lottery invitations with tabs for chosen, cancelled, and enrolled users.
  */
 public class ManageInvitationsActivity extends AppCompatActivity {
     private static final String TAG = "ManageInvitations";
@@ -31,6 +32,9 @@ public class ManageInvitationsActivity extends AppCompatActivity {
     private String eventId;
     private Event currentEvent;
 
+    /**
+     * Inflates layout, validates event ID, and initializes tabs.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -59,6 +63,9 @@ public class ManageInvitationsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Fetches event data to show its name in the header.
+     */
     private void loadEventData() {
         FirebaseFirestore.getInstance()
                 .collection("events")
@@ -78,6 +85,9 @@ public class ManageInvitationsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Sets up the ViewPager2 and TabLayout with invitation status tabs.
+     */
     private void setupTabs() {
         InvitationsPagerAdapter adapter = new InvitationsPagerAdapter(this, eventId);
         viewPager.setAdapter(adapter);
@@ -107,4 +117,3 @@ public class ManageInvitationsActivity extends AppCompatActivity {
         return true;
     }
 }
-

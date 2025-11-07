@@ -1,3 +1,7 @@
+/*
+ * Full-screen map view of entrant locations and event marker.
+ * Supports immersive UI toggle and fetches entrant names for labels.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;
@@ -27,6 +31,10 @@ import java.util.Map;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
 
+/**
+ * Displays entrant locations on a Google Map for a specific event.
+ * Fetches entrant names and plots markers alongside the event location.
+ */
 public class WaitingListMapActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TAG = "WaitingListMapActivity";
 
@@ -43,6 +51,11 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     private ImageButton btnClose;
     private ImageButton btnFullscreen;
 
+    /**
+     * Initializes UI, parses intent extras, and kicks off map/data loading.
+     *
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -105,6 +118,9 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
         }
     }
 
+    /**
+     * Fetches event details from Firestore to obtain event location and name.
+     */
     private void fetchEventDetails() {
         db.collection("events").document(eventId).get()
                 .addOnSuccessListener(documentSnapshot -> {
@@ -124,6 +140,9 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
                 });
     }
 
+    /**
+     * Resolves display names for user IDs so map markers can show readable titles.
+     */
     private void fetchUserNames() {
         Log.d(TAG, "Fetching user names for " + userIds.size() + " users");
         for (int i = 0; i < userIds.size(); i++) {
@@ -167,6 +186,11 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
         }
     }
 
+    /**
+     * Handles action bar item selections.
+     * @param item the pressed menu item
+     * @return true if handled
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -176,6 +200,10 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Called when Google Map is ready. Configures UI settings and plots markers.
+     * @param map GoogleMap instance
+     */
     @Override
     public void onMapReady(@NonNull GoogleMap map) {
         googleMap = map;
@@ -193,12 +221,18 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
         plotMarkers();
     }
 
+    /**
+     * Ensures the activity finishes on back press.
+     */
     @Override
     public void onBackPressed() {
         super.onBackPressed();
         finish();
     }
 
+    /**
+     * Adds entrant and event markers to the map and adjusts camera bounds.
+     */
     private void plotMarkers() {
         if (googleMap == null || latitudes == null || longitudes == null) {
             return;
@@ -279,6 +313,10 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
         }
     }
 
+    /**
+     * Toggles immersive full-screen UI and updates overlay control visibility.
+     * @param immersive true to enable immersive mode
+     */
     private void setSystemUiImmersive(boolean immersive) {
         isImmersive = immersive;
         int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;

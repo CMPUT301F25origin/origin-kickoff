@@ -1,3 +1,7 @@
+/*
+ * Event creation workflow allowing organizers to set metadata, registration windows, poster, and limits.
+ * Persists a new event document in Firestore with optional waitlist constraints.
+ */
 package ca.team.originkickoff;
 
 import android.app.DatePickerDialog;
@@ -37,13 +41,15 @@ import ca.team.originkickoff.models.User;
 import ca.team.originkickoff.util.DeviceUtils;
 import ca.team.originkickoff.utils.QRCodeGenerator;
 
+/**
+ * Activity for creating a new event and saving it to Firestore.
+ */
 public class CreateEventActivity extends AppCompatActivity {
     private static final String TAG = "CreateEventActivity";
     private static final int LOCATION_REQUEST_CODE = 101;
 
     private EditText etEventName, etDescription, etLocation, etDate, etTime,
             etRegStartDate, etRegStartTime, etRegEndDate, etRegEndTime;
-    // Optional fields that may not be in the layout
     private EditText etCategory, etPrice, etCapacity, etCriteria;
     private EditText etSelectionSize, etWaitlistLimit;
     private ImageView ivPosterPreview, btnClose;
@@ -56,28 +62,28 @@ public class CreateEventActivity extends AppCompatActivity {
     private Uri selectedImageUri;
     private FirebaseFirestore db;
 
-    // Location data
     private EventLocation selectedLocation;
 
-    // Hold chosen date/time in milliseconds
     private long eventDateMillis = -1;
     private long eventTimeMillis = -1;
 
     private long regStartMillis = -1;
     private long regEndMillis = -1;
 
-    // Activity Result launcher for image picking
     private ActivityResultLauncher<Intent> pickImageLauncher;
 
-    // Current user from Firestore
     private User currentUser;
 
+    /**
+     * Initializes views, loads current user, and sets listeners.
+     *
+     * @param savedInstanceState previous instance state if any
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_create_event);
 
-        // Enable back button in action bar
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Create Event");
@@ -85,12 +91,10 @@ public class CreateEventActivity extends AppCompatActivity {
 
         db = FirebaseFirestore.getInstance();
 
-        // Get current user from Firestore
         getCurrentUserFromFirestore();
 
         bindViews();
 
-        // Initialize ActivityResultLauncher
         pickImageLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
                 result -> {
@@ -100,7 +104,7 @@ public class CreateEventActivity extends AppCompatActivity {
                             selectedImageUri = uri;
                             if (ivPosterPreview != null) {
                                 ivPosterPreview.setImageURI(selectedImageUri);
-                                ivPosterPreview.setVisibility(View.VISIBLE); // Show preview
+                                ivPosterPreview.setVisibility(View.VISIBLE);
                             }
                             Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
                         }
@@ -111,6 +115,10 @@ public class CreateEventActivity extends AppCompatActivity {
         attachListeners();
     }
 
+    /**
+     * Fetches the current user document from Firestore using the device ID.
+     * Populates organizer metadata on success.
+     */
     private void getCurrentUserFromFirestore() {
         String deviceId = DeviceUtils.getDeviceId(this);
         if (deviceId != null) {
@@ -122,7 +130,6 @@ public class CreateEventActivity extends AppCompatActivity {
                         if (!queryDocumentSnapshots.isEmpty()) {
                             currentUser = queryDocumentSnapshots.getDocuments().get(0).toObject(User.class);
                             if (currentUser != null) {
-                                // Ensure id field is set from document id
                                 currentUser.setId(queryDocumentSnapshots.getDocuments().get(0).getId());
                                 Log.d(TAG, "Current user loaded: " + currentUser.getId());
                             }
@@ -141,6 +148,12 @@ public class CreateEventActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Handles action bar item clicks (e.g. back navigation).
+     *
+     * @param item menu item selected
+     * @return true if handled, otherwise passes to super
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -150,6 +163,9 @@ public class CreateEventActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Binds all required views from the layout to local fields.
+     */
     private void bindViews() {
         etEventName = findViewById(R.id.etEventName);
         etDescription = findViewById(R.id.etDescription);
@@ -170,14 +186,12 @@ public class CreateEventActivity extends AppCompatActivity {
         btnClose = findViewById(R.id.btnClose);
         layoutUploadImage = findViewById(R.id.layoutUploadImage);
         ivPosterPreview = findViewById(R.id.ivPosterPreview);
-
-        // Optional views that don't exist in the new layout - leaving them null
-        // switchGenerateQr = findViewById(R.id.switchGenerateQr);
-        // progressBar = findViewById(R.id.progressBar);
     }
 
+    /**
+     * Attaches click, picker, and toggle listeners for form fields.
+     */
     private void attachListeners() {
-        // Make location field clickable but not editable via keyboard
         etLocation.setFocusable(false);
         etLocation.setFocusableInTouchMode(false);
         etLocation.setClickable(true);
@@ -259,14 +273,36 @@ public class CreateEventActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Callback for date picker selection.
+     */
     private interface DateChosenCallback {
+        /**
+         * Called when the user picks a date.
+         *
+         * @param millis selected date in milliseconds
+         */
         void onDateChosen(long millis);
     }
 
+    /**
+     * Callback for time picker selection.
+     */
     private interface TimeChosenCallback {
+        /**
+         * Called when the user picks a time.
+         *
+         * @param hourOfDay hour of day selected
+         * @param minute    minute selected
+         */
         void onTimeChosen(int hourOfDay, int minute);
     }
 
+    /**
+     * Shows a date picker and sends the chosen date to the provided callback.
+     *
+     * @param cb callback to receive the chosen date in millis
+     */
     private void showDatePicker(DateChosenCallback cb) {
         final Calendar c = Calendar.getInstance();
         int y = c.get(Calendar.YEAR);
@@ -280,6 +316,11 @@ public class CreateEventActivity extends AppCompatActivity {
         dlg.show();
     }
 
+    /**
+     * Shows a time picker and sends the chosen time to the provided callback.
+     *
+     * @param cb callback to receive chosen hour and minute
+     */
     private void showTimePicker(TimeChosenCallback cb) {
         final Calendar c = Calendar.getInstance();
         int hour = c.get(Calendar.HOUR_OF_DAY);
@@ -288,12 +329,20 @@ public class CreateEventActivity extends AppCompatActivity {
         dlg.show();
     }
 
+    /**
+     * Launches an image picker for poster selection.
+     */
     private void pickImage() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("image/*");
         pickImageLauncher.launch(Intent.createChooser(intent, "Select Event Image"));
     }
 
+    /**
+     * Toggles progress visibility and disables/enables the create button.
+     *
+     * @param loading true to show loading, false to restore normal state
+     */
     private void setLoading(boolean loading) {
         if (progressBar != null) {
             progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
@@ -302,6 +351,10 @@ public class CreateEventActivity extends AppCompatActivity {
         btnCreateEvent.setText(loading ? "Creating..." : "Create Event");
     }
 
+    /**
+     * Validates input fields, assembles the event map, and decides how to save it.
+     * Ensures required timings and capacity are correct before persisting.
+     */
     private void createEvent() {
         String title = getText(etEventName);
         String description = getText(etDescription);
@@ -314,7 +367,6 @@ public class CreateEventActivity extends AppCompatActivity {
         boolean geoRequired = switchGeoRequired != null && switchGeoRequired.isChecked();
         boolean limitWaitlist = switchLimitWaitlist != null && switchLimitWaitlist.isChecked();
 
-        // Validation - ALL FIELDS ARE MANDATORY
         if (TextUtils.isEmpty(title)) {
             etEventName.setError("Event name is required");
             etEventName.requestFocus();
@@ -371,7 +423,6 @@ public class CreateEventActivity extends AppCompatActivity {
                 etCapacity.setError("Capacity must be > 0");
                 return;
             }
-            // Auto-populate selectionSize with capacity since field is hidden
             selectionSize = capacity;
         } catch (NumberFormatException ex) {
             Toast.makeText(this, "Invalid number input", Toast.LENGTH_SHORT).show();
@@ -397,49 +448,41 @@ public class CreateEventActivity extends AppCompatActivity {
             }
         }
 
-        // Validate event is in the future
         long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
         if (eventTimestampMillis < System.currentTimeMillis()) {
             Toast.makeText(this, "Event date and time must be in the future", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Validate registration period is before event date
         if (regEndMillis > eventTimestampMillis) {
             Toast.makeText(this, "Registration must end before event date", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Validate registration start is before end
         if (regStartMillis >= regEndMillis) {
             Toast.makeText(this, "Registration start must be before registration end", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Show loading state
         setLoading(true);
 
-        // Get organizer information from currentUser
         if (currentUser == null || currentUser.getId() == null) {
             Toast.makeText(this, "User not loaded yet. Please wait a moment and try again.", Toast.LENGTH_SHORT).show();
-            return; // Prevent creating event with incorrect organizerId
+            return;
         }
         String organizerId = currentUser.getId();
         String organizerName = currentUser.getDisplayName();
         if (android.text.TextUtils.isEmpty(organizerName)) organizerName = "User";
         Log.d(TAG, "Creating event with organizer ID: " + organizerId);
 
-        // Assemble event map matching Firestore schema exactly
         Map<String, Object> event = new HashMap<>();
 
-        // Match exact field names from Firestore sample
         event.put("name", title);
         event.put("description", description);
         event.put("organizerId", organizerId);
         event.put("organizerName", organizerName);
         event.put("location", location);
 
-        // Add location coordinates if available
         if (selectedLocation != null) {
             event.put("locationLatitude", selectedLocation.getLatitude());
             event.put("locationLongitude", selectedLocation.getLongitude());
@@ -463,25 +506,26 @@ public class CreateEventActivity extends AppCompatActivity {
         event.put("registrationStartTime", new Timestamp(new java.util.Date(regStartMillis)));
         event.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
 
-        // Check if image was selected
         if (selectedImageUri != null) {
-            // Convert image to Base64 and save event
             uploadImageAndSaveEvent(selectedImageUri, event);
         } else {
-            // No image selected, save event directly without poster
             saveEventToFirestore(event);
         }
     }
 
+    /**
+     * Converts the selected image to Base64, attaches it to the event map, and then saves.
+     *
+     * @param uri   image URI selected from storage
+     * @param event event map being prepared for Firestore
+     */
     private void uploadImageAndSaveEvent(Uri uri, Map<String, Object> event) {
         Toast.makeText(this, "Processing image...", Toast.LENGTH_SHORT).show();
 
-        // Convert image to base64 and attach to event
         try {
             java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
             Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
 
-            // Resize bitmap if too large to avoid base64 string being too big
             int maxWidth = 800;
             int maxHeight = 800;
             if (bitmap != null && (bitmap.getWidth() > maxWidth || bitmap.getHeight() > maxHeight)) {
@@ -495,13 +539,11 @@ public class CreateEventActivity extends AppCompatActivity {
             }
 
             if (bitmap != null) {
-                // Convert to base64 (no wrap to save bytes)
                 java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos);
                 byte[] imageBytes = baos.toByteArray();
                 String posterBase64 = Base64.encodeToString(imageBytes, Base64.NO_WRAP);
 
-                // Save base64 to event
                 event.put("posterBase64", posterBase64);
             } else {
                 Log.w(TAG, "Bitmap decoding returned null; skipping posterBase64");
@@ -514,17 +556,20 @@ public class CreateEventActivity extends AppCompatActivity {
             Log.e(TAG, "Error converting image to base64", e);
         }
 
-        // Directly save event to Firestore without using Firebase Storage
         saveEventToFirestore(event);
     }
 
+    /**
+     * Saves the event to the Firestore "events" collection and continues with post-create steps.
+     *
+     * @param event event data to persist
+     */
     private void saveEventToFirestore(Map<String, Object> event) {
         db.collection("events").add(event)
                 .addOnSuccessListener(documentReference -> {
                     String eventId = documentReference.getId();
                     Log.d(TAG, "Event saved with ID: " + eventId);
 
-                    // Update user's isOrganizer field to true if not already
                     updateUserToOrganizer();
 
                     generateAndSaveQRCodeAsBase64(eventId, documentReference);
@@ -536,19 +581,20 @@ public class CreateEventActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Ensures the current user document is marked as organizer after they create an event.
+     */
     private void updateUserToOrganizer() {
         if (currentUser == null) {
             Log.w(TAG, "Current user is null, cannot update isOrganizer");
             return;
         }
 
-        // Check if user is already an organizer
         if (currentUser.isOrganizer()) {
             Log.d(TAG, "User is already an organizer");
             return;
         }
 
-        // Update user to be an organizer
         db.collection("users")
                 .document(currentUser.getId())
                 .update("is_organizer", true)
@@ -562,7 +608,10 @@ public class CreateEventActivity extends AppCompatActivity {
     }
 
     /**
-     * Generates a QR code for the event ID, Base64 encodes it, and saves it to the event document.
+     * Generates a QR code for the event and stores it as a Base64 string on the same document.
+     *
+     * @param eventId   Firestore event ID used to generate QR
+     * @param eventRef  Firestore document reference to update with QR code
      */
     private void generateAndSaveQRCodeAsBase64(String eventId, com.google.firebase.firestore.DocumentReference eventRef) {
         Log.d(TAG, "Generating QR code for event: " + eventId);
@@ -572,7 +621,7 @@ public class CreateEventActivity extends AppCompatActivity {
         if (qrCodeBitmap == null) {
             Log.e(TAG, "Failed to generate QR code bitmap");
             Toast.makeText(this, "Event created but QR code generation failed.", Toast.LENGTH_LONG).show();
-            navigateToEventDetail(eventId); // Navigate anyway
+            navigateToEventDetail(eventId);
             return;
         }
 
@@ -581,14 +630,12 @@ public class CreateEventActivity extends AppCompatActivity {
         if (qrCodeBytes == null) {
             Log.e(TAG, "Failed to convert QR code bitmap to byte array");
             Toast.makeText(this, "Event created but QR code processing failed.", Toast.LENGTH_LONG).show();
-            navigateToEventDetail(eventId); // Navigate anyway
+            navigateToEventDetail(eventId);
             return;
         }
 
-        // Base64 encode the byte array to a string
         String qrCodeBase64 = Base64.encodeToString(qrCodeBytes, Base64.NO_WRAP);
 
-        // Update the event document with the Base64 string
         eventRef.update("qrCodeBase64", qrCodeBase64)
                 .addOnSuccessListener(aVoid -> {
                     setLoading(false);
@@ -600,11 +647,15 @@ public class CreateEventActivity extends AppCompatActivity {
                     setLoading(false);
                     Log.e(TAG, "Failed to update event with Base64 QR code", e);
                     Toast.makeText(this, "Event created but failed to save QR code.", Toast.LENGTH_LONG).show();
-                    navigateToEventDetail(eventId); // Navigate anyway, event exists
+                    navigateToEventDetail(eventId);
                 });
     }
 
-
+    /**
+     * Navigates to the event detail screen for the newly created event.
+     *
+     * @param eventId id of the created event
+     */
     private void navigateToEventDetail(String eventId) {
         Intent intent = new Intent(this, EventDetailActivity.class);
         intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);
@@ -612,7 +663,13 @@ public class CreateEventActivity extends AppCompatActivity {
         finish();
     }
 
-
+    /**
+     * Merges a date (millis) and a time-of-day (millis) into a single timestamp (millis).
+     *
+     * @param dateMillis     date in milliseconds
+     * @param timeOfDayMillis time of day in milliseconds
+     * @return combined timestamp in milliseconds
+     */
     private long mergeDateAndTime(long dateMillis, long timeOfDayMillis) {
         Calendar dateCal = Calendar.getInstance();
         dateCal.setTimeInMillis(dateMillis);
@@ -625,17 +682,33 @@ public class CreateEventActivity extends AppCompatActivity {
         return dateCal.getTimeInMillis();
     }
 
+    /**
+     * Safely extracts text from an EditText, trimming whitespace.
+     *
+     * @param et edit text to read
+     * @return trimmed string value or empty string if null
+     */
     private String getText(EditText et) {
         if (et == null) return "";
         CharSequence cs = et.getText();
         return cs == null ? "" : cs.toString().trim();
     }
 
+    /**
+     * Opens the location search activity to allow the user to pick a location.
+     */
     private void openLocationSearch() {
         Intent intent = new Intent(this, LocationSearchActivity.class);
         startActivityForResult(intent, LOCATION_REQUEST_CODE);
     }
 
+    /**
+     * Receives the selected location from the LocationSearchActivity and updates UI fields.
+     *
+     * @param requestCode request code sent
+     * @param resultCode  result code returned
+     * @param data        intent with location data
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -648,7 +721,7 @@ public class CreateEventActivity extends AppCompatActivity {
             if (address != null && !address.isEmpty()) {
                 selectedLocation = new EventLocation(address, latitude, longitude, placeId);
                 etLocation.setText(address);
-                etLocation.setError(null); // Clear any previous error
+                etLocation.setError(null);
                 Log.d(TAG, "Location selected: " + address + " (lat: " + latitude + ", lng: " + longitude + ")");
             } else {
                 Toast.makeText(this, "Invalid location data received", Toast.LENGTH_SHORT).show();
