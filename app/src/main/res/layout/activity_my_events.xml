@@ -4,7 +4,7 @@
     android:id="@+id/myEventsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#111111"
+    android:background="@color/ko_background"
     android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.AppBarLayout
@@ -24,7 +24,7 @@
             android:id="@+id/tabLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#111111"
+            android:background="@color/ko_background"
             app:tabIndicatorColor="@color/teal_200"
             app:tabSelectedTextColor="@color/teal_200"
             app:tabTextColor="@color/white" />

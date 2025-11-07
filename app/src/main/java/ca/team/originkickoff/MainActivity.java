@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -49,6 +50,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     private Long selectedDate = null;
     private String selectedLocation = null; // treated as a query (substring match)
     private View loadingView;
+
+    // Debounce for bottom-nav taps
+    private long lastNavTapAtMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,19 +150,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         LinearLayout navProfile = findViewById(R.id.navProfile);
 
         navHome.setOnClickListener(v -> { /* already here */ });
-        navEvents.setOnClickListener(v -> {
-            // Launch the MyEventsActivity which contains the two tabs
-            Intent intent = new Intent(MainActivity.this, MyEventsActivity.class);
-            startActivity(intent);
-        });
-        navNotifications.setOnClickListener(v -> {
-            Intent i = new Intent(MainActivity.this, NotificationsActivity.class);
-            startActivity(i);
-        });
-        navProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
-            startActivity(intent);
-        });
+        navEvents.setOnClickListener(v -> navigateBottomTab(MyEventsActivity.class));
+        navNotifications.setOnClickListener(v -> navigateBottomTab(NotificationsActivity.class));
+        navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
 
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -181,6 +175,19 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
             Intent intent = new Intent(MainActivity.this, ScanActivity.class);
             startActivity(intent);
         });
+    }
+
+    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    private void navigateBottomTab(Class<?> targetActivity) {
+        if (targetActivity == null) return;
+        if (getClass().equals(targetActivity)) return; // already on this tab
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        lastNavTapAtMs = now;
+        Intent intent = new Intent(this, targetActivity);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 
     @Override
@@ -278,11 +285,11 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
         AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle("Filter by Location")
-                .setView(root)
-                .setNegativeButton("Clear", (d, w) -> { selectedLocation = null; filterEvents(); })
-                .setPositiveButton("Apply", (d, w) -> { selectedLocation = search.getText().toString().trim(); if (selectedLocation.isEmpty()) selectedLocation = null; filterEvents(); })
-                .create();
+            .setTitle("Filter by Location")
+            .setView(root)
+            .setNegativeButton("Clear", (d, w) -> { selectedLocation = null; filterEvents(); })
+            .setPositiveButton("Apply", (d, w) -> { selectedLocation = search.getText().toString().trim(); if (selectedLocation.isEmpty()) selectedLocation = null; filterEvents(); })
+            .create();
 
         listView.setOnItemClickListener((parent, view, position, id) -> {
             String choice = adapter.getItem(position);

@@ -2,6 +2,7 @@ package ca.team.originkickoff;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -22,6 +23,9 @@ import androidx.appcompat.widget.Toolbar;
 public class MyEventsActivity extends AppCompatActivity {
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
+
+    // Debounce for bottom-nav taps
+    private long lastNavTapAtMs = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -103,21 +107,23 @@ public class MyEventsActivity extends AppCompatActivity {
         if (ivEvents != null) ivEvents.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
         if (tvEvents != null) tvEvents.setTextColor(0xFF00D9C5);
 
-        navHome.setOnClickListener(v -> {
-            Intent intent = new Intent(MyEventsActivity.this, MainActivity.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            startActivity(intent);
-            finish();
-        });
+        navHome.setOnClickListener(v -> navigateBottomTab(MainActivity.class));
         navEvents.setOnClickListener(v -> { /* already here */ });
-        navNotifications.setOnClickListener(v -> {
-            Intent intent = new Intent(MyEventsActivity.this, NotificationsActivity.class);
-            startActivity(intent);
-        });
-        navProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(MyEventsActivity.this, ProfileActivity.class);
-            startActivity(intent);
-        });
+        navNotifications.setOnClickListener(v -> navigateBottomTab(NotificationsActivity.class));
+        navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
+    }
+
+    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    private void navigateBottomTab(Class<?> targetActivity) {
+        if (targetActivity == null) return;
+        if (getClass().equals(targetActivity)) return; // already on this tab
+        long now = SystemClock.elapsedRealtime();
+        if (now - lastNavTapAtMs < 300) return; // debounce rapid taps
+        lastNavTapAtMs = now;
+        Intent intent = new Intent(this, targetActivity);
+        intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        startActivity(intent);
+        overridePendingTransition(0, 0);
     }
 
     @Override
