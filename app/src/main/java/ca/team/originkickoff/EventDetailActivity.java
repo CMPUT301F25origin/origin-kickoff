@@ -75,6 +75,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private User currentUser; // resolved from device_id
     private boolean isOrganizer = false;
     private FusedLocationProviderClient fusedLocationClient;
+    private boolean isShowingLotteryResult = false; // Flag to prevent UI override
 
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
@@ -112,9 +113,14 @@ public class EventDetailActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Reload event data to refresh lottery status when returning from ManageLotteryActivity
-        if (currentEvent != null && isOrganizer) {
-            checkLotteryStatusAndUpdateButton();
+        // Reload lottery status when returning from other activities
+        if (currentEvent != null && currentUser != null) {
+            if (isOrganizer) {
+                checkLotteryStatusAndUpdateButton();
+            } else {
+                // For entrants, recheck their lottery status
+                checkLotteryStatusForEntrant();
+            }
         }
     }
 
@@ -214,8 +220,11 @@ public class EventDetailActivity extends AppCompatActivity {
                     checkAndSetupOrganizerView();
                 }
             }
-            // After we know user, refresh join button label
-            refreshJoinButton();
+            // After we know user, refresh join button label only if lottery hasn't been conducted
+            // If lottery is conducted, checkLotteryStatusForEntrant() will handle the UI
+            if (currentEvent != null && !"conducted".equals(currentEvent.getLotteryStatus())) {
+                refreshJoinButton();
+            }
         });
     }
 
@@ -228,6 +237,12 @@ public class EventDetailActivity extends AppCompatActivity {
             return;
         }
 
+        // Don't update button style if showing lottery result
+        if (isShowingLotteryResult) {
+            Log.d(TAG, "Showing lottery result, skipping join button refresh");
+            return;
+        }
+
         waitingListService.isOnWaitlist(currentEvent.getId(), currentUser.getId())
                 .addOnSuccessListener(this::updateJoinLeaveButtonStyle);
     }
@@ -235,6 +250,11 @@ public class EventDetailActivity extends AppCompatActivity {
     private void updateJoinLeaveButtonStyle(boolean isOnList) {
         // Don't update button style if user is the organizer
         if (isOrganizer) {
+            return;
+        }
+
+        // Don't update button style if showing lottery result
+        if (isShowingLotteryResult) {
             return;
         }
 
@@ -421,7 +441,12 @@ public class EventDetailActivity extends AppCompatActivity {
 
                             // Update UI
                             updateUI();
-                            refreshJoinButton();
+
+                            // Only refresh join button if lottery hasn't been conducted
+                            // If lottery is conducted, checkLotteryStatusForEntrant() will handle the UI
+                            if (!"conducted".equals(currentEvent.getLotteryStatus())) {
+                                refreshJoinButton();
+                            }
 
                         } catch (Exception e) {
                             Log.e(TAG, "Error parsing event data", e);
@@ -515,14 +540,12 @@ public class EventDetailActivity extends AppCompatActivity {
         }
         String organizerId = currentEvent.getOrganizerId();
         String userId = currentUser.getId();
-        String deviceId = currentUser.getDeviceId();
-        boolean organizerMatch = organizerId != null && (
-                organizerId.equals(userId) || (deviceId != null && organizerId.equals(deviceId))
-        );
+        // Strictly compare organizerId with current user's Firestore document ID
+        boolean organizerMatch = organizerId != null && organizerId.equals(userId);
 
         if (organizerMatch) {
             isOrganizer = true;
-            Log.d(TAG, "Organizer recognized (id match or deviceId fallback) - showing organizer view");
+            Log.d(TAG, "Organizer recognized (userId match) - showing organizer view");
             // Show Edit button
             btnEdit.setVisibility(View.VISIBLE);
             btnEdit.setOnClickListener(v -> openEditEvent());
@@ -626,8 +649,8 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void checkIfUserWasInOriginalWaitingList(String eventId, String userId) {
-        // Check the waiting_list collection to see if user was originally in the waiting list
-        db.collection("waiting_list")
+        // Check the waiting_list_entries collection to see if user was originally in the waiting list
+        db.collection("waiting_list_entries")
                 .whereEqualTo("event_id", eventId)
                 .whereEqualTo("user_id", userId)
                 .limit(1)
@@ -653,6 +676,9 @@ public class EventDetailActivity extends AppCompatActivity {
 
     private void showLotteryResult(String status) {
         Log.d(TAG, "showLotteryResult called with status: " + status);
+
+        // Set flag to prevent UI override
+        isShowingLotteryResult = true;
 
         // Hide action buttons and lottery criteria button
         actionButtonsContainer.setVisibility(View.GONE);

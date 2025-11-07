@@ -22,6 +22,10 @@ public class UserRepository {
                 .addOnCompleteListener(task -> {
                     if (task.isSuccessful() && !task.getResult().isEmpty()) {
                         User user = task.getResult().getDocuments().get(0).toObject(User.class);
+                        if (user != null) {
+                            // IMPORTANT: set id explicitly from document ID (not stored as field)
+                            user.setId(task.getResult().getDocuments().get(0).getId());
+                        }
                         userLiveData.postValue(user);
                     } else {
                         // User not found, create a new one
