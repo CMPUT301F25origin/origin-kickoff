@@ -1,3 +1,7 @@
+/*
+ * Shows events organized by the current user with real-time Firestore queries.
+ * Helps organizers review and navigate into their own events.
+ */
 package ca.team.originkickoff.ui.fragments;
 
 import android.os.Bundle;
@@ -24,6 +28,9 @@ import ca.team.originkickoff.adapters.OrganizedEventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.util.DeviceUtils;
 
+/**
+ * Fragment that lists the events organized by the signed-in (device) user.
+ */
 public class EventsOrganizedFragment extends Fragment implements OrganizedEventAdapter.OnEventClickListener {
     private static final String TAG = "EventsOrganizedFrag";
     private FirebaseFirestore db;
@@ -31,6 +38,14 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
     private OrganizedEventAdapter adapter;
     private final List<Event> events = new ArrayList<>();
 
+    /**
+     * Inflates the events list layout and initializes the RecyclerView and adapter.
+     *
+     * @param inflater  layout inflater
+     * @param container parent view group
+     * @param savedInstanceState state bundle
+     * @return inflated root view
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -54,6 +69,9 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
         return v;
     }
 
+    /**
+     * Resolves the user's organizer role and queries events they own.
+     */
     private void loadOrganizedEvents() {
         // Get current user ID
         String deviceId = DeviceUtils.getDeviceId(requireContext());
@@ -119,6 +137,11 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
                 });
     }
 
+    /**
+     * Loads events for any of the provided organizer IDs, with a fallback path if whereIn fails.
+     *
+     * @param organizerIds one or more possible organizer identifiers
+     */
     private void loadEventsForOrganizerIds(List<String> organizerIds) {
         // Use whereIn for up to two IDs; fallback to sequential if whereIn fails
         db.collection("events")
@@ -163,6 +186,11 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
                 });
     }
 
+    /**
+     * Handles click on an event to open its details.
+     *
+     * @param event selected event
+     */
     @Override
     public void onEventClick(Event event) {
         startActivity(new android.content.Intent(requireContext(), ca.team.originkickoff.EventDetailActivity.class)

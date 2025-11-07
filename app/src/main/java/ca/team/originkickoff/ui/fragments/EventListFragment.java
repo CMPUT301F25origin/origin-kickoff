@@ -1,3 +1,7 @@
+/*
+ * Displays the list of events with search and pull-to-refresh capabilities.
+ * Bridges Firestore-backed data to a RecyclerView via EventAdapter.
+ */
 package ca.team.originkickoff.ui.fragments;
 
 import android.content.Intent;
@@ -32,6 +36,9 @@ import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.services.FirebaseEventService;
 
+/**
+ * Fragment that shows all events and supports searching/filtering and manual refresh.
+ */
 public class EventListFragment extends Fragment implements EventAdapter.OnEventClickListener {
     private static final String TAG = "EventListFragment";
     private RecyclerView eventsRecyclerView;
@@ -46,6 +53,14 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
     private final List<Event> allEvents = new ArrayList<>();
     private final List<Event> filteredEvents = new ArrayList<>();
 
+    /**
+     * Inflates the fragment layout.
+     *
+     * @param inflater  layout inflater
+     * @param container parent container
+     * @param savedInstanceState previous state bundle
+     * @return inflated view for this fragment
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -53,6 +68,12 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         return inflater.inflate(R.layout.fragment_event_list, container, false);
     }
 
+    /**
+     * Initializes views, sets up UI components, and triggers initial data load.
+     *
+     * @param view               root view
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -80,6 +101,11 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         loadEvents();
     }
 
+    /**
+     * Binds view references from the inflated layout.
+     *
+     * @param view root view
+     */
     private void initializeViews(View view) {
         eventsRecyclerView = view.findViewById(R.id.eventsRecyclerView);
         swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
@@ -89,17 +115,26 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         filterButton = view.findViewById(R.id.filterButton);
     }
 
+    /**
+     * Configures the RecyclerView and its adapter.
+     */
     private void setupRecyclerView() {
         adapter = new EventAdapter(filteredEvents, this);
         eventsRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         eventsRecyclerView.setAdapter(adapter);
     }
 
+    /**
+     * Sets up pull-to-refresh behavior and colors.
+     */
     private void setupSwipeRefresh() {
         swipeRefreshLayout.setOnRefreshListener(this::loadEvents);
         swipeRefreshLayout.setColorSchemeColors(ContextCompat.getColor(requireContext(), R.color.teal_700));
     }
 
+    /**
+     * Adds listeners for search text changes and filter button.
+     */
     private void setupSearchAndFilter() {
         searchInput.addTextChangedListener(new TextWatcher() {
             @Override
@@ -122,6 +157,9 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         });
     }
 
+    /**
+     * Loads events from Firestore through the service and updates UI state accordingly.
+     */
     private void loadEvents() {
         Log.d(TAG, "loadEvents() called");
         showLoadingState(true);
@@ -136,7 +174,7 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
                 filteredEvents.clear();
                 filteredEvents.addAll(events);
                 Log.d(TAG, "Updated adapter with " + filteredEvents.size() + " events");
-                adapter.updateEvents(filteredEvents);
+                adapter .updateEvents(filteredEvents);
                 updateUIState();
                 swipeRefreshLayout.setRefreshing(false);
                 showLoadingState(false);
@@ -159,6 +197,11 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         });
     }
 
+    /**
+     * Filters the in-memory event list by query and updates the adapter.
+     *
+     * @param query user-entered search term
+     */
     private void filterEvents(String query) {
         if (query.isEmpty()) {
             filteredEvents.clear();
@@ -179,6 +222,9 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         updateUIState();
     }
 
+    /**
+     * Toggles between empty and list states based on filtered results.
+     */
     private void updateUIState() {
         if (filteredEvents.isEmpty()) {
             emptyState.setVisibility(View.VISIBLE);
@@ -189,6 +235,11 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         }
     }
 
+    /**
+     * Shows a skeleton/loading state when appropriate.
+     *
+     * @param isLoading whether loading should be visible
+     */
     private void showLoadingState(boolean isLoading) {
         if (isLoading && filteredEvents.isEmpty()) {
             loadingState.setVisibility(View.VISIBLE);
@@ -199,6 +250,11 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         }
     }
 
+    /**
+     * Handles item click, navigating to the event details screen.
+     *
+     * @param event selected event
+     */
     @Override
     public void onEventClick(Event event) {
         // Navigate to event detail fragment

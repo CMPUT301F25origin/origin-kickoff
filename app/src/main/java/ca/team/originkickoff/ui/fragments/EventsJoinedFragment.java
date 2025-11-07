@@ -1,3 +1,7 @@
+/*
+ * Shows events the current user has joined or is waitlisted for, with real-time status.
+ * Merges event details with personalized invitation/lottery outcome statuses.
+ */
 package ca.team.originkickoff.ui.fragments;
 
 import android.os.Bundle;
@@ -29,6 +33,9 @@ import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.util.DeviceUtils;
 
+/**
+ * Fragment listing events the user has joined, including dynamic lottery/invitation status.
+ */
 public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEventClickListener {
     private static final String TAG = "EventsJoinedFragment";
     private FirebaseFirestore db;
@@ -40,6 +47,14 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
     private ListenerRegistration waitlistListener; // real-time updates
     private String currentUserId; // cached user id
 
+    /**
+     * Inflates the list layout and configures RecyclerView with the adapter.
+     *
+     * @param inflater  layout inflater
+     * @param container parent container
+     * @param savedInstanceState state bundle
+     * @return inflated root view
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -65,6 +80,9 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
         return v;
     }
 
+    /**
+     * Resolves the current user and attaches the real-time waitlist listener.
+     */
     private void resolveUserAndListen() {
         String deviceId = DeviceUtils.getDeviceId(requireContext());
         if (deviceId == null) {
@@ -88,6 +106,9 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to resolve user", e));
     }
 
+    /**
+     * Subscribes to active waitlist entries to keep the joined list in sync.
+     */
     private void attachWaitlistListener() {
         if (currentUserId == null) return;
         if (waitlistListener != null) {
@@ -122,7 +143,11 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
                 });
     }
 
-    // Batch fetch events (Firestore whereIn limit = 10) then enrich with lottery status
+    /**
+     * Fetches event documents referenced by waitlist entries and updates the list.
+     *
+     * @param allEventIds event IDs from the user's waitlist entries
+     */
     private void fetchEventsInBatches(List<String> allEventIds) {
         events.clear();
         eventStatusMap.clear();
@@ -134,6 +159,11 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
         }
     }
 
+    /**
+     * Adds or replaces an event in the aggregated list and refreshes the adapter.
+     *
+     * @param event event to upsert in the list
+     */
     private void addOrReplaceEvent(Event event) {
         int idx = -1;
         for (int i = 0; i < events.size(); i++) {
@@ -147,6 +177,11 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
         adapter.setEventsWithStatus(new ArrayList<>(events), new HashMap<>(eventStatusMap));
     }
 
+    /**
+     * Parses an event document, determines personalized status, and updates the list.
+     *
+     * @param eventDoc Firestore document for the event
+     */
     private void handleEventDoc(DocumentSnapshot eventDoc) {
         if (eventDoc == null || !eventDoc.exists()) return;
         try {
@@ -190,6 +225,9 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
         }
     }
 
+    /**
+     * Cleans up listeners on view destruction.
+     */
     @Override
     public void onDestroyView() {
         super.onDestroyView();
@@ -199,6 +237,11 @@ public class EventsJoinedFragment extends Fragment implements EventAdapter.OnEve
         }
     }
 
+    /**
+     * Handles click on an event to show details.
+     *
+     * @param event selected event
+     */
     @Override
     public void onEventClick(Event event) {
         // Reuse EventDetailActivity

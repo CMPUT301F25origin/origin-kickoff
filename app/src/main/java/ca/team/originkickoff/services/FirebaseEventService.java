@@ -1,3 +1,7 @@
+/*
+ * Firestore-backed service for reading Event data used throughout the app.
+ * Centralizes event queries and parsing to keep UI layers simple.
+ */
 package ca.team.originkickoff.services;
 
 import android.util.Log;
@@ -10,15 +14,27 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import ca.team.originkickoff.models.Event;
 
+/**
+ * Provides methods to fetch events and individual event details from Firestore.
+ */
 public class FirebaseEventService {
     private static final String TAG = "FirebaseEventService";
     private static final String EVENTS_COLLECTION = "events";
     private FirebaseFirestore db;
 
+    /**
+     * Creates a new instance backed by the default FirebaseFirestore.
+     */
     public FirebaseEventService() {
         this.db = FirebaseFirestore.getInstance();
     }
 
+    /**
+     * Fetches events currently within their registration window among those marked as published.
+     * Falls back to a debug fetch of all events if the filtered query fails (e.g., missing index).
+     *
+     * @param callback callback invoked with the filtered list or an error message
+     */
     public void getEventsWithOpenRegistration(@NonNull EventsCallback callback) {
         Log.d(TAG, "Starting event fetch - looking for published events");
         db.collection(EVENTS_COLLECTION)
@@ -86,6 +102,11 @@ public class FirebaseEventService {
                 });
     }
 
+    /**
+     * Fallback helper that fetches all events for diagnostic purposes.
+     *
+     * @param callback callback invoked with any events found or error message
+     */
     private void getAllEventsDebug(@NonNull EventsCallback callback) {
         Log.d(TAG, "Debug fetch: Getting ALL events");
         db.collection(EVENTS_COLLECTION)
@@ -132,6 +153,11 @@ public class FirebaseEventService {
                 });
     }
 
+    /**
+     * Retrieves all events without filtering.
+     *
+     * @param callback callback invoked with the full list or error message
+     */
     public void getAllEvents(@NonNull EventsCallback callback) {
         Log.d(TAG, "Fetching ALL events from Firestore.");
         db.collection(EVENTS_COLLECTION)
@@ -168,6 +194,12 @@ public class FirebaseEventService {
                 });
     }
 
+    /**
+     * Subscribes to a single event document and returns its current value.
+     *
+     * @param eventId  Firestore document ID of the event
+     * @param callback callback invoked with the event or an error message
+     */
     public void getEventById(@NonNull String eventId, @NonNull SingleEventCallback callback) {
         db.collection(EVENTS_COLLECTION)
                 .document(eventId)
@@ -190,13 +222,41 @@ public class FirebaseEventService {
                 });
     }
 
+    /**
+     * Callback interface for event list queries.
+     */
     public interface EventsCallback {
+        /**
+         * Called when events are fetched successfully.
+         *
+         * @param events list of events returned from Firestore
+         */
         void onSuccess(java.util.List<Event> events);
+
+        /**
+         * Called when an error occurs.
+         *
+         * @param errorMessage human-readable error message
+         */
         void onError(String errorMessage);
     }
 
+    /**
+     * Callback interface for single event queries.
+     */
     public interface SingleEventCallback {
+        /**
+         * Called when the event is fetched successfully.
+         *
+         * @param event the loaded event
+         */
         void onSuccess(Event event);
+
+        /**
+         * Called when an error occurs.
+         *
+         * @param errorMessage human-readable error message
+         */
         void onError(String errorMessage);
     }
 }

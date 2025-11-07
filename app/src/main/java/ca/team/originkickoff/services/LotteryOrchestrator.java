@@ -1,3 +1,7 @@
+/*
+ * High-level coordinator for running an event lottery end‑to‑end.
+ * Validates state, draws winners, persists results, and triggers side effects.
+ */
 package ca.team.originkickoff.services;
 
 import androidx.annotation.NonNull;
@@ -17,11 +21,8 @@ import ca.team.originkickoff.models.LotteryMethod;
 import ca.team.originkickoff.models.LotteryResult;
 
 /**
- * Orchestrates the complete lottery process:
- * 1. Validates lottery can be conducted
- * 2. Conducts the lottery draw
- * 3. Saves results to Firestore
- * 4. Updates winner status
+ * Orchestrates the complete lottery process including validation, draw, persistence,
+ * and updating other collections (event status, invitation statuses, notifications).
  */
 public class LotteryOrchestrator {
     private static final String LOTTERY_RESULTS_COLL = "lottery_results";
@@ -31,6 +32,9 @@ public class LotteryOrchestrator {
     private final LotteryService lotteryService;
     private final WaitingListService waitingListService;
 
+    /**
+     * Constructs a new orchestrator using default Firestore-backed services.
+     */
     public LotteryOrchestrator() {
         this.db = FirebaseFirestore.getInstance();
         this.lotteryService = new LotteryService();
@@ -40,11 +44,11 @@ public class LotteryOrchestrator {
     /**
      * Conduct a lottery for an event.
      *
-     * @param eventId The event ID
-     * @param organizerId The organizer conducting the lottery (for audit)
-     * @param numWinners Number of winners to select (typically event capacity)
-     * @param method The lottery method to use
-     * @return Task containing the lottery result
+     * @param eventId     ID of the event whose lottery is being run
+     * @param organizerId ID of organizer performing the action (audit info)
+     * @param numWinners  desired number of winners (typically capacity)
+     * @param method      lottery selection method
+     * @return Task resolving with the persisted {@link LotteryResult}
      */
     public Task<LotteryResult> conductLottery(@NonNull String eventId,
                                                @NonNull String organizerId,
@@ -96,18 +100,23 @@ public class LotteryOrchestrator {
                 });
     }
 
+    /**
+     * Persist lottery outcome and perform follow‑up updates (event status, invitations, notifications).
+     *
+     * @param result       finalized lottery result object
+     * @param winnerIds    list of winners
+     * @param allEntrantIds list of all entrant user IDs
+     * @return Task resolving with the same {@link LotteryResult}
+     */
     private Task<LotteryResult> persistOutcome(LotteryResult result, List<String> winnerIds, List<String> allEntrantIds) {
-        // Save lottery result, then update event status and create invitation_status entries
         return saveLotteryResult(result).continueWithTask(saveTask -> {
             if (!saveTask.isSuccessful()) {
                 return Tasks.forException(saveTask.getException());
             }
-            // Update event's lotteryStatus field to 'conducted'
             Task<Void> updateEventTask = db.collection(EVENTS_COLL)
                     .document(result.getEventId())
                     .update("lotteryStatus", "conducted");
 
-            // Build batch for invitation_status documents for winners
             com.google.firebase.firestore.WriteBatch batch = db.batch();
             for (String winnerId : winnerIds) {
                 DocumentReference inviteRef = db.collection("invitation_status").document(result.getEventId() + "_" + winnerId);
@@ -120,7 +129,6 @@ public class LotteryOrchestrator {
             }
             Task<Void> batchCommit = batch.commit();
 
-            // Optional: send notifications if NotificationService available
             NotificationService notificationService = new NotificationService();
             Task<Void> notifyTask = Tasks.whenAllSuccess(buildNotificationTasks(notificationService, result.getEventId(), winnerIds, allEntrantIds))
                     .continueWith(t -> null);
@@ -135,16 +143,25 @@ public class LotteryOrchestrator {
         });
     }
 
+    /**
+     * Build notification creation tasks for winners (placeholder implementation currently).
+     *
+     * @param notificationService service used to create notifications
+     * @param eventId             event identifier
+     * @param winnerIds           list of winner user IDs
+     * @param allEntrantIds       all entrant user IDs (unused currently)
+     * @return list of tasks (possibly empty) representing notification operations
+     */
     private List<Task<Void>> buildNotificationTasks(NotificationService notificationService, String eventId, List<String> winnerIds, List<String> allEntrantIds) {
-        // Only winners get result notifications currently (non-winners can be added if desired)
-        // For now, send winner notifications; losers omitted to reduce noise
         List<Task<Void>> tasks = new java.util.ArrayList<>();
-        // Fetch event name to include in notifications (best-effort)
         return tasks; // TODO: implement event name retrieval & notifications if required by spec
     }
 
     /**
      * Check if lottery has already been conducted for an event.
+     *
+     * @param eventId event identifier
+     * @return Task resolving true if a result document already exists
      */
     public Task<Boolean> hasLotteryBeenConducted(@NonNull String eventId) {
         return db.collection(LOTTERY_RESULTS_COLL)
@@ -158,7 +175,10 @@ public class LotteryOrchestrator {
     }
 
     /**
-     * Get lottery result for an event.
+     * Retrieve an existing lottery result if present.
+     *
+     * @param eventId event identifier
+     * @return Task resolving with result or null if absent / failure
      */
     public Task<LotteryResult> getLotteryResult(@NonNull String eventId) {
         return db.collection(LOTTERY_RESULTS_COLL)
@@ -173,7 +193,11 @@ public class LotteryOrchestrator {
     }
 
     /**
-     * Check if a user is a winner in the lottery.
+     * Determine if a user appears in the winner set.
+     *
+     * @param eventId event identifier
+     * @param userId  user identifier
+     * @return Task resolving true if user is a winner
      */
     public Task<Boolean> isWinner(@NonNull String eventId, @NonNull String userId) {
         return getLotteryResult(eventId)
@@ -188,7 +212,10 @@ public class LotteryOrchestrator {
     }
 
     /**
-     * Save lottery result to Firestore.
+     * Persist the lottery result document.
+     *
+     * @param result result representation to store
+     * @return Task resolving with the same result on success
      */
     private Task<LotteryResult> saveLotteryResult(LotteryResult result) {
         Map<String, Object> data = new HashMap<>();
