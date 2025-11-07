@@ -244,13 +244,37 @@ public class EventDetailActivity extends AppCompatActivity {
         }
 
         waitingListService.isOnWaitlist(currentEvent.getId(), currentUser.getId())
-                .addOnSuccessListener(this::updateJoinLeaveButtonStyle);
+                .addOnSuccessListener(this::updateJoinButtonConsideringState);
     }
 
-    private void updateJoinLeaveButtonStyle(boolean isOnList) {
-        // Don't update button style if user is the organizer
-        if (isOrganizer) {
-            return;
+    // Replace simple style setter with state-aware logic
+    private void updateJoinButtonConsideringState(boolean isOnList) {
+        if (currentEvent == null) return;
+        long now = System.currentTimeMillis();
+        Long start = currentEvent.getRegistrationStartTime() != null ? currentEvent.getRegistrationStartTime().getTime() : null;
+        Long end = currentEvent.getRegistrationEndTime() != null ? currentEvent.getRegistrationEndTime().getTime() : null;
+
+        boolean beforeStart = start != null && now < start;
+        boolean afterEnd = end != null && now > end;
+        boolean withinWindow = (start == null || now >= start) && (end == null || now <= end);
+
+        // Determine if waitlist is full (only when limit is enabled)
+        boolean waitlistFull = currentEvent.isLimitWaitlist() && currentEvent.getWaitlistLimit() > 0 &&
+                currentEvent.getWaitlistCount() >= currentEvent.getWaitlistLimit();
+
+        if (!isOnList) {
+            if (beforeStart) {
+                setDisabledJoinButton("Registration opening soon");
+                return;
+            }
+            if (afterEnd) {
+                setDisabledJoinButton("Registration closed");
+                return;
+            }
+            if (withinWindow && waitlistFull) {
+                setDisabledJoinButton("Waiting list full");
+                return;
+            }
         }
 
         // Don't update button style if showing lottery result
@@ -260,13 +284,22 @@ public class EventDetailActivity extends AppCompatActivity {
 
         if (isOnList) {
             btnJoinWaitingList.setText("Leave Waiting List");
+            btnJoinWaitingList.setEnabled(true);
             btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#FF3B30"))); // red
             btnJoinWaitingList.setTextColor(Color.WHITE);
         } else {
             btnJoinWaitingList.setText("Join Waiting List");
+            btnJoinWaitingList.setEnabled(true);
             btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0"))); // teal
             btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
         }
+    }
+
+    private void setDisabledJoinButton(String label) {
+        btnJoinWaitingList.setText(label);
+        btnJoinWaitingList.setEnabled(false);
+        btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#7A7A7A"))); // gray
+        btnJoinWaitingList.setTextColor(Color.WHITE);
     }
 
     private void toggleJoinLeave() {
@@ -280,7 +313,7 @@ public class EventDetailActivity extends AppCompatActivity {
                                     if (changed) Toast.makeText(this, "Left waiting list", Toast.LENGTH_SHORT).show();
                                     currentEvent.setWaitlistCount(Math.max(0, currentEvent.getWaitlistCount() - (changed ? 1 : 0)));
                                     updateUI();
-                                    updateJoinLeaveButtonStyle(false);
+                                    refreshJoinButton(); // re-evaluate state instead of forcing style
                                 })
                                 .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                     } else {
@@ -324,7 +357,7 @@ public class EventDetailActivity extends AppCompatActivity {
                     if (changed) Toast.makeText(this, "Joined waiting list", Toast.LENGTH_SHORT).show();
                     currentEvent.setWaitlistCount(currentEvent.getWaitlistCount() + (changed ? 1 : 0));
                     updateUI();
-                    updateJoinLeaveButtonStyle(true);
+                    refreshJoinButton(); // re-evaluate state including possible fullness
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }

@@ -138,12 +138,13 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     private void deleteUserAndData() {
-        if (userDocId == null || userInternalId == null) {
+        if (userDocId == null) {
             Toast.makeText(this, "Error: Could not get user profile to delete.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        db.collection("waiting_list_entries").whereEqualTo("user_id", userInternalId).get()
+        // Use the Firestore document ID for user_id references
+        db.collection("waiting_list_entries").whereEqualTo("user_id", userDocId).get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     List<String> eventIds = new ArrayList<>();
                     WriteBatch deleteEntriesBatch = db.batch();
@@ -223,7 +224,8 @@ public class ProfileActivity extends AppCompatActivity {
                         tvUserName.setText(doc.getString("display_name"));
                         tvUserEmail.setText(doc.getString("email"));
                         loadProfileImage(doc.getString("profile_image_id"));
-                        loadEventHistory(userInternalId);
+                        // Use the Firestore document id for history lookup to avoid mismatches
+                        loadEventHistory(userDocId);
                     } else {
                         showPlaceholderAndClearData();
                     }

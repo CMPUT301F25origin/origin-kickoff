@@ -16,7 +16,6 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 public class SignUpActivity extends AppCompatActivity {
 
@@ -60,11 +59,12 @@ public class SignUpActivity extends AppCompatActivity {
     }
 
     private void createNewUser(String name, String email, String phone, String deviceId) {
-        String userId = UUID.randomUUID().toString();
+        // Use deviceId as canonical user id & Firestore doc id so a device maps to exactly one user document.
+        String userId = deviceId;
 
         Map<String, Object> user = new HashMap<>();
-        user.put("id", userId);
-        user.put("device_id", deviceId);
+        user.put("id", userId); // internal id equals device id (legacy scheme)
+        user.put("device_id", deviceId); // redundant but kept for querying
         user.put("display_name", name);
         user.put("email", email);
         if (!TextUtils.isEmpty(phone)) {
@@ -78,7 +78,7 @@ public class SignUpActivity extends AppCompatActivity {
         user.put("notif_service", true);
         user.put("profile_image_id", null);
 
-        db.collection("users").document(deviceId).set(user)
+        db.collection("users").document(userId).set(user)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(SignUpActivity.this, "Sign up successful!", Toast.LENGTH_SHORT).show();
                     navigateToMain();

@@ -76,13 +76,43 @@ public class MyEventsActivity extends AppCompatActivity {
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         Boolean isOrganizerField = queryDocumentSnapshots.getDocuments().get(0).getBoolean("is_organizer");
+                        if (isOrganizerField == null) isOrganizerField = queryDocumentSnapshots.getDocuments().get(0).getBoolean("is_organiser");
+                        if (isOrganizerField == null) {
+                            Object camel = queryDocumentSnapshots.getDocuments().get(0).get("isOrganizer");
+                            if (camel instanceof Boolean) isOrganizerField = (Boolean) camel;
+                        }
                         isOrganizer = isOrganizerField != null && isOrganizerField;
-                        Log.d(TAG, "User is organizer: " + isOrganizer);
+                        Log.d(TAG, "User explicit organizer flag: " + isOrganizer);
+
+                        if (!isOrganizer) {
+                            // Fallback inference: does user have any events with organizerId == their document ID or deviceId?
+                            String userDocId = queryDocumentSnapshots.getDocuments().get(0).getId();
+                            java.util.List<String> possibleIds = new java.util.ArrayList<>();
+                            possibleIds.add(userDocId);
+                            if (!deviceId.equals(userDocId)) possibleIds.add(deviceId);
+                            db.collection("events")
+                                    .whereIn("organizerId", possibleIds)
+                                    .limit(1)
+                                    .get()
+                                    .addOnSuccessListener(evSnap -> {
+                                        if (!evSnap.isEmpty()) {
+                                            Log.d(TAG, "Inferred organizer via existing events");
+                                            isOrganizer = true;
+                                        }
+                                        setupTabs(isOrganizer);
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Log.e(TAG, "Organizer inference failed", e);
+                                        setupTabs(isOrganizer);
+                                    });
+                        } else {
+                            setupTabs(true);
+                        }
                     } else {
                         Log.w(TAG, "No user found for device_id");
                         isOrganizer = false;
+                        setupTabs(false);
                     }
-                    setupTabs(isOrganizer);
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error checking organizer status", e);
