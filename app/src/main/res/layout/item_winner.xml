@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="4dp"
+    app:cardCornerRadius="4dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/tv_winner_position"
+            android:layout_width="48dp"
+            android:layout_height="wrap_content"
+            android:text="#1"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#4DE8C0"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/tv_winner_user_id"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="User ID"
+            android:textSize="14sp"
+            android:textColor="@android:color/black"
+            android:layout_marginStart="8dp" />
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/ic_menu_info_details"
+            android:tint="@android:color/darker_gray"
+            android:contentDescription="Winner details" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>
+

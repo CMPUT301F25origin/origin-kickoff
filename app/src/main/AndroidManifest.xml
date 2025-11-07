@@ -50,6 +50,8 @@
         <activity android:name=".MapViewActivity" android:exported="false" />
         <activity android:name="ca.team.originkickoff.WaitingListActivity" android:exported="false" />
         <activity android:name=".WaitingListMapActivity" android:exported="false" />
+        <activity android:name=".ManageLotteryActivity" android:exported="false" />
+        <activity android:name=".ManageInvitationsActivity" android:exported="false" />
 
         <!-- My Events activity -->
         <activity android:name=".MyEventsActivity" android:exported="false" android:launchMode="singleTop" />

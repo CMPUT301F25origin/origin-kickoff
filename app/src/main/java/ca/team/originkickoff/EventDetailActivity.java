@@ -60,6 +60,9 @@ public class EventDetailActivity extends AppCompatActivity {
     private CardView locationCard;
     private ImageView imageMapPreview;
     private ImageView btnEdit;
+    private LinearLayout actionButtonsContainer;
+    private CardView lotteryResultCard;
+    private TextView tvLotteryResult;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -122,6 +125,9 @@ public class EventDetailActivity extends AppCompatActivity {
         locationCard = findViewById(R.id.locationCard);
         imageMapPreview = findViewById(R.id.imageMapPreview);
         btnEdit = findViewById(R.id.btnEdit);
+        actionButtonsContainer = findViewById(R.id.actionButtonsContainer);
+        lotteryResultCard = findViewById(R.id.lotteryResultCard);
+        tvLotteryResult = findViewById(R.id.tvLotteryResult);
     }
 
     private void setupListeners() {
@@ -484,9 +490,10 @@ public class EventDetailActivity extends AppCompatActivity {
             btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
             btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
             btnJoinWaitingList.setOnClickListener(v -> openManageEntrants());
-            btnLotteryCriteria.setText("Manage Lottery");
-            btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
-            btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
+
+            // Check lottery status and update button text accordingly
+            checkLotteryStatusAndUpdateButton();
+
             btnManageNotifications.setVisibility(View.VISIBLE);
             btnManageNotifications.setOnClickListener(v -> openManageNotifications());
         } else {
@@ -494,6 +501,109 @@ public class EventDetailActivity extends AppCompatActivity {
             Log.d(TAG, "Current user is not organizer (no match) - entrant view");
             btnEdit.setVisibility(View.GONE);
             btnManageNotifications.setVisibility(View.GONE);
+
+            // Check if lottery has been conducted for entrants
+            checkLotteryStatusForEntrant();
+        }
+    }
+
+    private void checkLotteryStatusAndUpdateButton() {
+        // Check if lottery has been conducted
+        db.collection("lottery_results")
+                .document(currentEvent.getId())
+                .get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        // Lottery conducted - show "Lottery Results" button
+                        btnLotteryCriteria.setText("Lottery Results");
+                    } else {
+                        // Lottery not conducted - show "Manage Lottery" button
+                        btnLotteryCriteria.setText("Manage Lottery");
+                    }
+                    btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+                    btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
+                })
+                .addOnFailureListener(e -> {
+                    // Default to "Manage Lottery" on error
+                    btnLotteryCriteria.setText("Manage Lottery");
+                    btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+                    btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
+                });
+    }
+
+    private void checkLotteryStatusForEntrant() {
+        // Check if lottery status is "conducted"
+        String lotteryStatus = currentEvent.getLotteryStatus();
+
+        db.collection("events").document(currentEvent.getId())
+                .get()
+                .addOnSuccessListener(doc -> {
+                    String status = doc.getString("lotteryStatus");
+
+                    if ("conducted".equals(status)) {
+                        // Lottery has been conducted - check if user was in waiting list
+                        checkUserLotteryResult();
+                    } else {
+                        // Lottery not conducted - show normal buttons
+                        actionButtonsContainer.setVisibility(View.VISIBLE);
+                        lotteryResultCard.setVisibility(View.GONE);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking lottery status", e);
+                    // Default to showing buttons
+                    actionButtonsContainer.setVisibility(View.VISIBLE);
+                    lotteryResultCard.setVisibility(View.GONE);
+                });
+    }
+
+    private void checkUserLotteryResult() {
+        if (currentUser == null) return;
+
+        String userId = currentUser.getId();
+        String eventId = currentEvent.getId();
+
+        // Check if user was in the waiting list by checking invitation_status
+        db.collection("invitation_status")
+                .whereEqualTo("event_id", eventId)
+                .whereEqualTo("user_id", userId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    if (!snapshots.isEmpty()) {
+                        // User was in the waiting list - show their result
+                        String status = snapshots.getDocuments().get(0).getString("status");
+                        showLotteryResult(status);
+                    } else {
+                        // User was NOT in waiting list - finish activity (hide event)
+                        Toast.makeText(this, "This event's lottery has been conducted", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking user lottery result", e);
+                    // Default to hiding event to be safe
+                    Toast.makeText(this, "Unable to load event details", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+    }
+
+    private void showLotteryResult(String status) {
+        // Hide action buttons and lottery criteria button
+        actionButtonsContainer.setVisibility(View.GONE);
+
+        // Show lottery result card
+        lotteryResultCard.setVisibility(View.VISIBLE);
+
+        if ("chosen".equals(status) || "enrolled".equals(status)) {
+            tvLotteryResult.setText("🎉 Congratulations! You were selected in the lottery!");
+            tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0")); // Success green/teal
+        } else if ("cancelled".equals(status)) {
+            tvLotteryResult.setText("You were selected but cancelled your enrollment");
+            tvLotteryResult.setTextColor(Color.parseColor("#FFD60A")); // Warning yellow
+        } else {
+            tvLotteryResult.setText("Unfortunately, you were not selected in the lottery");
+            tvLotteryResult.setTextColor(Color.parseColor("#FF3B30")); // Red
         }
     }
 
@@ -510,11 +620,9 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void openManageLottery() {
-        Toast.makeText(this, "Manage Lottery - Coming Soon", Toast.LENGTH_SHORT).show();
-        // TODO: Navigate to lottery management activity
-        // Intent intent = new Intent(this, ManageLotteryActivity.class);
-        // intent.putExtra(ManageLotteryActivity.EXTRA_EVENT_ID, currentEvent.getId());
-        // startActivity(intent);
+        Intent intent = new Intent(this, ManageLotteryActivity.class);
+        intent.putExtra(ManageLotteryActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        startActivity(intent);
     }
 
     private void openManageNotifications() {

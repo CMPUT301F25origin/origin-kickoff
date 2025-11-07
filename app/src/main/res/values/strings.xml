@@ -90,4 +90,5 @@ All your data will be erased!</string>
     <string name="waiting_list_entrants">Waiting List Entrants</string>
     <string name="view_map">View Map</string>
     <string name="entrant_join_locations">Entrant Join Locations</string>
+    <string name="profile_picture">Profile Picture</string>
 </resources>

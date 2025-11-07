@@ -103,6 +103,9 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         // Show loading screen
         loadingView.setVisibility(View.VISIBLE);
 
+        // Get current user ID to filter events
+        String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+
         db.collection("events")
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
@@ -111,6 +114,14 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                         try {
                             Event event = document.toObject(Event.class);
                             event.setId(document.getId());
+
+                            // Filter out events with conducted lottery
+                            String lotteryStatus = document.getString("lotteryStatus");
+                            if ("conducted".equals(lotteryStatus)) {
+                                // Skip this event - it shouldn't appear in the main feed
+                                continue;
+                            }
+
                             allEvents.add(event);
                         } catch (Exception e) {
                             Log.e(TAG, "Error parsing event document: " + document.getId(), e);
