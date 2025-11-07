@@ -1,39 +1,61 @@
+/**
+ * Firestore model representing a user's entry on an event's waiting list, including geo metadata.
+ */
 package ca.team.originkickoff.models;
 
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.PropertyName;
 
-// Mirrors the RDBMS waiting_list_entries table. Used in Firestore with same field names.
+/**
+ * Mirrors the relational waiting list schema with Firestore-friendly field names.
+ */
 public class WaitingListEntry {
+    /** Event identifier (string-typed, RDBMS UUID equivalent). */
     @PropertyName("event_id")
-    private String eventId; // UUID in RDBMS; keep as String
+    private String eventId;
 
+    /** User identifier (string-typed, RDBMS UUID equivalent). */
     @PropertyName("user_id")
-    private String userId; // UUID in RDBMS; keep as String
+    private String userId;
 
+    /** Time when user joined the waiting list. */
     @PropertyName("joined_at")
-    private Timestamp joinedAt; // TIMESTAMPTZ
+    private com.google.firebase.Timestamp joinedAt;
 
-    private String source; // 'qr' | 'list'
-    private String state;  // 'active' | 'left'
+    /** Source of the join action, e.g., qr or list. */
+    private String source;
+    /** Current state, e.g., active or left. */
+    private String state;
 
-    // Optional geo fields
-    private Double lat;         // DECIMAL(9,6)
-    private Double lon;         // DECIMAL(9,6)
+    /** Optional latitude in decimal degrees. */
+    private Double lat;
+    /** Optional longitude in decimal degrees. */
+    private Double lon;
+    /** Horizontal accuracy in meters, if provided. */
     @PropertyName("precision_m")
-    private Integer precisionMeters; // INTEGER
+    private Integer precisionMeters;
 
+    /** Whether the user consented to location collection. */
     @PropertyName("location_consent")
-    private boolean locationConsent; // DEFAULT FALSE
+    private boolean locationConsent;
 
-    // Firestore doc id we enforce as composite: `${event_id}_${user_id}`
+    /**
+     * Builds a composite doc id from eventId and userId.
+     * @param eventId event identifier
+     * @param userId user identifier
+     * @return composite document id in the form eventId_userId
+     */
     public static String docId(String eventId, String userId) {
         return eventId + "_" + userId;
     }
 
+    /** No-arg constructor for Firebase. */
     public WaitingListEntry() {}
 
-    public WaitingListEntry(String eventId, String userId, Timestamp joinedAt, String source, String state) {
+    /**
+     * Convenience constructor for typical entries.
+     */
+    public WaitingListEntry(String eventId, String userId, com.google.firebase.Timestamp joinedAt, String source, String state) {
         this.eventId = eventId;
         this.userId = userId;
         this.joinedAt = joinedAt;
@@ -78,4 +100,3 @@ public class WaitingListEntry {
     @PropertyName("location_consent")
     public void setLocationConsent(boolean locationConsent) { this.locationConsent = locationConsent; }
 }
-

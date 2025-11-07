@@ -1,8 +1,14 @@
+/**
+ * User profile model persisted in Firestore and referenced across features.
+ */
 package ca.team.originkickoff.models;
 
 import com.google.firebase.firestore.PropertyName;
 import java.util.Date;
 
+/**
+ * Represents an application user with notification preferences and roles.
+ */
 public class User {
     private String id;
     @PropertyName("device_id")
@@ -24,7 +30,7 @@ public class User {
     @PropertyName("updated_at")
     private Date updatedAt;
 
-    // Default constructor is required for Firebase
+    /** No-arg constructor required by Firebase deserialization. */
     public User() {
     }
 

@@ -1,31 +1,41 @@
+/**
+ * Model representing a user's invitation outcome and response timestamps for an event lottery.
+ */
 package ca.team.originkickoff.models;
 
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.PropertyName;
 
 /**
- * Represents an invitation status for a lottery winner.
- * Tracks whether they accepted, declined, or haven't responded.
+ * Represents an invitation status for a lottery winner tracking acceptance state.
  */
 public class InvitationStatus {
+    /** Event identifier. */
     @PropertyName("event_id")
     private String eventId;
 
+    /** User identifier. */
     @PropertyName("user_id")
     private String userId;
 
+    /** Status value: chosen | cancelled | enrolled. */
     @PropertyName("status")
-    private String status; // "chosen", "cancelled", "enrolled"
+    private String status;
 
+    /** Timestamp when invitation was issued. */
     @PropertyName("invited_at")
     private Timestamp invitedAt;
 
+    /** Timestamp when user responded (if any). */
     @PropertyName("responded_at")
     private Timestamp respondedAt;
 
-    // Empty constructor for Firebase
+    /** No-arg constructor for Firebase. */
     public InvitationStatus() {}
 
+    /**
+     * Convenience constructor.
+     */
     public InvitationStatus(String eventId, String userId, String status, Timestamp invitedAt) {
         this.eventId = eventId;
         this.userId = userId;
@@ -59,4 +69,3 @@ public class InvitationStatus {
     @PropertyName("responded_at")
     public void setRespondedAt(Timestamp respondedAt) { this.respondedAt = respondedAt; }
 }
-
