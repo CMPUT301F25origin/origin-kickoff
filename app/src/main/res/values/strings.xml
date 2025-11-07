@@ -87,4 +87,7 @@ All your data will be erased!</string>
     <string name="lottery_pending">Lottery Pending</string>
     <string name="entrants_desc">Entrants</string>
     <string name="lottery_status_desc">Lottery status</string>
+    <string name="waiting_list_entrants">Waiting List Entrants</string>
+    <string name="view_map">View Map</string>
+    <string name="entrant_join_locations">Entrant Join Locations</string>
 </resources>

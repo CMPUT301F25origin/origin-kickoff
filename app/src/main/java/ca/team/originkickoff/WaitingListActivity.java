@@ -1,5 +1,6 @@
 package ca.team.originkickoff;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -44,7 +45,31 @@ public class WaitingListActivity extends AppCompatActivity {
         adapter = new WaitingListAdapter();
         recyclerView.setAdapter(adapter);
 
+        // Wire up View Map button if present in the layout
+        int mapBtnId = getResources().getIdentifier("btnViewMap", "id", getPackageName());
+        View mapBtn = mapBtnId != 0 ? findViewById(mapBtnId) : null;
+        if (mapBtn != null) {
+            mapBtn.setOnClickListener(v -> {
+                Intent intent = new Intent();
+                intent.setClassName(getPackageName(), "ca.team.originkickoff.WaitlistMapActivity");
+                intent.putExtra("event_id", eventId);
+                try {
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Toast.makeText(this, "Unable to open map", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         loadEntries();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (eventId != null) {
+            loadEntries();
+        }
     }
 
     private void loadEntries() {

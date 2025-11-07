@@ -13,6 +13,8 @@ import com.google.firebase.firestore.QuerySnapshot;
 import com.google.firebase.firestore.Transaction;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -94,21 +96,36 @@ public class WaitingListService {
     }
 
     public Task<List<WaitingListEntry>> listActive(@NonNull String eventId) {
-        return db.collection(WAITLIST_COLL)
+        Query q = db.collection(WAITLIST_COLL)
                 .whereEqualTo("event_id", eventId)
-                .whereEqualTo("state", "active")
-                .orderBy("joined_at")
-                .get()
-                .continueWith(task -> {
-                    List<WaitingListEntry> out = new ArrayList<>();
-                    if (!task.isSuccessful()) return out;
-                    QuerySnapshot snaps = task.getResult();
-                    if (snaps == null) return out;
-                    for (DocumentSnapshot s : snaps.getDocuments()) {
-                        WaitingListEntry e = s.toObject(WaitingListEntry.class);
-                        if (e != null) out.add(e);
-                    }
-                    return out;
-                });
+                .whereEqualTo("state", "active");
+
+        return q.get().continueWith(task -> {
+            if (!task.isSuccessful()) {
+                // Propagate failure so callers can surface an error
+                throw task.getException();
+            }
+            List<WaitingListEntry> out = new ArrayList<>();
+            QuerySnapshot snaps = task.getResult();
+            if (snaps != null) {
+                for (DocumentSnapshot s : snaps.getDocuments()) {
+                    WaitingListEntry e = s.toObject(WaitingListEntry.class);
+                    if (e != null) out.add(e);
+                }
+            }
+            // Sort client-side by joined_at ascending to avoid composite index need
+            Collections.sort(out, new Comparator<WaitingListEntry>() {
+                @Override
+                public int compare(WaitingListEntry a, WaitingListEntry b) {
+                    if (a.getJoinedAt() == null && b.getJoinedAt() == null) return 0;
+                    if (a.getJoinedAt() == null) return 1;
+                    if (b.getJoinedAt() == null) return -1;
+                    long da = a.getJoinedAt().getSeconds();
+                    long db = b.getJoinedAt().getSeconds();
+                    return Long.compare(da, db);
+                }
+            });
+            return out;
+        });
     }
 }

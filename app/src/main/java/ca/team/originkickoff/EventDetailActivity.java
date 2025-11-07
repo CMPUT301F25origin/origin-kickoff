@@ -462,42 +462,38 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void checkAndSetupOrganizerView() {
-        if (currentUser != null && currentEvent != null &&
-                currentEvent.getOrganizerId() != null &&
-                currentEvent.getOrganizerId().equals(currentUser.getId())) {
+        if (currentUser == null || currentEvent == null) {
+            isOrganizer = false;
+            return;
+        }
+        String organizerId = currentEvent.getOrganizerId();
+        String userId = currentUser.getId();
+        String deviceId = currentUser.getDeviceId();
+        boolean organizerMatch = organizerId != null && (
+                organizerId.equals(userId) || (deviceId != null && organizerId.equals(deviceId))
+        );
 
+        if (organizerMatch) {
             isOrganizer = true;
-            Log.d(TAG, "Current user is the organizer - showing organizer view");
-
+            Log.d(TAG, "Organizer recognized (id match or deviceId fallback) - showing organizer view");
             // Show Edit button
             btnEdit.setVisibility(View.VISIBLE);
             btnEdit.setOnClickListener(v -> openEditEvent());
-
             // Change buttons to organizer management buttons
             btnJoinWaitingList.setText("Manage Entrants");
             btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
             btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
             btnJoinWaitingList.setOnClickListener(v -> openManageEntrants());
-
             btnLotteryCriteria.setText("Manage Lottery");
             btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
             btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
-
             btnManageNotifications.setVisibility(View.VISIBLE);
             btnManageNotifications.setOnClickListener(v -> openManageNotifications());
-
         } else {
             isOrganizer = false;
-            Log.d(TAG, "Current user is not the organizer - showing entrant view");
-
-            // Hide Edit button
+            Log.d(TAG, "Current user is not organizer (no match) - entrant view");
             btnEdit.setVisibility(View.GONE);
-
-            // Hide Manage Notifications button
             btnManageNotifications.setVisibility(View.GONE);
-
-            // Keep default button behavior for entrants
-            // btnJoinWaitingList and btnLotteryCriteria retain their default listeners
         }
     }
 
