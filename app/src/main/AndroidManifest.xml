@@ -37,6 +37,7 @@
         <activity android:name=".MainActivity" android:exported="false" android:launchMode="singleTop" />
         <activity android:name=".ui.home.HomeActivity" android:exported="false" />
         <activity android:name=".ui.setup.SetupActivity" android:exported="false" />
+        <activity android:name=".SignUpActivity" android:exported="false" />
 
         <activity android:name=".CreateEventActivity" android:exported="false" />
         <activity android:name=".EditEventActivity" android:exported="false" />
