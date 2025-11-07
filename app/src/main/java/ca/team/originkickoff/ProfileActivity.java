@@ -28,13 +28,19 @@ import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import ca.team.originkickoff.ui.splash.SplashActivity;
 
 public class ProfileActivity extends AppCompatActivity {
 
@@ -47,7 +53,8 @@ public class ProfileActivity extends AppCompatActivity {
     private LinearLayout eventHistoryLayout;
     private String deviceId;
     private FirebaseFirestore db;
-    private String userDocId;
+    private String userDocId; // This is the device_id
+    private String userInternalId; // This is the user's UUID
 
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
@@ -100,6 +107,7 @@ public class ProfileActivity extends AppCompatActivity {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
                         userDocId = doc.getId();
+                        userInternalId = doc.getString("id");
                         Boolean notifService = doc.getBoolean("notif_service");
                         switchLottery.setChecked(notifService != null && notifService);
                     }
@@ -123,35 +131,49 @@ public class ProfileActivity extends AppCompatActivity {
         MaterialButton btnDelete = bottomSheetDialog.findViewById(R.id.btnDelete);
         if (btnCancel != null) btnCancel.setOnClickListener(v -> bottomSheetDialog.dismiss());
         if (btnDelete != null) btnDelete.setOnClickListener(v -> {
-            clearUserData();
+            deleteUserAndData();
             bottomSheetDialog.dismiss();
         });
         bottomSheetDialog.show();
     }
 
-    private void clearUserData() {
-        if (userDocId == null) {
-            Toast.makeText(this, "Error: Could not get user profile to clear.", Toast.LENGTH_SHORT).show();
+    private void deleteUserAndData() {
+        if (userDocId == null || userInternalId == null) {
+            Toast.makeText(this, "Error: Could not get user profile to delete.", Toast.LENGTH_SHORT).show();
             return;
         }
-        Map<String, Object> updates = new HashMap<>();
-        updates.put("display_name", "");
-        updates.put("email", null);
-        updates.put("phone", null);
-        updates.put("profile_image_id", null);
-        updates.put("is_admin", false);
-        updates.put("is_organizer", false);
-        updates.put("notif_marketing", false);
-        updates.put("notif_service", true);
-        updates.put("updated_at", FieldValue.serverTimestamp());
 
-        db.collection("users").document(userDocId).update(updates)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(ProfileActivity.this, "Profile data cleared.", Toast.LENGTH_SHORT).show();
-                    updateProfileHeader();
-                    setupToggles();
+        db.collection("waiting_list_entries").whereEqualTo("user_id", userInternalId).get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    List<String> eventIds = new ArrayList<>();
+                    WriteBatch deleteEntriesBatch = db.batch();
+                    for (QueryDocumentSnapshot doc : queryDocumentSnapshots) {
+                        deleteEntriesBatch.delete(doc.getReference());
+                        String eventId = doc.getString("event_id");
+                        if (eventId != null) {
+                            eventIds.add(eventId);
+                        }
+                    }
+
+                    deleteEntriesBatch.commit().addOnSuccessListener(aVoid -> {
+                        WriteBatch updateEventsBatch = db.batch();
+                        for (String eventId : eventIds) {
+                            DocumentReference eventRef = db.collection("events").document(eventId);
+                            updateEventsBatch.update(eventRef, "waitlistCount", FieldValue.increment(-1));
+                        }
+                        updateEventsBatch.commit().addOnSuccessListener(aVoid1 -> {
+                            db.collection("users").document(userDocId).delete()
+                                    .addOnSuccessListener(aVoid2 -> {
+                                        Toast.makeText(ProfileActivity.this, "Profile deleted successfully.", Toast.LENGTH_SHORT).show();
+                                        Intent intent = new Intent(ProfileActivity.this, SplashActivity.class);
+                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        startActivity(intent);
+                                    })
+                                    .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to delete profile.", Toast.LENGTH_SHORT).show());
+                        }).addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to update event counts.", Toast.LENGTH_SHORT).show());
+                    }).addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to delete waitlist entries.", Toast.LENGTH_SHORT).show());
                 })
-                .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to clear profile.", Toast.LENGTH_SHORT).show());
+                .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to find waitlist entries.", Toast.LENGTH_SHORT).show());
     }
 
     // Helper to navigate between bottom-bar destinations smoothly with no transition animation
@@ -197,10 +219,11 @@ public class ProfileActivity extends AppCompatActivity {
                     if (!queryDocumentSnapshots.isEmpty()) {
                         DocumentSnapshot doc = queryDocumentSnapshots.getDocuments().get(0);
                         userDocId = doc.getId();
+                        userInternalId = doc.getString("id");
                         tvUserName.setText(doc.getString("display_name"));
                         tvUserEmail.setText(doc.getString("email"));
                         loadProfileImage(doc.getString("profile_image_id"));
-                        loadEventHistory(userDocId);
+                        loadEventHistory(userInternalId);
                     } else {
                         showPlaceholderAndClearData();
                     }
