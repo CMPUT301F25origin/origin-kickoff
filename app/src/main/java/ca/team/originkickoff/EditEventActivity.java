@@ -103,6 +103,7 @@ public class EditEventActivity extends AppCompatActivity {
                             imageChanged = true;
                             if (ivPosterPreview != null) {
                                 ivPosterPreview.setImageURI(selectedImageUri);
+                                ivPosterPreview.setVisibility(View.VISIBLE); // ensure preview visible when editing
                             }
                             Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show();
                         }
@@ -144,7 +145,7 @@ public class EditEventActivity extends AppCompatActivity {
         btnCreateEvent = findViewById(R.id.btnCreateEvent);
         switchGeoRequired = findViewById(R.id.switchGeoRequired);
         switchLimitWaitlist = findViewById(R.id.switchLimitWaitlist);
-
+        ivPosterPreview = findViewById(R.id.ivPosterPreview); // added binding for preview image
         // Change button text to "Update Event"
         btnCreateEvent.setText("Update Event");
     }
@@ -392,69 +393,60 @@ public class EditEventActivity extends AppCompatActivity {
         String location = getText(etLocation);
         String capacityStr = getText(etCapacity);
         String criteria = getText(etCriteria);
-        String selectionSizeStr = getText(etSelectionSize);
+        String selectionSizeStr = getText(etSelectionSize); // may be empty because field hidden
         String waitlistLimitStr = getText(etWaitlistLimit);
 
-        // Validation - ALL FIELDS ARE MANDATORY
+        // Validation - ALL VISIBLE REQUIRED FIELDS
         if (TextUtils.isEmpty(title)) {
             etEventName.setError("Event name is required");
             etEventName.requestFocus();
             return;
         }
-
         if (TextUtils.isEmpty(description)) {
             etDescription.setError("Description is required");
             etDescription.requestFocus();
             return;
         }
-
         if (TextUtils.isEmpty(location)) {
             etLocation.setError("Location is required");
             etLocation.requestFocus();
             return;
         }
-
         if (eventDateMillis <= 0) {
             etDate.setError("Please choose event date");
             Toast.makeText(this, "Please choose event date", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (eventTimeMillis <= 0) {
             etTime.setError("Please choose event time");
             Toast.makeText(this, "Please choose event time", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (regStartMillis <= 0) {
             etRegStartDate.setError("Please choose registration start date");
             Toast.makeText(this, "Please choose registration start date", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (regEndMillis <= 0) {
             etRegEndDate.setError("Please choose registration end date");
             Toast.makeText(this, "Please choose registration end date", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (TextUtils.isEmpty(capacityStr)) {
             etCapacity.setError("Capacity is required");
             etCapacity.requestFocus();
             return;
         }
-
         if (TextUtils.isEmpty(criteria)) {
             etCriteria.setError("Lottery criteria is required");
             etCriteria.requestFocus();
             return;
         }
 
-        // Validate selection size and waitlist limit if applicable
         boolean limitWaitlist = switchLimitWaitlist.isChecked();
         boolean geoRequired = switchGeoRequired.isChecked();
 
-        int waitlistLimit = -1;
+        int waitlistLimit = 0;
         if (limitWaitlist) {
             if (TextUtils.isEmpty(waitlistLimitStr)) {
                 etWaitlistLimit.setError("Waitlist limit is required");
@@ -463,8 +455,8 @@ public class EditEventActivity extends AppCompatActivity {
             }
             try {
                 waitlistLimit = Integer.parseInt(waitlistLimitStr);
-                if (waitlistLimit < 0) {
-                    etWaitlistLimit.setError("Waitlist limit cannot be negative");
+                if (waitlistLimit <= 0) {
+                    etWaitlistLimit.setError("Waitlist limit must be > 0");
                     etWaitlistLimit.requestFocus();
                     return;
                 }
@@ -475,46 +467,21 @@ public class EditEventActivity extends AppCompatActivity {
             }
         }
 
-        int selectionSize = -1;
-        if (TextUtils.isEmpty(selectionSizeStr)) {
-            etSelectionSize.setError("Selection size is required");
-            etSelectionSize.requestFocus();
-            return;
-        }
-        try {
-            selectionSize = Integer.parseInt(selectionSizeStr);
-            if (selectionSize <= 0) {
-                etSelectionSize.setError("Selection size must be greater than 0");
-                etSelectionSize.requestFocus();
-                return;
-            }
-        } catch (NumberFormatException e) {
-            etSelectionSize.setError("Invalid selection size");
-            etSelectionSize.requestFocus();
-            return;
-        }
-
         long eventTimestampMillis = mergeDateAndTime(eventDateMillis, eventTimeMillis);
-
-        // Validate event is in the future
         if (eventTimestampMillis < System.currentTimeMillis()) {
             Toast.makeText(this, "Event date and time must be in the future", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // Validate registration period is before event date
         if (regEndMillis > eventTimestampMillis) {
             Toast.makeText(this, "Registration must end before event date", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        // Validate registration start is before end
         if (regStartMillis >= regEndMillis) {
             Toast.makeText(this, "Registration start must be before registration end", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        int capacity = 0;
+        int capacity;
         try {
             capacity = Integer.parseInt(capacityStr);
             if (capacity <= 0) {
@@ -528,10 +495,25 @@ public class EditEventActivity extends AppCompatActivity {
             return;
         }
 
-        // Show loading state
+        // Derive selectionSize: if field hidden or empty, default to full capacity (matches create flow)
+        int selectionSize;
+        if (!TextUtils.isEmpty(selectionSizeStr)) {
+            try {
+                selectionSize = Integer.parseInt(selectionSizeStr.trim());
+                if (selectionSize <= 0) selectionSize = capacity; // fallback
+            } catch (NumberFormatException e) {
+                selectionSize = capacity; // fallback on parse error
+            }
+        } else {
+            selectionSize = capacity;
+        }
+        if (selectionSize > capacity) {
+            // Clamp to capacity to avoid inconsistent state
+            selectionSize = capacity;
+        }
+
         setLoading(true);
 
-        // Assemble event update map
         Map<String, Object> updates = new HashMap<>();
         updates.put("name", title);
         updates.put("description", description);
@@ -543,9 +525,9 @@ public class EditEventActivity extends AppCompatActivity {
         updates.put("registrationEndTime", new Timestamp(new java.util.Date(regEndMillis)));
         updates.put("geolocationRequired", geoRequired);
         updates.put("waitlistLimit", limitWaitlist ? waitlistLimit : 0);
+        updates.put("limitWaitlist", limitWaitlist); // ensure boolean flag updated
         updates.put("selectionSize", selectionSize);
 
-        // Add location coordinates if available
         if (selectedLocation != null) {
             updates.put("locationLatitude", selectedLocation.getLatitude());
             updates.put("locationLongitude", selectedLocation.getLongitude());
@@ -554,12 +536,9 @@ public class EditEventActivity extends AppCompatActivity {
             }
         }
 
-        // Check if image was changed
         if (imageChanged && selectedImageUri != null) {
-            // Convert new image to Base64 and update event
             uploadImageAndUpdateEvent(selectedImageUri, updates);
         } else {
-            // No image change, update event directly
             updateEventInFirestore(updates);
         }
     }
@@ -672,4 +651,3 @@ public class EditEventActivity extends AppCompatActivity {
         }
     }
 }
-
