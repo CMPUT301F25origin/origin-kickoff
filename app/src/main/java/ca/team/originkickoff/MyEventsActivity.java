@@ -3,6 +3,9 @@ package ca.team.originkickoff;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -81,6 +84,40 @@ public class MyEventsActivity extends AppCompatActivity {
                 }
             });
         }
+
+        // Setup bottom navigation include
+        setupBottomNav();
+    }
+
+    private void setupBottomNav() {
+        LinearLayout navHome = findViewById(R.id.navHome);
+        LinearLayout navEvents = findViewById(R.id.navEvents);
+        LinearLayout navNotifications = findViewById(R.id.navNotifications);
+        LinearLayout navProfile = findViewById(R.id.navProfile);
+
+        if (navHome == null || navEvents == null || navNotifications == null || navProfile == null) return;
+
+        // Highlight current tab (My Events)
+        ImageView ivEvents = findViewById(R.id.ivEvents);
+        TextView tvEvents = findViewById(R.id.tvEvents);
+        if (ivEvents != null) ivEvents.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
+        if (tvEvents != null) tvEvents.setTextColor(0xFF00D9C5);
+
+        navHome.setOnClickListener(v -> {
+            Intent intent = new Intent(MyEventsActivity.this, MainActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(intent);
+            finish();
+        });
+        navEvents.setOnClickListener(v -> { /* already here */ });
+        navNotifications.setOnClickListener(v -> {
+            Intent intent = new Intent(MyEventsActivity.this, NotificationsActivity.class);
+            startActivity(intent);
+        });
+        navProfile.setOnClickListener(v -> {
+            Intent intent = new Intent(MyEventsActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
     }
 
     @Override

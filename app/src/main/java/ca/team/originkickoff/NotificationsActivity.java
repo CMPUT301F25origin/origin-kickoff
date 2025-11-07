@@ -1,8 +1,12 @@
 package ca.team.originkickoff;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -33,6 +37,35 @@ public class NotificationsActivity extends AppCompatActivity {
                 updateFcmSubscription(isChecked);
             });
         }
+
+        setupBottomNav();
+    }
+
+    private void setupBottomNav() {
+        LinearLayout navHome = findViewById(R.id.navHome);
+        LinearLayout navEvents = findViewById(R.id.navEvents);
+        LinearLayout navNotifications = findViewById(R.id.navNotifications);
+        LinearLayout navProfile = findViewById(R.id.navProfile);
+        if (navHome == null) return; // bottom bar not present
+
+        // Highlight Notifications
+        ImageView iv = findViewById(R.id.ivNotifications);
+        TextView tv = findViewById(R.id.tvNotifications);
+        if (iv != null) iv.setColorFilter(0xFF00D9C5, android.graphics.PorterDuff.Mode.SRC_IN);
+        if (tv != null) tv.setTextColor(0xFF00D9C5);
+
+        navHome.setOnClickListener(v -> {
+            Intent i = new Intent(this, MainActivity.class);
+            i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            startActivity(i);
+            finish();
+        });
+        navEvents.setOnClickListener(v -> {
+            startActivity(new Intent(this, MyEventsActivity.class));
+            finish();
+        });
+        navNotifications.setOnClickListener(v -> { /* already here */ });
+        navProfile.setOnClickListener(v -> startActivity(new Intent(this, ProfileActivity.class)));
     }
 
     private void updateFcmSubscription(boolean enabled) {
