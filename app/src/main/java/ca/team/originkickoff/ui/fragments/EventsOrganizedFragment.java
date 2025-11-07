@@ -63,7 +63,6 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
             return;
         }
 
-        // First, get the user from device_id and check if they're an organizer
         db.collection("users")
                 .whereEqualTo("device_id", deviceId)
                 .limit(1)
@@ -76,40 +75,91 @@ public class EventsOrganizedFragment extends Fragment implements OrganizedEventA
                     }
 
                     String userId = userSnapshots.getDocuments().get(0).getId();
+                    // Support multiple field spellings
                     Boolean isOrganizer = userSnapshots.getDocuments().get(0).getBoolean("is_organizer");
-
-                    // Only load events if user is an organizer
-                    if (isOrganizer == null || !isOrganizer) {
-                        Log.d(TAG, "User is not an organizer");
-                        adapter.setEvents(new ArrayList<>());
-                        return;
+                    if (isOrganizer == null) isOrganizer = userSnapshots.getDocuments().get(0).getBoolean("is_organiser");
+                    if (isOrganizer == null) {
+                        Object camel = userSnapshots.getDocuments().get(0).get("isOrganizer");
+                        if (camel instanceof Boolean) isOrganizer = (Boolean) camel;
                     }
 
-                    // Load events where organizerId matches userId
-                    db.collection("events")
-                            .whereEqualTo("organizerId", userId)
-                            .get()
-                            .addOnSuccessListener(eventSnapshots -> {
-                                events.clear();
-                                for (QueryDocumentSnapshot doc : eventSnapshots) {
-                                    try {
-                                        Event e = doc.toObject(Event.class);
-                                        e.setId(doc.getId());
-                                        events.add(e);
-                                    } catch (Exception ex) {
-                                        Log.e(TAG, "Error parsing event", ex);
+                    if (isOrganizer == null || !isOrganizer) {
+                        // Fallback: infer organizer role if any events exist with organizerId equal to either userId or deviceId
+                        List<String> possibleIds = new java.util.ArrayList<>();
+                        possibleIds.add(userId);
+                        if (!deviceId.equals(userId)) possibleIds.add(deviceId);
+                        db.collection("events")
+                                .whereIn("organizerId", possibleIds)
+                                .limit(1)
+                                .get()
+                                .addOnSuccessListener(eventSnap -> {
+                                    if (!eventSnap.isEmpty()) {
+                                        Log.d(TAG, "User inferred as organizer via existing events");
+                                        loadEventsForOrganizerIds(possibleIds);
+                                    } else {
+                                        Log.d(TAG, "User is not an organizer (no matching events)");
+                                        adapter.setEvents(new ArrayList<>());
                                     }
-                                }
-                                adapter.setEvents(events);
-                            })
-                            .addOnFailureListener(e -> {
-                                Log.e(TAG, "Error loading organized events", e);
-                                Toast.makeText(requireContext(), "Error loading events: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                            });
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "Organizer inference query failed", e);
+                                    adapter.setEvents(new ArrayList<>());
+                                });
+                    } else {
+                        // Normal path: user explicitly marked organizer
+                        List<String> organizerIds = new java.util.ArrayList<>();
+                        organizerIds.add(userId);
+                        if (!deviceId.equals(userId)) organizerIds.add(deviceId); // include legacy id variant
+                        loadEventsForOrganizerIds(organizerIds);
+                    }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error loading user", e);
                     Toast.makeText(requireContext(), "Error loading user: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+    }
+
+    private void loadEventsForOrganizerIds(List<String> organizerIds) {
+        // Use whereIn for up to two IDs; fallback to sequential if whereIn fails
+        db.collection("events")
+                .whereIn("organizerId", organizerIds)
+                .get()
+                .addOnSuccessListener(eventSnapshots -> {
+                    events.clear();
+                    for (QueryDocumentSnapshot doc : eventSnapshots) {
+                        try {
+                            Event e = doc.toObject(Event.class);
+                            e.setId(doc.getId());
+                            events.add(e);
+                        } catch (Exception ex) {
+                            Log.e(TAG, "Error parsing event", ex);
+                        }
+                    }
+                    adapter.setEvents(events);
+                })
+                .addOnFailureListener(e -> {
+                    Log.w(TAG, "whereIn failed, falling back to individual fetches: " + e.getMessage());
+                    events.clear();
+                    java.util.concurrent.atomic.AtomicInteger pending = new java.util.concurrent.atomic.AtomicInteger(organizerIds.size());
+                    for (String oid : organizerIds) {
+                        db.collection("events").whereEqualTo("organizerId", oid).get()
+                                .addOnSuccessListener(snap -> {
+                                    for (QueryDocumentSnapshot doc : snap) {
+                                        try {
+                                            Event ev = doc.toObject(Event.class);
+                                            ev.setId(doc.getId());
+                                            events.add(ev);
+                                        } catch (Exception ex) {
+                                            Log.e(TAG, "Parse error", ex);
+                                        }
+                                    }
+                                    if (pending.decrementAndGet() == 0) adapter.setEvents(events);
+                                })
+                                .addOnFailureListener(err -> {
+                                    Log.e(TAG, "Fallback organizerId query failed", err);
+                                    if (pending.decrementAndGet() == 0) adapter.setEvents(events);
+                                });
+                    }
                 });
     }
 
