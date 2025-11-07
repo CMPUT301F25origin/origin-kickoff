@@ -47,11 +47,23 @@ public class WaitingListService {
         DocumentReference wlRef = waitlistDoc(eventId, userId);
         DocumentReference eventRef = db.collection(EVENTS_COLL).document(eventId);
 
-        return db.runTransaction((Transaction.Function<Boolean>) transaction -> {
+        return db.runTransaction(transaction -> {
             DocumentSnapshot snap = transaction.get(wlRef);
             boolean wasActive = snap.exists() && "active".equals(snap.getString("state"));
             if (wasActive) {
                 return false; // no-op
+            }
+
+            // Enforce optional waitlist limit
+            DocumentSnapshot eventSnap = transaction.get(eventRef);
+            Long waitlistCount = eventSnap.getLong("waitlistCount");
+            Boolean limitWaitlist = eventSnap.getBoolean("limitWaitlist");
+            Long waitlistLimit = eventSnap.getLong("waitlistLimit");
+            long currentCount = waitlistCount != null ? waitlistCount : 0L;
+            boolean isLimited = limitWaitlist != null && limitWaitlist;
+            long limit = waitlistLimit != null ? waitlistLimit : Long.MAX_VALUE;
+            if (isLimited && currentCount >= limit) {
+                throw new IllegalStateException("Waitlist is full for this event");
             }
 
             Map<String, Object> data = new HashMap<>();

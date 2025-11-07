@@ -276,19 +276,95 @@
 
             </LinearLayout>
 
-            <!-- Capacity Field -->
+            <!-- Capacity Row: Event Capacity & Users to be Selected -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:orientation="horizontal"
+                android:weightSum="2">
+
+                <EditText
+                    android:id="@+id/etCapacity"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_create_event_field"
+                    android:hint="Event Capacity"
+                    android:textColorHint="#B8C4C0"
+                    android:textColor="#FFFFFF"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:inputType="number"/>
+
+                <EditText
+                    android:id="@+id/etSelectionSize"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_create_event_field"
+                    android:hint="Users to be Selected"
+                    android:textColorHint="#B8C4C0"
+                    android:textColor="#FFFFFF"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:inputType="number"/>
+            </LinearLayout>
+
+            <!-- Toggle: Require Geolocation -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Require geolocation when joining"
+                    android:textColor="#FFFFFF"/>
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchGeoRequired"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- Toggle: Limit Waitlist Entrants Optionally -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Limit waiting list entrants"
+                    android:textColor="#FFFFFF"/>
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/switchLimitWaitlist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"/>
+            </LinearLayout>
+
+            <!-- Waitlist Limit Value (visible only when enabled) -->
             <EditText
-                android:id="@+id/etCapacity"
+                android:id="@+id/etWaitlistLimit"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:background="@drawable/bg_create_event_field"
-                android:hint="Capacity"
+                android:hint="Max entrants on waiting list (must be > capacity)"
                 android:textColorHint="#B8C4C0"
                 android:textColor="#FFFFFF"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
-                android:inputType="number"/>
+                android:inputType="number"
+                android:visibility="gone"/>
 
             <!-- Lottery Criteria Field -->
             <EditText

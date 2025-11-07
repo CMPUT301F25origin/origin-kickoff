@@ -17,6 +17,9 @@ public class Event implements Serializable {
     private String category;
     private int capacity;
     private int waitlistCount;
+    private int selectionSize; // number of users to be selected
+    private boolean limitWaitlist; // enable/disable waitlist limit
+    private int waitlistLimit; // max entrants on waitlist when limit enabled
     private Date registrationStartTime;
     private Date registrationEndTime;
     private String posterUrl;
@@ -97,6 +100,15 @@ public class Event implements Serializable {
 
     public int getWaitlistCount() { return waitlistCount; }
     public void setWaitlistCount(int waitlistCount) { this.waitlistCount = waitlistCount; }
+
+    public int getSelectionSize() { return selectionSize; }
+    public void setSelectionSize(int selectionSize) { this.selectionSize = selectionSize; }
+
+    public boolean isLimitWaitlist() { return limitWaitlist; }
+    public void setLimitWaitlist(boolean limitWaitlist) { this.limitWaitlist = limitWaitlist; }
+
+    public int getWaitlistLimit() { return waitlistLimit; }
+    public void setWaitlistLimit(int waitlistLimit) { this.waitlistLimit = waitlistLimit; }
 
     public Date getRegistrationStartTime() { return registrationStartTime; }
     public void setRegistrationStartTime(Date registrationStartTime) { this.registrationStartTime = registrationStartTime; }
