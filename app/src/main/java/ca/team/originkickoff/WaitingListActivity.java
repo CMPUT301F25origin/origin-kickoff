@@ -43,6 +43,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     private GoogleMap googleMap;
     private CardView mapPreviewCard;
     private List<WaitingListEntry> currentEntries = new ArrayList<>();
+    private boolean isGeolocationRequired = true; // Default to true
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -65,11 +66,8 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         adapter = new WaitingListAdapter();
         recyclerView.setAdapter(adapter);
 
-        // Initialize MapView
-        if (mapView != null) {
-            mapView.onCreate(savedInstanceState);
-            mapView.getMapAsync(this);
-        }
+        // Load event details first to check geolocation requirement
+        loadEventDetails();
 
         // Set up click listener for map expansion
         if (mapPreviewCard != null) {
@@ -84,6 +82,34 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         }
 
         loadEntries();
+    }
+
+    private void loadEventDetails() {
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("events")
+                .document(eventId)
+                .get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        Boolean geolocationRequired = documentSnapshot.getBoolean("geolocationRequired");
+                        isGeolocationRequired = geolocationRequired != null && geolocationRequired;
+
+                        // Show/hide map based on geolocation requirement
+                        if (mapPreviewCard != null) {
+                            mapPreviewCard.setVisibility(isGeolocationRequired ? View.VISIBLE : View.GONE);
+                        }
+
+                        // Initialize MapView only if geolocation is required
+                        if (isGeolocationRequired && mapView != null) {
+                            mapView.onCreate(null);
+                            mapView.getMapAsync(this);
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load event details", e);
+                    // Default to showing map if we can't determine
+                });
     }
 
     @Override

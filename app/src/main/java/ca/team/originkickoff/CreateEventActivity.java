@@ -547,12 +547,40 @@ public class CreateEventActivity extends AppCompatActivity {
                     String eventId = documentReference.getId();
                     Log.d(TAG, "Event saved with ID: " + eventId);
 
+                    // Update user's isOrganizer field to true if not already
+                    updateUserToOrganizer();
+
                     generateAndSaveQRCodeAsBase64(eventId, documentReference);
                 })
                 .addOnFailureListener(e -> {
                     setLoading(false);
                     Log.e(TAG, "Failed to save event", e);
                     Toast.makeText(this, "Failed to create event: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+    }
+
+    private void updateUserToOrganizer() {
+        if (currentUser == null) {
+            Log.w(TAG, "Current user is null, cannot update isOrganizer");
+            return;
+        }
+
+        // Check if user is already an organizer
+        if (currentUser.isOrganizer()) {
+            Log.d(TAG, "User is already an organizer");
+            return;
+        }
+
+        // Update user to be an organizer
+        db.collection("users")
+                .document(currentUser.getId())
+                .update("is_organizer", true)
+                .addOnSuccessListener(aVoid -> {
+                    Log.d(TAG, "User updated to organizer");
+                    currentUser.setOrganizer(true);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to update user to organizer", e);
                 });
     }
 

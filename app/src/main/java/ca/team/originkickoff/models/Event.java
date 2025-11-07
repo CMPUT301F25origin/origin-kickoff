@@ -30,6 +30,7 @@ public class Event implements Serializable {
     private String qrCodeUrl;
     private String qrCodeBase64;
     private String lotteryCriteria;
+    private String lotteryStatus; // "not_conducted", "conducted", etc.
 
     // Empty constructor for Firebase
     public Event() {
@@ -138,6 +139,9 @@ public class Event implements Serializable {
 
     public String getLotteryCriteria() { return lotteryCriteria; }
     public void setLotteryCriteria(String lotteryCriteria) { this.lotteryCriteria = lotteryCriteria; }
+
+    public String getLotteryStatus() { return lotteryStatus; }
+    public void setLotteryStatus(String lotteryStatus) { this.lotteryStatus = lotteryStatus; }
 
     // Helper method to check if registration is still open
     public boolean isRegistrationOpen() {

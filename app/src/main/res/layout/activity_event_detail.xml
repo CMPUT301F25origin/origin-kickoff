@@ -295,6 +295,7 @@
 
             <!-- ACTION BUTTONS -->
             <LinearLayout
+                android:id="@+id/actionButtonsContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
@@ -346,6 +347,51 @@
                     app:elevation="0dp"/>
 
             </LinearLayout>
+
+            <!-- LOTTERY RESULT (Visible after lottery conducted) -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/lotteryResultCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="24dp"
+                android:visibility="gone"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#0C211E">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:id="@+id/tvLotteryResultTitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Lottery Result"
+                        android:textColor="#FFFFFF"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:id="@+id/tvLotteryResult"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="You were selected!"
+                        android:textColor="#4DE8C0"
+                        android:textSize="16sp"
+                        android:textStyle="bold"
+                        android:gravity="center"/>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
 
             <!-- QR Code Section -->
             <LinearLayout

@@ -3,6 +3,7 @@ package ca.team.originkickoff;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -17,12 +18,18 @@ import androidx.viewpager2.widget.ViewPager2;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.tabs.TabLayoutMediator;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import androidx.appcompat.widget.Toolbar;
 
+import ca.team.originkickoff.util.DeviceUtils;
+
 public class MyEventsActivity extends AppCompatActivity {
+    private static final String TAG = "MyEventsActivity";
     private TabLayout tabLayout;
     private ViewPager2 viewPager;
+    private boolean isOrganizer = false;
+    private FirebaseFirestore db;
 
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
@@ -43,36 +50,90 @@ public class MyEventsActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("My Events");
         }
 
+        db = FirebaseFirestore.getInstance();
         tabLayout = findViewById(R.id.tabLayout);
         viewPager = findViewById(R.id.viewPager);
 
+        // Check if user is an organizer first, then setup tabs
+        checkIfUserIsOrganizer();
+
+        // Setup bottom navigation include
+        setupBottomNav();
+    }
+
+    private void checkIfUserIsOrganizer() {
+        String deviceId = DeviceUtils.getDeviceId(this);
+        if (deviceId == null) {
+            Log.w(TAG, "Device ID is null, defaulting to non-organizer");
+            setupTabs(false);
+            return;
+        }
+
+        db.collection("users")
+                .whereEqualTo("device_id", deviceId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        Boolean isOrganizerField = queryDocumentSnapshots.getDocuments().get(0).getBoolean("is_organizer");
+                        isOrganizer = isOrganizerField != null && isOrganizerField;
+                        Log.d(TAG, "User is organizer: " + isOrganizer);
+                    } else {
+                        Log.w(TAG, "No user found for device_id");
+                        isOrganizer = false;
+                    }
+                    setupTabs(isOrganizer);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking organizer status", e);
+                    isOrganizer = false;
+                    setupTabs(false);
+                });
+    }
+
+    private void setupTabs(boolean showOrganizerTab) {
+        // Create adapter with dynamic tab count
         viewPager.setAdapter(new FragmentStateAdapter(this) {
             @NonNull
             @Override
             public Fragment createFragment(int position) {
-                switch (position) {
-                    case 0:
+                if (!showOrganizerTab) {
+                    // Only show Events Joined
+                    return new ca.team.originkickoff.ui.fragments.EventsJoinedFragment();
+                } else {
+                    // Show both tabs
+                    if (position == 0) {
                         return new ca.team.originkickoff.ui.fragments.EventsJoinedFragment();
-                    case 1:
-                    default:
+                    } else {
                         return new ca.team.originkickoff.ui.fragments.EventsOrganizedFragment();
+                    }
                 }
             }
 
             @Override
             public int getItemCount() {
-                return 2;
+                return showOrganizerTab ? 2 : 1;
             }
         });
 
+        // Setup tab names
         new TabLayoutMediator(tabLayout, viewPager, (tab, position) -> {
-            if (position == 0) tab.setText("Events Joined");
-            else tab.setText("Events Organized");
+            if (!showOrganizerTab) {
+                // Only one tab
+                tab.setText("Events Joined");
+            } else {
+                // Two tabs
+                if (position == 0) {
+                    tab.setText("Events Joined");
+                } else {
+                    tab.setText("Events Organized");
+                }
+            }
         }).attach();
 
-        // Wire FAB: only visible on Events Organized (index 1)
+        // Wire FAB: only visible for organizers on Events Organized tab (index 1)
         FloatingActionButton fab = findViewById(R.id.fabCreate);
-        if (fab != null) {
+        if (fab != null && showOrganizerTab) {
             fab.setOnClickListener(v -> startActivity(new Intent(MyEventsActivity.this, CreateEventActivity.class)));
 
             // initial visibility
@@ -87,10 +148,10 @@ public class MyEventsActivity extends AppCompatActivity {
                     else fab.setVisibility(View.GONE);
                 }
             });
+        } else if (fab != null) {
+            // Hide FAB completely for non-organizers
+            fab.setVisibility(View.GONE);
         }
-
-        // Setup bottom navigation include
-        setupBottomNav();
     }
 
     private void setupBottomNav() {

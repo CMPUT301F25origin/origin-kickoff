@@ -25,6 +25,7 @@ import ca.team.originkickoff.models.Event;
 public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHolder> {
     private List<Event> events;
     private OnEventClickListener listener;
+    private java.util.Map<String, String> eventStatusMap; // For displaying lottery status
 
     public interface OnEventClickListener {
         void onEventClick(Event event);
@@ -43,6 +44,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
 
     public void setEvents(List<Event> events) {
         this.events = events != null ? events : new ArrayList<>();
+        this.eventStatusMap = null; // Clear status map when setting plain events
         notifyDataSetChanged();
     }
 
@@ -52,6 +54,14 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
         if (events != null) {
             this.events.addAll(events);
         }
+        this.eventStatusMap = null; // Clear status map
+        notifyDataSetChanged();
+    }
+
+    // New method to set events with status for Events Joined tab
+    public void setEventsWithStatus(List<Event> events, java.util.Map<String, String> statusMap) {
+        this.events = events != null ? events : new ArrayList<>();
+        this.eventStatusMap = statusMap;
         notifyDataSetChanged();
     }
 
@@ -66,7 +76,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
     @Override
     public void onBindViewHolder(@NonNull EventViewHolder holder, int position) {
         Event event = events.get(position);
-        holder.bind(event, listener);
+        holder.bind(event, listener, eventStatusMap);
     }
 
     @Override
@@ -90,7 +100,7 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
             tvRequirements = itemView.findViewById(R.id.tvRequirements);
         }
 
-        public void bind(Event event, OnEventClickListener listener) {
+        public void bind(Event event, OnEventClickListener listener, java.util.Map<String, String> statusMap) {
             tvEventName.setText(event.getName());
 
             // Format date
@@ -101,10 +111,27 @@ public class EventAdapter extends RecyclerView.Adapter<EventAdapter.EventViewHol
                 tvEventDate.setText("Date TBD");
             }
 
-            // Calculate spots left
-            int spotsLeft = event.getCapacity() - event.getWaitlistCount();
-            if (spotsLeft < 0) spotsLeft = 0;
-            tvSpotsLeft.setText(spotsLeft + " spots left");
+            // Calculate spots left or show status if available
+            if (statusMap != null && statusMap.containsKey(event.getId())) {
+                // Show lottery status instead of spots left
+                String status = statusMap.get(event.getId());
+                tvSpotsLeft.setText(status);
+
+                // Color code the status
+                if ("YOU WERE SELECTED".equals(status)) {
+                    tvSpotsLeft.setTextColor(0xFF4DE8C0); // Success green/teal
+                } else if ("YOU WERE NOT SELECTED".equals(status)) {
+                    tvSpotsLeft.setTextColor(0xFFFF3B30); // Red
+                } else {
+                    tvSpotsLeft.setTextColor(0xFFFFD60A); // Yellow for "YET TO DRAW"
+                }
+            } else {
+                // Normal behavior - show spots left
+                int spotsLeft = event.getCapacity() - event.getWaitlistCount();
+                if (spotsLeft < 0) spotsLeft = 0;
+                tvSpotsLeft.setText(spotsLeft + " spots left");
+                tvSpotsLeft.setTextColor(0xFFFFFFFF); // White
+            }
 
             // Show requirements
             if (event.isGeolocationRequired()) {
