@@ -11,12 +11,9 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import ca.team.originkickoff.R;
@@ -39,24 +36,48 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         WaitingListEntry e = items.get(position);
         String userId = e.getUserId();
 
-        holder.userId.setText(userId);
-        holder.source.setText(e.getSource());
-        String when = e.getJoinedAt() != null ?
-                new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(new Date(e.getJoinedAt().getSeconds()*1000)) :
-                "";
-        holder.joinedAt.setText(when);
+        // Hide user ID and source fields
+        holder.userId.setVisibility(View.GONE);
+        holder.source.setVisibility(View.GONE);
 
-        // Default: show a short form of ID while name loads
-        holder.userName.setText(nameCache.containsKey(userId) ? nameCache.get(userId) : shortId(userId));
+        // Calculate and display "Joined x days ago"
+        String joinedText = calculateJoinedAgo(e.getJoinedAt());
+        holder.joinedAt.setText(joinedText);
+
+        // Display user name (fetch from users collection)
+        holder.userName.setText(nameCache.containsKey(userId) ? nameCache.get(userId) : "Loading...");
         if (!nameCache.containsKey(userId)) {
             fetchAndCacheName(userId, holder.getBindingAdapterPosition());
         }
     }
 
-    private String shortId(String userId) {
-        if (userId == null) return "";
-        if (userId.length() <= 8) return userId;
-        return userId.substring(0, 8) + "…";
+    private String calculateJoinedAgo(com.google.firebase.Timestamp joinedAt) {
+        if (joinedAt == null) return "Joined recently";
+
+        long joinedMillis = joinedAt.getSeconds() * 1000;
+        long nowMillis = System.currentTimeMillis();
+        long diffMillis = nowMillis - joinedMillis;
+
+        long days = diffMillis / (1000 * 60 * 60 * 24);
+
+        if (days == 0) {
+            long hours = diffMillis / (1000 * 60 * 60);
+            if (hours == 0) {
+                long minutes = diffMillis / (1000 * 60);
+                if (minutes <= 1) {
+                    return "Joined just now";
+                }
+                return "Joined " + minutes + " minutes ago";
+            } else if (hours == 1) {
+                return "Joined 1 hour ago";
+            } else {
+                return "Joined " + hours + " hours ago";
+            }
+        } else if (days == 1) {
+            return "Joined 1 day ago";
+        } else {
+            return "Joined " + days + " days ago";
+        }
     }
 
     private void fetchAndCacheName(String userId, int adapterPos) {

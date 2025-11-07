@@ -498,11 +498,9 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void openEditEvent() {
-        Toast.makeText(this, "Edit Event - Coming Soon", Toast.LENGTH_SHORT).show();
-        // TODO: Navigate to edit event activity
-        // Intent intent = new Intent(this, EditEventActivity.class);
-        // intent.putExtra(EditEventActivity.EXTRA_EVENT_ID, currentEvent.getId());
-        // startActivity(intent);
+        Intent intent = new Intent(this, EditEventActivity.class);
+        intent.putExtra(EditEventActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        startActivity(intent);
     }
 
     private void openManageEntrants() {
