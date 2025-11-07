@@ -64,6 +64,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private FirebaseFirestore db;
     private String eventId;
     private Event currentEvent;
+    private String eventLotteryCriteria = null;
 
     private final WaitingListService waitingListService = new WaitingListService();
     private final UserRepository userRepository = new UserRepository();
@@ -122,6 +123,83 @@ public class EventDetailActivity extends AppCompatActivity {
         locationCard = findViewById(R.id.locationCard);
         imageMapPreview = findViewById(R.id.imageMapPreview);
         btnEdit = findViewById(R.id.btnEdit);
+
+        // Safety: ensure lottery button is enabled and clickable and not obscured
+        if (btnLotteryCriteria == null) {
+            Log.e(TAG, "btnLotteryCriteria view not found (null)");
+        } else {
+            btnLotteryCriteria.setEnabled(true);
+            btnLotteryCriteria.setClickable(true);
+            btnLotteryCriteria.setVisibility(View.VISIBLE);
+            // bring to front in case other views are overlaying - post to ensure after layout
+            btnLotteryCriteria.post(() -> {
+                try {
+                    btnLotteryCriteria.bringToFront();
+                    btnLotteryCriteria.invalidate();
+                    Log.d(TAG, "btnLotteryCriteria brought to front (post)");
+                } catch (Exception ex) {
+                    Log.w(TAG, "Could not bring btnLotteryCriteria to front: " + ex.getMessage());
+                }
+            });
+
+            // Add onTouch listener to detect any touch events reaching the view
+            btnLotteryCriteria.setOnTouchListener((v, motionEvent) -> {
+                try {
+                    int action = motionEvent.getAction();
+                    Log.d(TAG, "btnLotteryCriteria onTouch event: action=" + action);
+                    // If this was a tap release, trigger performClick so accessibility/click handling runs
+                    if (action == android.view.MotionEvent.ACTION_UP) {
+                        // ensure normal click handling and accessibility fire
+                        v.performClick();
+                    }
+                } catch (Exception ex) {
+                    Log.w(TAG, "onTouch handler exception: " + ex.getMessage());
+                }
+                // Return false so normal click handling also occurs
+                return false;
+            });
+
+            // Fallback: attach a direct click listener here so the button will always provide feedback
+            // even if other code later overwrites listeners. Organizer mode will override this when needed.
+            btnLotteryCriteria.setOnClickListener(v -> {
+                Log.d(TAG, "btnLotteryCriteria fallback click handler invoked");
+                // Only open criteria if not in organizer mode (organizer mode sets its own behavior later)
+                if (!isOrganizer) {
+                    openLotteryCriteria();
+                } else {
+                    // organizer clicks should go to manage lottery
+                    openManageLottery();
+                }
+            });
+
+            // Ensure focusability
+            btnLotteryCriteria.setFocusable(true);
+            btnLotteryCriteria.setFocusableInTouchMode(true);
+
+            // Fallback forwarder: if the surrounding container is tapped (or covered), forward events to the lottery button
+            View actionContainer = findViewById(R.id.actionButtonsContainer);
+            if (actionContainer != null) {
+                try {
+                    actionContainer.setClickable(true);
+                    actionContainer.setFocusable(true);
+                    actionContainer.setOnClickListener(v -> {
+                        Log.d(TAG, "actionButtonsContainer clicked - forwarding to btnLotteryCriteria.performClick()");
+                        btnLotteryCriteria.performClick();
+                    });
+                    actionContainer.setOnTouchListener((v, ev) -> {
+                        if (ev.getAction() == android.view.MotionEvent.ACTION_UP) {
+                            Log.d(TAG, "actionButtonsContainer onTouch ACTION_UP - forwarding");
+                            btnLotteryCriteria.performClick();
+                        }
+                        return false;
+                    });
+                } catch (Exception ex) {
+                    Log.w(TAG, "Could not set forwarder on actionButtonsContainer: " + ex.getMessage());
+                }
+            }
+
+         Log.d(TAG, "btnLotteryCriteria initialized and set clickable/visible");
+        }
     }
 
     private void setupListeners() {
@@ -138,11 +216,16 @@ public class EventDetailActivity extends AppCompatActivity {
             }
         });
 
-        btnLotteryCriteria.setOnClickListener(v -> {
-            if (currentEvent != null) {
+        // Always show feedback and attempt to open criteria; openLotteryCriteria will handle missing eventId/currentEvent
+        if (btnLotteryCriteria == null) {
+            Log.e(TAG, "Attempted to set up listener but btnLotteryCriteria is null");
+        } else {
+            Log.d(TAG, "Wiring btnLotteryCriteria click listener (enabled=" + btnLotteryCriteria.isEnabled() + ", clickable=" + btnLotteryCriteria.isClickable() + ")");
+            btnLotteryCriteria.setOnClickListener(v -> {
+                Log.d(TAG, "btnLotteryCriteria clicked - opening criteria");
                 openLotteryCriteria();
-            }
-        });
+            });
+        }
 
         // Bottom navigation
         LinearLayout navHome = findViewById(R.id.navHome);
@@ -384,6 +467,36 @@ public class EventDetailActivity extends AppCompatActivity {
 
                             // Update UI
                             updateUI();
+                            // Cache lotteryCriteria if present on the document to avoid an extra read later
+                            try {
+                                Object rawLc = documentSnapshot.get("lotteryCriteria");
+                                if (rawLc == null) rawLc = documentSnapshot.get("lottery_criteria");
+                                Log.d(TAG, "Caching lotteryCriteria raw value=" + String.valueOf(rawLc) + " type=" + (rawLc != null ? rawLc.getClass().getName() : "null"));
+                                if (rawLc instanceof String) {
+                                    eventLotteryCriteria = ((String) rawLc).trim();
+                                    Log.d(TAG, "Cached eventLotteryCriteria (string) length=" + (eventLotteryCriteria != null ? eventLotteryCriteria.length() : 0));
+                                } else if (rawLc instanceof java.util.Map) {
+                                    java.util.Map<?,?> m = (java.util.Map<?,?>) rawLc;
+                                    if (m.containsKey("text")) eventLotteryCriteria = String.valueOf(m.get("text"));
+                                    else if (m.containsKey("criteria")) eventLotteryCriteria = String.valueOf(m.get("criteria"));
+                                    else if (m.containsKey("description")) eventLotteryCriteria = String.valueOf(m.get("description"));
+                                    else {
+                                        StringBuilder sb = new StringBuilder();
+                                        for (java.util.Map.Entry<?,?> e : m.entrySet()) sb.append(e.getKey()).append(": ").append(e.getValue()).append("\n");
+                                        eventLotteryCriteria = sb.toString().trim();
+                                    }
+                                    Log.d(TAG, "Cached eventLotteryCriteria (map) length=" + (eventLotteryCriteria != null ? eventLotteryCriteria.length() : 0));
+                                } else if (rawLc instanceof java.util.List) {
+                                    java.util.List<?> list = (java.util.List<?>) rawLc;
+                                    StringBuilder sb = new StringBuilder();
+                                    for (Object o : list) if (o != null) sb.append(o.toString()).append("\n");
+                                    eventLotteryCriteria = sb.toString().trim();
+                                    Log.d(TAG, "Cached eventLotteryCriteria (list) length=" + (eventLotteryCriteria != null ? eventLotteryCriteria.length() : 0));
+                                } else if (rawLc != null) {
+                                    eventLotteryCriteria = rawLc.toString().trim();
+                                    Log.d(TAG, "Cached eventLotteryCriteria (other) length=" + (eventLotteryCriteria != null ? eventLotteryCriteria.length() : 0));
+                                }
+                            } catch (Exception ignore) {}
                             refreshJoinButton();
 
                         } catch (Exception e) {
@@ -481,6 +594,8 @@ public class EventDetailActivity extends AppCompatActivity {
 
             btnLotteryCriteria.setText("Manage Lottery");
             btnLotteryCriteria.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+            // Log override to help debug why click may not trigger expected behavior
+            Log.d(TAG, "Organizer mode: wiring btnLotteryCriteria to openManageLottery()");
             btnLotteryCriteria.setOnClickListener(v -> openManageLottery());
 
             btnManageNotifications.setVisibility(View.VISIBLE);
@@ -532,9 +647,139 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     private void openLotteryCriteria() {
-        Toast.makeText(this, "Opening lottery criteria", Toast.LENGTH_SHORT).show();
-        // TODO: Navigate to lottery criteria screen or show dialog
+        // Inflate a BottomSheet-style card matching existing dialog styling
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View content = inflater.inflate(R.layout.dialog_lottery_criteria, null, false);
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        dialog.setContentView(content);
+        // Make background transparent so the card keeps rounded corners
+        android.widget.FrameLayout sheet = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (sheet != null) sheet.setBackgroundResource(android.R.color.transparent);
+        BottomSheetBehavior<?> behavior = dialog.getBehavior();
+        behavior.setSkipCollapsed(true);
+        behavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+        TextView tvCriteria = content.findViewById(R.id.tvCriteria);
+        android.widget.ProgressBar progressBar = content.findViewById(R.id.progressBar);
+        com.google.android.material.button.MaterialButton btnClose = content.findViewById(R.id.btnClose);
+        View scrollCriteria = content.findViewById(R.id.scrollCriteria);
+
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        // Show loading state while we fetch the criteria
+        progressBar.setVisibility(View.VISIBLE);
+        tvCriteria.setVisibility(View.GONE);
+        if (scrollCriteria != null) scrollCriteria.setVisibility(View.GONE);
+
+        final String id = currentEvent != null ? currentEvent.getId() : eventId;
+        if (id == null) {
+            progressBar.setVisibility(View.GONE);
+            tvCriteria.setText("Event ID not available.");
+            if (scrollCriteria != null) {
+                // ensure container is visible so text can be read
+                scrollCriteria.setVisibility(View.VISIBLE);
+            } else {
+                tvCriteria.setVisibility(View.VISIBLE);
+            }
+            dialog.show();
+            return;
+        }
+
+        // Fetch the latest lotteryCriteria from Firestore for this event
+        // If we already cached criteria when loading the event, show it immediately while we refresh from Firestore
+        if (eventLotteryCriteria != null && !eventLotteryCriteria.trim().isEmpty()) {
+            progressBar.setVisibility(View.GONE);
+            if (scrollCriteria != null) {
+                scrollCriteria.setVisibility(View.VISIBLE);
+            } else {
+                tvCriteria.setVisibility(View.VISIBLE);
+            }
+            tvCriteria.setText(eventLotteryCriteria);
+            // still continue to fetch to get the latest server value
+        }
+        // First try to get the document from the server to ensure we have the latest text
+        db.collection("events").document(id)
+                .get(com.google.firebase.firestore.Source.SERVER)
+                .addOnSuccessListener(documentSnapshot -> {
+                    // Process server response
+                    processCriteriaSnapshot(documentSnapshot, tvCriteria, scrollCriteria);
+                    progressBar.setVisibility(View.GONE);
+                    if (scrollCriteria != null) scrollCriteria.setVisibility(View.VISIBLE); else tvCriteria.setVisibility(View.VISIBLE);
+                })
+                .addOnFailureListener(e -> {
+                    Log.w(TAG, "Server fetch failed for lotteryCriteria, falling back to default source", e);
+                    // Fallback to default (cache/network) fetch
+                    db.collection("events").document(id)
+                            .get()
+                            .addOnSuccessListener(documentSnapshot -> {
+                                processCriteriaSnapshot(documentSnapshot, tvCriteria, scrollCriteria);
+                                progressBar.setVisibility(View.GONE);
+                                if (scrollCriteria != null) scrollCriteria.setVisibility(View.VISIBLE); else tvCriteria.setVisibility(View.VISIBLE);
+                            })
+                            .addOnFailureListener(e2 -> {
+                                Log.e(TAG, "Failed to fetch event doc for lotteryCriteria", e2);
+                                progressBar.setVisibility(View.GONE);
+                                tvCriteria.setText("Failed to load criteria: " + e2.getMessage());
+                                if (scrollCriteria != null) scrollCriteria.setVisibility(View.VISIBLE); else tvCriteria.setVisibility(View.VISIBLE);
+                            });
+                });
+
+        dialog.show();
     }
+
+    // Helper to parse and display the criteria from a DocumentSnapshot
+    private void processCriteriaSnapshot(com.google.firebase.firestore.DocumentSnapshot documentSnapshot, TextView tvCriteria, View scrollCriteria) {
+         try {
+             if (documentSnapshot.exists()) {
+                 String criteria = null;
+                 Object raw = documentSnapshot.get("lotteryCriteria");
+                 if (raw == null) raw = documentSnapshot.get("lottery_criteria");
+                Log.d(TAG, "processCriteriaSnapshot raw value=" + String.valueOf(raw) + " type=" + (raw != null ? raw.getClass().getName() : "null"));
+
+                 if (raw instanceof String) {
+                     criteria = ((String) raw).trim();
+                 } else if (raw instanceof java.util.Map) {
+                    java.util.Map<?,?> m = (java.util.Map<?,?>) raw;
+                    Object maybe = null;
+                    if (m.containsKey("text")) maybe = m.get("text");
+                    else if (m.containsKey("criteria")) maybe = m.get("criteria");
+                    else if (m.containsKey("body")) maybe = m.get("body");
+                    else if (m.containsKey("description")) maybe = m.get("description");
+                    if (maybe instanceof String) {
+                        criteria = ((String) maybe).trim();
+                    } else if (maybe != null) {
+                        criteria = maybe.toString();
+                    } else {
+                        StringBuilder sb = new StringBuilder();
+                        for (java.util.Map.Entry<?,?> e : m.entrySet()) sb.append(String.valueOf(e.getKey())).append(": ").append(String.valueOf(e.getValue())).append("\n");
+                        criteria = sb.toString().trim();
+                    }
+                 } else if (raw instanceof java.util.List) {
+                    java.util.List<?> list = (java.util.List<?>) raw;
+                    StringBuilder sb = new StringBuilder();
+                    for (Object o : list) if (o != null) sb.append(o.toString()).append("\n");
+                    criteria = sb.toString().trim();
+                 } else if (raw != null) {
+                    criteria = raw.toString().trim();
+                 }
+
+                 if (criteria == null || criteria.trim().isEmpty()) {
+                     try { java.util.Map<String,Object> data = documentSnapshot.getData(); if (data != null) Log.d(TAG, "Event doc keys: " + data.keySet()); } catch (Exception ignore) {}
+                     tvCriteria.setText("No lottery criteria set for this event.");
+                 } else {
+                     // Update cached copy and show
+                     eventLotteryCriteria = criteria;
+                    Log.d(TAG, "processCriteriaSnapshot: extracted criteria length=" + (criteria != null ? criteria.length() : 0));
+                     tvCriteria.setText(criteria);
+                 }
+             } else {
+                 tvCriteria.setText("Event not found.");
+             }
+         } catch (Exception ex) {
+             Log.e(TAG, "Error processing lotteryCriteria snapshot", ex);
+             tvCriteria.setText("Failed to load criteria: " + ex.getMessage());
+         }
+     }
 
     private void openMapPreview() {
         if (currentEvent.getLocationLatitude() != 0.0 && currentEvent.getLocationLongitude() != 0.0) {
@@ -559,6 +804,72 @@ public class EventDetailActivity extends AppCompatActivity {
                 Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(browserUri));
                 startActivity(browserIntent);
             }
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Re-ensure the lottery button is wired correctly in case something else overwrote the listener
+        if (btnLotteryCriteria != null) {
+            // If organizer view is active, it should open manage lottery
+            if (isOrganizer) {
+                Log.d(TAG, "onResume: organizer mode - wiring btnLotteryCriteria to openManageLottery()");
+                btnLotteryCriteria.setOnClickListener(v -> {
+                    Log.d(TAG, "btnLotteryCriteria clicked in organizer mode");
+                    openManageLottery();
+                });
+            } else {
+                Log.d(TAG, "onResume: entrant mode - wiring btnLotteryCriteria to openLotteryCriteria()");
+                btnLotteryCriteria.setOnClickListener(v -> {
+                    Log.d(TAG, "btnLotteryCriteria clicked - entrant mode listener");
+                    openLotteryCriteria();
+                });
+            }
+
+            // Raise elevation/translationZ to avoid being under overlays
+            try {
+                btnLotteryCriteria.setElevation(12f);
+                btnLotteryCriteria.setTranslationZ(12f);
+            } catch (Exception ex) {
+                Log.w(TAG, "Could not set elevation on btnLotteryCriteria: " + ex.getMessage());
+            }
+
+            // If parent is a View, forward its clicks to the button as a fallback
+            android.view.ViewParent parent = btnLotteryCriteria.getParent();
+            if (parent instanceof View) {
+                View parentView = (View) parent;
+                parentView.setClickable(true);
+                parentView.setOnClickListener(v -> {
+                    Log.d(TAG, "Parent view clicked - forwarding to btnLotteryCriteria.performClick()");
+                    btnLotteryCriteria.performClick();
+                });
+            }
+
+            // Debug: report button status and screen bounds so we can tell if it's covered or offscreen
+            try {
+                btnLotteryCriteria.post(() -> {
+                    try {
+                        int[] loc = new int[2];
+                        btnLotteryCriteria.getLocationOnScreen(loc);
+                        int x = loc[0];
+                        int y = loc[1];
+                        String status = String.format("BtnLotteryCriteria - vis=%s enabled=%s clickable=%s x=%d y=%d",
+                                btnLotteryCriteria.getVisibility() == View.VISIBLE ? "VISIBLE" : "NOT_VISIBLE",
+                                btnLotteryCriteria.isEnabled(),
+                                btnLotteryCriteria.isClickable(),
+                                x, y);
+                        Log.d(TAG, status);
+                    } catch (Exception ex) {
+                        Log.w(TAG, "Failed to report btnLotteryCriteria bounds: " + ex.getMessage());
+                    }
+                });
+            } catch (Exception ex) {
+                Log.w(TAG, "Failed to post btnLotteryCriteria debug report: " + ex.getMessage());
+            }
+
+        } else {
+            Log.w(TAG, "onResume: btnLotteryCriteria is null");
         }
     }
 }

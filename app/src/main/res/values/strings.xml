@@ -1,90 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">KickOff</string>
-    <string name="free_label">Free</string>
-    <string name="no_events">No events available</string>
-    <string name="check_back_later">Check back later for upcoming events</string>
-    <string name="date_time_format">%1$s at %2$s</string>
-    <string name="organizer_label">By %1$s</string>
-
-    <!-- Google Maps API Key - REPLACE WITH YOUR ACTUAL KEY -->
-    <string name="google_maps_key">AIzaSyCWoeJYaGpmy_QA2dd29cUhd_ZAhFUYi58</string>
-
-    <!-- Create Event Screen -->
-    <string name="create_event">Create Event</string>
+    <string name="app_name">OriginKickoff</string>
+    <string name="lottery_criteria_title">Lottery Criteria</string>
     <string name="close">Close</string>
-    <string name="event_name">Event Name</string>
-    <string name="date">Date</string>
-    <string name="time">Time</string>
-    <string name="location">Location</string>
-    <string name="description">Description</string>
-    <string name="upload_image">Upload Image</string>
-    <string name="upload_event_image">Upload Event Image</string>
-    <string name="registration_period">Registration Period</string>
-    <string name="start_date">Start Date</string>
-    <string name="start_time">Start Time</string>
-    <string name="end_date">End Date</string>
-    <string name="end_time">End Time</string>
-
-    <!-- Bottom Navigation -->
-    <string name="home">Home</string>
-    <string name="my_events">My Events</string>
-    <string name="notifications">Notifications</string>
-    <string name="profile">Profile</string>
-
-    <!-- Profile Screen -->
-    <string name="profile_title">Profile</string>
-    <string name="edit_profile">Edit Profile</string>
-    <string name="won_lottery_updates">Won Lottery Updates</string>
-    <string name="lost_lottery_updates">Lost Lottery Updates</string>
-    <string name="event_history">Event History</string>
-    <string name="delete_profile">Delete Profile</string>
-    <string name="log_out">Log Out</string>
-    <string name="device_id">Device ID: %1$s</string>
-    <string name="selected">Selected</string>
-    <string name="not_selected">Not Selected</string>
-    <string name="sample_user_name">Ethan Carter</string>
-    <string name="sample_user_email">ethan.carter@email.com</string>
-    <string name="sample_event_1_name">Tech Conference</string>
-    <string name="sample_event_1_location">San Francisco, CA</string>
-    <string name="sample_event_2_name">Music Festival</string>
-    <string name="sample_event_2_location">Los Angeles, CA</string>
-
-    <!-- Edit Profile Screen -->
+    <string name="google_maps_key">YOUR_API_KEY</string>
     <string name="edit_profile_title">Edit Profile</string>
     <string name="edit_profile_picture">Edit Profile Picture</string>
     <string name="name_label">Name</string>
+    <string name="sample_user_name">Sample User Name</string>
     <string name="email_label">Email</string>
+    <string name="sample_user_email">sample.user@email.com</string>
     <string name="phone_label">Phone</string>
+    <string name="phone_hint">Enter your phone number</string>
     <string name="save_changes">Save Changes</string>
-    <string name="phone_hint">780-123-4567</string>
-
-    <!-- Delete Profile Confirmation -->
+    <string name="back">Back</string>
+    <string name="notifications">Notifications</string>
+    <string name="notifications_today">Today</string>
+    <string name="notification_lottery_title">Lottery Results</string>
+    <string name="text_lottery_win">You won the lottery for the event!</string>
+    <string name="notification_event_update_title">Event Update</string>
+    <string name="text_event_postponed">An event has been postponed.</string>
+    <string name="notifications_yesterday">Yesterday</string>
+    <string name="text_lottery_lose">You did not win the lottery this time.</string>
+    <string name="notification_new_event_title">New Event</string>
+    <string name="text_new_event_open">A new event is open for registration.</string>
+    <string name="notifications_settings_title">Settings</string>
+    <string name="notifications_prefs_title">Push Notifications</string>
+    <string name="notifications_prefs_subtitle">Receive updates and reminders</string>
+    <string name="profile_title">Profile</string>
+    <string name="edit_profile">Edit Profile</string>
+    <string name="event_history">Event History</string>
+    <string name="delete_profile">Delete Profile</string>
+    <string name="delete_profile_confirm_title">Delete Profile?</string>
+    <string name="delete_profile_confirm_message">Are you sure you want to delete your profile? This action cannot be undone.</string>
     <string name="cancel">Cancel</string>
     <string name="delete">Delete</string>
-    <string name="delete_profile_confirm_title">Delete Profile?</string>
-    <string name="delete_profile_confirm_message">Are you sure you want to delete your profile?
-All your data will be erased!</string>
-    <!-- Notifications Screen -->
-    <string name="no_notifications">No notifications yet</string>
-    <string name="no_notifications_subtitle">You will see updates here when they arrive.</string>
-    <string name="back">Back</string>
-    <string name="notifications_today">Today</string>
-    <string name="notification_lottery_title">Lottery Result</string>
-    <string name="text_lottery_win">You won the lottery for the event \'Tech Innovators Summit\'.</string>
-    <string name="notification_event_update_title">Event Update</string>
-    <string name="text_event_postponed">The event \'Artisan Craft Fair\' has been postponed to next month.</string>
-    <string name="notifications_yesterday">Yesterday</string>
-    <string name="text_lottery_lose">You did not win the lottery for the event \'Global Music Festival\'.</string>
-    <string name="notification_new_event_title">New Event</string>
-    <string name="text_new_event_open">The event \'Local Food Tasting\' is now open for lottery entries.</string>
-    <string name="notifications_settings_title">Settings</string>
-    <string name="notifications_prefs_title">Notification Preferences</string>
-    <string name="notifications_prefs_subtitle">Opt out of receiving notifications from organizers and admins.</string>
+    <string name="sample_event_1_name">Sample Event 1</string>
     <string name="more">More</string>
+    <string name="entrants_desc">Entrants</string>
+    <string name="lottery_status_desc">Lottery Status</string>
     <string name="date_tbd">Date TBD</string>
-    <string name="entrants_count">%1$s Entrants</string>
+    <string name="entrants_count">%s entrants</string>
     <string name="winners_selected">Winners Selected</string>
     <string name="lottery_pending">Lottery Pending</string>
-    <string name="entrants_desc">Entrants</string>
-    <string name="lottery_status_desc">Lottery status</string>
+    <string name="device_id">Device ID: %s</string>
+    <string name="free_label">Free</string>
 </resources>
