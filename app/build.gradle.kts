@@ -44,7 +44,7 @@ android {
 }
 
 dependencies {
-    implementation(platform("com.google.firebase:firebase-bom:34.4.0"))
+    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)

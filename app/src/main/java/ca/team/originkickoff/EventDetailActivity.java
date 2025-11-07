@@ -1,10 +1,13 @@
 package ca.team.originkickoff;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Base64;
@@ -16,24 +19,28 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
 import ca.team.originkickoff.services.WaitingListService;
-import ca.team.originkickoff.WaitingListActivity; // explicit import
 
 public class EventDetailActivity extends AppCompatActivity {
     private static final String TAG = "EventDetailActivity";
     public static final String EXTRA_EVENT_ID = "event_id";
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     private ImageView posterImage;
     private TextView textTitle;
@@ -61,6 +68,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private final UserRepository userRepository = new UserRepository();
     private User currentUser; // resolved from device_id
     private boolean isOrganizer = false;
+    private FusedLocationProviderClient fusedLocationClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +77,7 @@ public class EventDetailActivity extends AppCompatActivity {
 
         // Initialize Firebase
         db = FirebaseFirestore.getInstance();
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         // Get event ID from intent
         eventId = getIntent().getStringExtra(EXTRA_EVENT_ID);
@@ -186,9 +195,7 @@ public class EventDetailActivity extends AppCompatActivity {
         }
 
         waitingListService.isOnWaitlist(currentEvent.getId(), currentUser.getId())
-                .addOnSuccessListener(isOn -> {
-                    updateJoinLeaveButtonStyle(isOn);
-                });
+                .addOnSuccessListener(this::updateJoinLeaveButtonStyle);
     }
 
     private void updateJoinLeaveButtonStyle(boolean isOnList) {
@@ -223,13 +230,17 @@ public class EventDetailActivity extends AppCompatActivity {
                                 })
                                 .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                     } else {
-                        showJoinConfirmationDialog(eventId, userId);
+                        if (currentEvent.isGeolocationRequired()) {
+                            requestLocationAndJoin();
+                        } else {
+                            showJoinConfirmationDialog(eventId, userId, null);
+                        }
                     }
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
-    private void showJoinConfirmationDialog(String eventId, String userId) {
+    private void showJoinConfirmationDialog(String eventId, String userId, Location location) {
         LayoutInflater inflater = LayoutInflater.from(this);
         View content = inflater.inflate(R.layout.dialog_join_waitlist, null, false);
         BottomSheetDialog dialog = new BottomSheetDialog(this);
@@ -243,14 +254,18 @@ public class EventDetailActivity extends AppCompatActivity {
 
         content.findViewById(R.id.btnYes).setOnClickListener(v -> {
             dialog.dismiss();
-            doJoin(eventId, userId);
+            doJoin(eventId, userId, location);
         });
         content.findViewById(R.id.btnNo).setOnClickListener(v -> dialog.dismiss());
         dialog.show();
     }
 
-    private void doJoin(String eventId, String userId) {
-        waitingListService.join(eventId, userId, false, null, null, null, "list")
+    private void doJoin(String eventId, String userId, Location location) {
+        Double latitude = location != null ? location.getLatitude() : null;
+        Double longitude = location != null ? location.getLongitude() : null;
+        boolean locationConsent = location != null;
+
+        waitingListService.join(eventId, userId, locationConsent, latitude, longitude, null, "list")
                 .addOnSuccessListener(changed -> {
                     if (changed) Toast.makeText(this, "Joined waiting list", Toast.LENGTH_SHORT).show();
                     currentEvent.setWaitlistCount(currentEvent.getWaitlistCount() + (changed ? 1 : 0));
@@ -258,6 +273,41 @@ public class EventDetailActivity extends AppCompatActivity {
                     updateJoinLeaveButtonStyle(true);
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    private void requestLocationAndJoin() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, LOCATION_PERMISSION_REQUEST_CODE);
+        } else {
+            getLocationAndJoin();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getLocationAndJoin();
+            } else {
+                Toast.makeText(this, "Location permission denied. Joining without location.", Toast.LENGTH_SHORT).show();
+                showJoinConfirmationDialog(currentEvent.getId(), currentUser.getId(), null); // Proceed without location
+            }
+        }
+    }
+
+    private void getLocationAndJoin() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        fusedLocationClient.getLastLocation().addOnSuccessListener(location -> {
+            if (location != null) {
+                showJoinConfirmationDialog(currentEvent.getId(), currentUser.getId(), location);
+            } else {
+                Toast.makeText(this, "Could not retrieve location. Joining without location.", Toast.LENGTH_SHORT).show();
+                showJoinConfirmationDialog(currentEvent.getId(), currentUser.getId(), null); // Proceed without location
+            }
+        });
     }
 
     private void loadEventData() {
