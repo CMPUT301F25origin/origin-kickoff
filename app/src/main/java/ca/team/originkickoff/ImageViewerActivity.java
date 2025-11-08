@@ -1,3 +1,7 @@
+/*
+ * Full-screen image viewer with pinch-to-zoom and drag gestures.
+ * Accepts a Bitmap via intent and supports close interaction.
+ */
 package ca.team.originkickoff;
 
 import android.graphics.Bitmap;
@@ -11,6 +15,9 @@ import android.widget.ImageView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+/**
+ * Activity for viewing a bitmap with zoom and pan controls.
+ */
 public class ImageViewerActivity extends AppCompatActivity {
     public static final String EXTRA_IMAGE_BITMAP = "image_bitmap";
 
@@ -33,6 +40,11 @@ public class ImageViewerActivity extends AppCompatActivity {
     private float minScale = 0.5f;
     private float maxScale = 5.0f;
 
+    /**
+     * Initializes UI components, retrieves the bitmap extra, and wires gesture listeners.
+     *
+     * @param savedInstanceState prior state bundle
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -110,19 +122,40 @@ public class ImageViewerActivity extends AppCompatActivity {
         btnClose.setOnClickListener(v -> finish());
     }
 
+    /**
+     * Computes distance between first two pointers for zoom calculations.
+     *
+     * @param event MotionEvent containing at least two pointers
+     * @return Euclidean distance in pixels
+     */
     private float spacing(MotionEvent event) {
         float x = event.getX(0) - event.getX(1);
         float y = event.getY(0) - event.getY(1);
         return (float) Math.sqrt(x * x + y * y);
     }
 
+    /**
+     * Computes midpoint between two pointers and writes result into provided PointF.
+     *
+     * @param point midpoint output container
+     * @param event MotionEvent with two active pointers
+     */
     private void midPoint(PointF point, MotionEvent event) {
         float x = event.getX(0) + event.getX(1);
         float y = event.getY(0) + event.getY(1);
         point.set(x / 2, y / 2);
     }
 
+    /**
+     * Scale gesture listener applying bounded scaling to the image matrix.
+     */
     private class ScaleListener extends ScaleGestureDetector.SimpleOnScaleGestureListener {
+        /**
+         * Handles incremental pinch scaling and updates the image matrix.
+         *
+         * @param detector scale gesture detector
+         * @return true once handled
+         */
         @Override
         public boolean onScale(ScaleGestureDetector detector) {
             scaleFactor *= detector.getScaleFactor();
@@ -134,4 +167,3 @@ public class ImageViewerActivity extends AppCompatActivity {
         }
     }
 }
-

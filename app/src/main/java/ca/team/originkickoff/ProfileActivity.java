@@ -1,3 +1,7 @@
+/*
+ * User profile screen showing account info, preferences, and event history.
+ * Supports updating profile data and deleting the account.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -42,6 +46,9 @@ import java.util.Map;
 
 import ca.team.originkickoff.ui.splash.SplashActivity;
 
+/**
+ * Activity for viewing and managing the current user's profile.
+ */
 public class ProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "ProfileActivity";
@@ -59,6 +66,11 @@ public class ProfileActivity extends AppCompatActivity {
     // Debounce for bottom-nav taps
     private long lastNavTapAtMs = 0L;
 
+    /**
+     * Sets up the profile UI and loads user data.
+     *
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -85,6 +97,9 @@ public class ProfileActivity extends AppCompatActivity {
         setupDeviceId();
     }
 
+    /**
+     * Refreshes profile header when returning to the screen.
+     */
     @Override
     protected void onResume() {
         super.onResume();

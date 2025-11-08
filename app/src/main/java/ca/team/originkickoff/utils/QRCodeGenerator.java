@@ -1,3 +1,7 @@
+/*
+ * Utilities for QR code generation and bitmap conversion used across features.
+ * Wraps ZXing to produce scannable QR bitmaps from string content.
+ */
 package ca.team.originkickoff.utils;
 
 import android.graphics.Bitmap;
@@ -14,7 +18,7 @@ import java.io.ByteArrayOutputStream;
  * Utility class for generating QR codes
  */
 public class QRCodeGenerator {
-    private static final int QR_CODE_SIZE = 512; // Size in pixels
+    private static final int QR_CODE_SIZE = 512;
 
     /**
      * Generates a QR code bitmap from the given content
@@ -64,4 +68,3 @@ public class QRCodeGenerator {
         return baos.toByteArray();
     }
 }
-

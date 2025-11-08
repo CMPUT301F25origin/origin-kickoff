@@ -1,3 +1,7 @@
+/*
+ * QR code scanning activity for navigating directly to event details.
+ * Uses CameraX + ML Kit BarcodeScanner to detect event IDs.
+ */
 package ca.team.originkickoff;
 
 import android.Manifest;
@@ -28,6 +32,9 @@ import com.google.mlkit.vision.common.InputImage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Activity that scans QR codes and routes to the corresponding event detail screen.
+ */
 public class ScanActivity extends AppCompatActivity {
     private static final String TAG = "ScanActivity";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 100;
@@ -35,6 +42,9 @@ public class ScanActivity extends AppCompatActivity {
     private PreviewView previewView;
     private ExecutorService cameraExecutor;
 
+    /**
+     * Initializes camera preview and permission flow.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -71,6 +81,9 @@ public class ScanActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Starts CameraX pipeline after permissions are granted.
+     */
     private void startCamera() {
         ListenableFuture<ProcessCameraProvider> cameraProviderFuture = ProcessCameraProvider.getInstance(this);
 
@@ -133,6 +146,11 @@ public class ScanActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Navigates to event detail for the scanned event ID.
+     *
+     * @param eventId decoded event identifier
+     */
     private void navigateToEventDetail(String eventId) {
         Intent intent = new Intent(this, EventDetailActivity.class);
         intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, eventId);

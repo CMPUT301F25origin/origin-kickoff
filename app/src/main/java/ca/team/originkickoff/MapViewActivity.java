@@ -1,3 +1,7 @@
+/*
+ * Read-only map viewer for a single event location with option to open external Google Maps.
+ * Provides marker placement and graceful fallback for missing data.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -19,6 +23,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
 
 import java.util.Locale;
 
+/**
+ * Activity showing a map centered on provided coordinates.
+ */
 public class MapViewActivity extends AppCompatActivity implements OnMapReadyCallback {
     private static final String TAG = "MapViewActivity";
 
@@ -33,6 +40,9 @@ public class MapViewActivity extends AppCompatActivity implements OnMapReadyCall
     private TextView tvLocationName;
     private Button btnOpenInGoogleMaps;
 
+    /**
+     * Initializes views, validates required extras, and requests map.
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -72,6 +82,9 @@ public class MapViewActivity extends AppCompatActivity implements OnMapReadyCall
         btnOpenInGoogleMaps.setOnClickListener(v -> openInGoogleMaps());
     }
 
+    /**
+     * Handles navigation when the back button in the action bar is pressed.
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -81,6 +94,11 @@ public class MapViewActivity extends AppCompatActivity implements OnMapReadyCall
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Places marker and configures map UI when ready.
+     *
+     * @param map GoogleMap instance
+     */
     @Override
     public void onMapReady(GoogleMap map) {
         googleMap = map;
@@ -101,6 +119,9 @@ public class MapViewActivity extends AppCompatActivity implements OnMapReadyCall
         googleMap.getUiSettings().setMyLocationButtonEnabled(false);
     }
 
+    /**
+     * Launches external maps app or browser fallback for the location.
+     */
     private void openInGoogleMaps() {
         // Create URI for Google Maps
         String uri = String.format(Locale.US, "geo:%f,%f?q=%f,%f(%s)",
@@ -123,4 +144,3 @@ public class MapViewActivity extends AppCompatActivity implements OnMapReadyCall
         }
     }
 }
-

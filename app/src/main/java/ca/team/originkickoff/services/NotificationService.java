@@ -1,3 +1,7 @@
+/*
+ * Firestore notification management service.
+ * Retrieves, listens to, creates, and updates user notification documents.
+ */
 package ca.team.originkickoff.services;
 
 import android.util.Log;
@@ -21,7 +25,8 @@ import java.util.Map;
 import ca.team.originkickoff.models.NotificationItem;
 
 /**
- * Service for managing user notifications in Firestore.
+ * Service for managing user notifications stored in Firestore.
+ * Provides list retrieval (with index fallback), real‑time listening, mutation, and creation helpers.
  */
 public class NotificationService {
     private static final String TAG = "NotificationService";
@@ -30,7 +35,11 @@ public class NotificationService {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
     /**
-     * Get all notifications for a user, sorted by creation time (newest first).
+     * Get all notifications for a user ordered by creation time descending.
+     * Falls back to client‑side sorting if a composite index is missing.
+     *
+     * @param userId Firestore user identifier
+     * @return Task resolving with a list (possibly empty) of notifications
      */
     public Task<List<NotificationItem>> getNotificationsForUser(@NonNull String userId) {
         Log.d(TAG, "Fetching notifications for userId: " + userId);
@@ -95,7 +104,13 @@ public class NotificationService {
     }
 
     /**
-     * Real-time updates: listen for notifications for a user. Automatically sorts DESC by createdAt.
+     * Attach a real‑time listener for notifications belonging to a user.
+     * Results are client‑side sorted descending by createdAt.
+     *
+     * @param userId   user identifier
+     * @param onUpdate consumer invoked with latest list of notifications
+     * @param onError  consumer invoked on listener error
+     * @return Firestore listener registration (caller should remove when no longer needed)
      */
     public ListenerRegistration listenNotificationsForUser(@NonNull String userId,
                                                             @NonNull java.util.function.Consumer<List<NotificationItem>> onUpdate,
@@ -135,7 +150,10 @@ public class NotificationService {
     }
 
     /**
-     * Mark a notification as read.
+     * Mark a notification document as read.
+     *
+     * @param notificationId document ID of the notification
+     * @return Task resolving when update completes
      */
     public Task<Void> markAsRead(@NonNull String notificationId) {
         Map<String, Object> updates = new HashMap<>();
@@ -147,7 +165,13 @@ public class NotificationService {
     }
 
     /**
-     * Create a lottery result notification.
+     * Create and persist a lottery result notification for a user.
+     *
+     * @param userId    target user identifier
+     * @param eventId   related event identifier
+     * @param eventName human‑readable event name for message composition
+     * @param isWinner  whether the user won the lottery
+     * @return Task resolving when notification is stored
      */
     public Task<Void> createLotteryNotification(@NonNull String userId, @NonNull String eventId,
                                                  @NonNull String eventName, boolean isWinner) {

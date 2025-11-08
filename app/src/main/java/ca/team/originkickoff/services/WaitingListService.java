@@ -1,3 +1,7 @@
+/*
+ * Service for managing event waiting list entries and related counts in Firestore.
+ * Encapsulates join/leave flows, queries, and basic client-side ordering.
+ */
 package ca.team.originkickoff.services;
 
 import androidx.annotation.NonNull;
@@ -21,16 +25,33 @@ import java.util.Map;
 
 import ca.team.originkickoff.models.WaitingListEntry;
 
+/**
+ * Firestore-backed operations for the waiting list lifecycle and queries.
+ */
 public class WaitingListService {
     private static final String EVENTS_COLL = "events";
     private static final String WAITLIST_COLL = "waiting_list_entries"; // mirrors RDBMS table name
 
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+    /**
+     * Reference helper for a user's waitlist document for a given event.
+     *
+     * @param eventId event identifier
+     * @param userId  user identifier
+     * @return document reference in the waiting list collection
+     */
     public DocumentReference waitlistDoc(String eventId, String userId) {
         return db.collection(WAITLIST_COLL).document(WaitingListEntry.docId(eventId, userId));
     }
 
+    /**
+     * Checks whether the user currently has an active waitlist entry for an event.
+     *
+     * @param eventId event identifier
+     * @param userId  user identifier
+     * @return Task resolving true if active, else false
+     */
     public Task<Boolean> isOnWaitlist(@NonNull String eventId, @NonNull String userId) {
         return waitlistDoc(eventId, userId)
                 .get()
@@ -41,7 +62,19 @@ public class WaitingListService {
                 });
     }
 
-    // Returns true if state changed to active (i.e., we actually joined now)
+    /**
+     * Joins the user to the event's waitlist if not already active.
+     * Increments the event waitlist counter within a transaction.
+     *
+     * @param eventId          event identifier
+     * @param userId           user identifier
+     * @param locationConsent  whether the user consented to share location
+     * @param lat              latitude (nullable)
+     * @param lon              longitude (nullable)
+     * @param precisionMeters  location precision in meters (nullable)
+     * @param source           origin of the join action (e.g., list/qr)
+     * @return Task resolving true if state changed from not-active to active
+     */
     public Task<Boolean> join(@NonNull String eventId, @NonNull String userId, boolean locationConsent,
                               Double lat, Double lon, Integer precisionMeters, String source) {
         DocumentReference wlRef = waitlistDoc(eventId, userId);
@@ -51,7 +84,7 @@ public class WaitingListService {
             DocumentSnapshot snap = transaction.get(wlRef);
             boolean wasActive = snap.exists() && "active".equals(snap.getString("state"));
             if (wasActive) {
-                return false; // no-op
+                return false;
             }
 
             // Enforce optional waitlist limit
@@ -83,7 +116,13 @@ public class WaitingListService {
         });
     }
 
-    // Returns true if state changed to left (i.e., we actually left now)
+    /**
+     * Leaves the waitlist if currently active and decrements the event counter.
+     *
+     * @param eventId event identifier
+     * @param userId  user identifier
+     * @return Task resolving true if state changed to left
+     */
     public Task<Boolean> leave(@NonNull String eventId, @NonNull String userId) {
         DocumentReference wlRef = waitlistDoc(eventId, userId);
         DocumentReference eventRef = db.collection(EVENTS_COLL).document(eventId);
@@ -100,6 +139,12 @@ public class WaitingListService {
         });
     }
 
+    /**
+     * Counts active waitlist entries for an event.
+     *
+     * @param eventId event identifier
+     * @return Task resolving with the number of active entries
+     */
     public Task<Integer> countActive(@NonNull String eventId) {
         Query q = db.collection(WAITLIST_COLL)
                 .whereEqualTo("event_id", eventId)
@@ -107,6 +152,12 @@ public class WaitingListService {
         return q.get().continueWith(t -> t.isSuccessful() ? t.getResult().size() : 0);
     }
 
+    /**
+     * Retrieves user IDs for all active waitlist entries for an event.
+     *
+     * @param eventId event identifier
+     * @return Task resolving with a list of user IDs
+     */
     public Task<List<String>> getAllActiveUserIds(@NonNull String eventId) {
         Query q = db.collection(WAITLIST_COLL)
                 .whereEqualTo("event_id", eventId)
@@ -130,6 +181,12 @@ public class WaitingListService {
         });
     }
 
+    /**
+     * Lists active waiting list entries for an event, client-side sorted by join time ascending.
+     *
+     * @param eventId event identifier
+     * @return Task resolving with ordered entries
+     */
     public Task<List<WaitingListEntry>> listActive(@NonNull String eventId) {
         Query q = db.collection(WAITLIST_COLL)
                 .whereEqualTo("event_id", eventId)

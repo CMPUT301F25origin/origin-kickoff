@@ -1,3 +1,7 @@
+/*
+ * Displays detailed information for a single event, including poster, metadata, and registration info.
+ * Fetches the event from Firestore via FirebaseEventService by ID passed in arguments.
+ */
 package ca.team.originkickoff.ui.fragments;
 
 import android.graphics.Bitmap;
@@ -24,6 +28,9 @@ import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.services.FirebaseEventService;
 
+/**
+ * Fragment for presenting an event's full details with image and formatted fields.
+ */
 public class EventDetailFragment extends Fragment {
     private static final String ARG_EVENT_ID = "event_id";
     private String eventId;
@@ -41,6 +48,12 @@ public class EventDetailFragment extends Fragment {
 
     private FirebaseEventService firebaseEventService;
 
+    /**
+     * Factory method to create a new fragment instance for a specific event.
+     *
+     * @param eventId Firestore document ID of the event
+     * @return configured fragment instance
+     */
     public static EventDetailFragment newInstance(String eventId) {
         EventDetailFragment fragment = new EventDetailFragment();
         Bundle args = new Bundle();
@@ -49,6 +62,11 @@ public class EventDetailFragment extends Fragment {
         return fragment;
     }
 
+    /**
+     * Reads arguments to capture the target event ID.
+     *
+     * @param savedInstanceState previously saved state bundle
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +75,14 @@ public class EventDetailFragment extends Fragment {
         }
     }
 
+    /**
+     * Inflates the detail layout.
+     *
+     * @param inflater  layout inflater
+     * @param container parent view group
+     * @param savedInstanceState previous state bundle
+     * @return inflated view
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -64,6 +90,12 @@ public class EventDetailFragment extends Fragment {
         return inflater.inflate(R.layout.fragment_event_detail, container, false);
     }
 
+    /**
+     * Initializes views and kicks off event loading.
+     *
+     * @param view root view
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
@@ -73,6 +105,11 @@ public class EventDetailFragment extends Fragment {
         loadEventDetails();
     }
 
+    /**
+     * Binds the view references for later population.
+     *
+     * @param view root view
+     */
     private void initializeViews(View view) {
         detailEventPoster = view.findViewById(R.id.detailEventPoster);
         detailEventName = view.findViewById(R.id.detailEventName);
@@ -86,6 +123,9 @@ public class EventDetailFragment extends Fragment {
         detailEventDescription = view.findViewById(R.id.detailEventDescription);
     }
 
+    /**
+     * Fetches event data for the stored event ID and updates the UI on success.
+     */
     private void loadEventDetails() {
         firebaseEventService.getEventById(eventId, new FirebaseEventService.SingleEventCallback() {
             @Override
@@ -101,6 +141,11 @@ public class EventDetailFragment extends Fragment {
         });
     }
 
+    /**
+     * Populates the UI with event fields and resolves the poster image from base64 or URL.
+     *
+     * @param event model with details to display
+     */
     private void displayEventDetails(Event event) {
         SimpleDateFormat dateTimeFormat = new SimpleDateFormat("MMM dd, yyyy hh:mm a", Locale.getDefault());
 

@@ -1,3 +1,8 @@
+/*
+ * Launch-time router that decides whether to open Main or SignUp screens.
+ * Supports both legacy doc ID and field-based device mapping in Firestore.
+ */
+
 package ca.team.originkickoff.ui.splash;
 
 import android.content.Intent;
@@ -14,10 +19,18 @@ import ca.team.originkickoff.MainActivity;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.SignUpActivity;
 
+/**
+ * Splash screen activity responsible for quick user routing based on registration status.
+ */
 public class SplashActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
 
+    /**
+     * Determines the next screen by checking for an existing user record for this device.
+     *
+     * @param savedInstanceState prior state bundle
+     */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

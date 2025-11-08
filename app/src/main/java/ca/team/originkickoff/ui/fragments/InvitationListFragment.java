@@ -1,3 +1,7 @@
+/*
+ * Displays invitations for an event filtered by status (chosen/cancelled/enrolled).
+ * Provides a simple list UI backed by a Firestore snapshot listener.
+ */
 package ca.team.originkickoff.ui.fragments;
 
 import android.os.Bundle;
@@ -25,7 +29,7 @@ import ca.team.originkickoff.adapters.InvitationAdapter;
 import ca.team.originkickoff.models.InvitationStatus;
 
 /**
- * Fragment for displaying list of invitations by status (chosen/cancelled/enrolled)
+ * Fragment for displaying a list of invitations filtered by a specific status.
  */
 public class InvitationListFragment extends Fragment {
     private static final String TAG = "InvitationListFragment";
@@ -39,6 +43,13 @@ public class InvitationListFragment extends Fragment {
     private TextView tvEmpty;
     private InvitationAdapter adapter;
 
+    /**
+     * Factory method to build a fragment scoped to an event and status filter.
+     *
+     * @param eventId target event ID
+     * @param status  invitation status to display
+     * @return configured fragment instance
+     */
     public static InvitationListFragment newInstance(String eventId, String status) {
         InvitationListFragment fragment = new InvitationListFragment();
         Bundle args = new Bundle();
@@ -48,6 +59,9 @@ public class InvitationListFragment extends Fragment {
         return fragment;
     }
 
+    /**
+     * Reads arguments passed by the factory method.
+     */
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +71,14 @@ public class InvitationListFragment extends Fragment {
         }
     }
 
+    /**
+     * Inflates the layout and initializes RecyclerView bindings.
+     *
+     * @param inflater  layout inflater
+     * @param container parent container
+     * @param savedInstanceState prior state bundle
+     * @return inflated view
+     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -76,6 +98,9 @@ public class InvitationListFragment extends Fragment {
         return view;
     }
 
+    /**
+     * Subscribes to invitation_status documents and updates the adapter.
+     */
     private void loadInvitations() {
         progressBar.setVisibility(View.VISIBLE);
         tvEmpty.setVisibility(View.GONE);
@@ -107,6 +132,9 @@ public class InvitationListFragment extends Fragment {
                 });
     }
 
+    /**
+     * Shows a context-aware empty message based on the selected status.
+     */
     private void showEmpty() {
         tvEmpty.setVisibility(View.VISIBLE);
         String message;
@@ -126,4 +154,3 @@ public class InvitationListFragment extends Fragment {
         tvEmpty.setText(message);
     }
 }
-

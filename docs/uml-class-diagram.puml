@@ -1,0 +1,69 @@
+@startuml
+
+class NotificationsActivity {
+  - RecyclerView recyclerView
+  - NotificationAdapter adapter
+  - NotificationService notificationService
+  - FirebaseFirestore db
+  - ListenerRegistration notificationsListener
+  + void onCreate(Bundle)
+  + void onResume()
+  + void onDestroy()
+  - void setupTopBar()
+  - void setupRecyclerView()
+  - void loadNotifications()
+  - void attachNotificationsListener()
+  - void onNotificationClick(NotificationItem)
+  - void showResultDialog(NotificationItem)
+  - void navigateToEvent(String)
+}
+
+class NotificationAdapter {
+  - List<NotificationItem> items
+  - OnNotificationClickListener clickListener
+  + void setItems(List<NotificationItem>)
+  + NotificationViewHolder onCreateViewHolder(ViewGroup, int)
+  + void onBindViewHolder(NotificationViewHolder, int)
+  + int getItemCount()
+}
+
+class NotificationAdapter.OnNotificationClickListener <<interface>> {
+  + void onNotificationClick(NotificationItem)
+}
+
+class NotificationAdapter.NotificationViewHolder {
+  - TextView title
+  - TextView message
+  - TextView time
+}
+
+class NotificationService {
+  - FirebaseFirestore db
+  + Task<List<NotificationItem>> getNotificationsForUser(String)
+  + ListenerRegistration listenNotificationsForUser(String, Consumer<List<NotificationItem>>, Consumer<Exception>)
+  + Task<Void> markAsRead(String)
+  + Task<Void> createLotteryNotification(String, String, String, boolean)
+}
+
+class NotificationItem {
+  - String id
+  - String title
+  - String message
+  - String timestamp
+  - String type
+  - String eventId
+  - String userId
+  - Timestamp createdAt
+  - boolean read
+}
+
+NotificationsActivity *-- NotificationAdapter
+NotificationsActivity *-- NotificationService
+NotificationsActivity ..> NotificationItem
+NotificationAdapter o-- NotificationItem
+NotificationAdapter +-- NotificationAdapter.OnNotificationClickListener
+NotificationAdapter +-- NotificationAdapter.NotificationViewHolder
+NotificationsActivity ..> NotificationAdapter.OnNotificationClickListener
+NotificationService ..> NotificationItem
+
+@enduml

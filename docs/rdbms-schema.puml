@@ -1,0 +1,103 @@
+@startuml
+' Define tables
+
+table "events" {
+  "id" "string" [PK]
+  "name" "string"
+  "description" "string"
+  "organizerId" "string" [FK]
+  "organizerName" "string"
+  "eventDate" "date"
+  "location" "string"
+  "locationLatitude" "double"
+  "locationLongitude" "double"
+  "locationPlaceId" "string"
+  "category" "string"
+  "capacity" "int"
+  "waitlistCount" "int"
+  "selectionSize" "int"
+  "limitWaitlist" "boolean"
+  "waitlistLimit" "int"
+  "registrationStartTime" "date"
+  "registrationEndTime" "date"
+  "posterUrl" "string"
+  "posterBase64" "string"
+  "geolocationRequired" "boolean"
+  "price" "double"
+  "createdAt" "long"
+  "qrCodeUrl" "string"
+  "qrCodeBase64" "string"
+  "lotteryCriteria" "string"
+  "lotteryStatus" "string"
+}
+
+table "users" {
+  "id" "string" [PK]
+  "device_id" "string"
+  "display_name" "string"
+  "email" "string"
+  "phone" "string"
+  "notif_marketing" "boolean"
+  "notif_service" "boolean"
+  "is_organizer" "boolean"
+  "is_admin" "boolean"
+  "created_at" "date"
+  "updated_at" "date"
+}
+
+table "lottery_results" {
+  "eventId" "string" [FK]
+  "conducted_at" "timestamp"
+  "lottery_method" "string"
+  "total_entrants" "int"
+  "num_winners" "int"
+  "winner_ids" "array"
+  "all_entrant_ids" "array"
+  "conducted_by" "string" [FK]
+}
+
+table "invitation_status" {
+  "eventId" "string" [FK]
+  "userId" "string" [FK]
+  "status" "string"
+  "invited_at" "timestamp"
+  "responded_at" "timestamp"
+}
+
+table "notification_items" {
+  "id" "string" [PK]
+  "title" "string"
+  "message" "string"
+  "timestamp" "string"
+  "type" "string"
+  "eventId" "string" [FK]
+  "userId" "string" [FK]
+  "createdAt" "timestamp"
+  "read" "boolean"
+}
+
+table "waiting_list_entries" {
+  "eventId" "string" [FK]
+  "userId" "string" [FK]
+  "joined_at" "timestamp"
+  "source" "string"
+  "state" "string"
+  "lat" "double"
+  "lon" "double"
+  "precision_m" "int"
+  "location_consent" "boolean"
+}
+
+' Define relationships
+
+events "organizerId" -- "id" users
+lottery_results "eventId" -- "id" events
+lottery_results "conducted_by" -- "id" users
+invitation_status "eventId" -- "id" events
+invitation_status "userId" -- "id" users
+notification_items "eventId" -- "id" events
+notification_items "userId" -- "id" users
+waiting_list_entries "eventId" -- "id" events
+waiting_list_entries "userId" -- "id" users
+
+@enduml

@@ -1,3 +1,7 @@
+/*
+ * Profile editing screen for updating user display info and avatar.
+ * Supports image upload (Base64) with size validation and Firestore persistence.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -40,6 +44,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Activity for editing a user's profile details and image.
+ */
 public class EditProfileActivity extends AppCompatActivity {
 
     private static final String TAG = "EditProfileActivity";
@@ -60,6 +67,11 @@ public class EditProfileActivity extends AppCompatActivity {
                 }
             });
 
+    /**
+     * Initializes the profile editor, loads current user data, and sets up UI listeners.
+     *
+     * @param savedInstanceState previously saved state, if any
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -94,6 +106,9 @@ public class EditProfileActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Loads the Firestore user document for this device and populates the profile form.
+     */
     private void loadUserData() {
         db.collection("users").whereEqualTo("device_id", deviceId).limit(1).get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
@@ -118,6 +133,11 @@ public class EditProfileActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Fetches the stored Base64 avatar image from the images collection and displays it.
+     *
+     * @param imageId Firestore document ID of the stored profile image
+     */
     private void loadAndSetProfileImage(String imageId) {
         db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
             if (imageDoc.exists()) {
@@ -142,11 +162,17 @@ public class EditProfileActivity extends AppCompatActivity {
         }).addOnFailureListener(e -> showPlaceholderImage());
     }
 
+    /**
+     * Displays a default placeholder avatar when no profile image is available.
+     */
     private void showPlaceholderImage() {
         ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
         Glide.with(this).load(R.drawable.ic_person).apply(RequestOptions.circleCropTransform()).into(ivProfile);
     }
 
+    /**
+     * Validates user input and merges updated profile fields into Firestore.
+     */
     private void onSave() {
         String name = etName.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
@@ -185,6 +211,12 @@ public class EditProfileActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Processes a picked image URI, ensures it's within size limits, stores it in Firestore,
+     * and links the image document to the current user.
+     *
+     * @param imageUri content URI of the selected image from gallery
+     */
     private void uploadImage(Uri imageUri) {
         if (userDocId == null) {
             Toast.makeText(this, "Cannot upload image, user profile not loaded yet.", Toast.LENGTH_SHORT).show();
@@ -197,7 +229,7 @@ public class EditProfileActivity extends AppCompatActivity {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream);
             byte[] byteArray = byteArrayOutputStream.toByteArray();
 
-            if (byteArray.length > 1048576) { // 1 MiB limit
+            if (byteArray.length > 1048576) {
                 Toast.makeText(this, "Image is too large. Please select an image under 1MB.", Toast.LENGTH_LONG).show();
                 return;
             }
@@ -238,6 +270,13 @@ public class EditProfileActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Decodes the given image URI into a Bitmap, using newer or legacy APIs depending on OS version.
+     *
+     * @param uri image content URI to decode
+     * @return decoded bitmap for the given URI
+     * @throws IOException if reading or decoding the image fails
+     */
     private Bitmap uriToBitmap(Uri uri) throws IOException {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             return ImageDecoder.decodeBitmap(ImageDecoder.createSource(getContentResolver(), uri));

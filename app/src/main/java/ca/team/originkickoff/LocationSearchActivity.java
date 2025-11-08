@@ -1,3 +1,7 @@
+/*
+ * Location autocomplete search integrating Places API to select or custom-pick locations.
+ * Returns chosen place details (address, coordinates, placeId) to caller.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -28,6 +32,9 @@ import java.util.List;
 
 import ca.team.originkickoff.adapters.LocationSuggestionsAdapter;
 
+/**
+ * Activity providing an autocomplete UI for searching event locations.
+ */
 public class LocationSearchActivity extends AppCompatActivity {
     private static final String TAG = "LocationSearchActivity";
 
@@ -41,6 +48,11 @@ public class LocationSearchActivity extends AppCompatActivity {
     private AutocompleteSessionToken sessionToken;
     private LocationSuggestionsAdapter adapter;
 
+    /**
+     * Initializes Places client, views, and listeners.
+     *
+     * @param savedInstanceState state bundle if recreating
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,7 +63,6 @@ public class LocationSearchActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("Search Location");
         }
 
-        // Initialize Places API
         if (!Places.isInitialized()) {
             Places.initialize(getApplicationContext(), getString(R.string.google_maps_key));
         }
@@ -63,6 +74,9 @@ public class LocationSearchActivity extends AppCompatActivity {
         attachListeners();
     }
 
+    /**
+     * Binds view references from the layout into member variables.
+     */
     private void bindViews() {
         etSearchLocation = findViewById(R.id.etSearchLocation);
         rvSuggestions = findViewById(R.id.rvSuggestions);
@@ -71,15 +85,20 @@ public class LocationSearchActivity extends AppCompatActivity {
         tvSelectCustom = findViewById(R.id.tvSelectCustom);
     }
 
+    /**
+     * Configures the suggestions RecyclerView and adapter for location predictions.
+     */
     private void setupRecyclerView() {
         adapter = new LocationSuggestionsAdapter(prediction -> {
-            // When a location is selected
             fetchPlaceDetails(prediction.getPlaceId());
         });
         rvSuggestions.setLayoutManager(new LinearLayoutManager(this));
         rvSuggestions.setAdapter(adapter);
     }
 
+    /**
+     * Attaches text and click listeners for searching and custom selection.
+     */
     private void attachListeners() {
         etSearchLocation.addTextChangedListener(new TextWatcher() {
             @Override
@@ -100,12 +119,17 @@ public class LocationSearchActivity extends AppCompatActivity {
         });
 
         tvSelectCustom.setOnClickListener(v -> {
-            // Open map picker for custom location
             Intent intent = new Intent(this, LocationPickerActivity.class);
             startActivityForResult(intent, 100);
         });
     }
 
+    /**
+     * Handles toolbar back button navigation.
+     *
+     * @param item selected menu item
+     * @return true if consumed, otherwise superclass handles it
+     */
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
@@ -115,6 +139,11 @@ public class LocationSearchActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Executes a Places autocomplete search for the query string.
+     *
+     * @param query partial location text
+     */
     private void searchLocations(String query) {
         progressBar.setVisibility(View.VISIBLE);
         tvNoResults.setVisibility(View.GONE);
@@ -142,6 +171,11 @@ public class LocationSearchActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Fetches full place details for a chosen prediction and returns result.
+     *
+     * @param placeId selected place ID
+     */
     private void fetchPlaceDetails(String placeId) {
         progressBar.setVisibility(View.VISIBLE);
 
@@ -174,14 +208,19 @@ public class LocationSearchActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Receives results from the custom location picker and forwards them to the caller.
+     *
+     * @param requestCode request identifier
+     * @param resultCode  result status
+     * @param data        returned intent containing location extras
+     */
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 100 && resultCode == RESULT_OK && data != null) {
-            // Return custom location from map picker
             setResult(RESULT_OK, data);
             finish();
         }
     }
 }
-

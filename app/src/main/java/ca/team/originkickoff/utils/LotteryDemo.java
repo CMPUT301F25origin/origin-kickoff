@@ -1,3 +1,7 @@
+/*
+ * Demo helpers to simulate lottery results and print simple fairness reports.
+ * Used for exploratory testing and verification outside production flows.
+ */
 package ca.team.originkickoff.utils;
 
 import java.util.ArrayList;
@@ -12,45 +16,39 @@ import ca.team.originkickoff.services.LotteryService;
 import com.google.firebase.Timestamp;
 
 /**
- * Utility class to demonstrate and test lottery fairness.
- * Shows distribution of selections over multiple runs.
+ * Utility class to demonstrate and test lottery fairness by running multiple simulated draws.
+ * Helps visualize how often each user is selected under different lottery methods.
  */
 public class LotteryDemo {
 
     /**
-     * Simulate multiple lottery runs to demonstrate fairness.
+     * Simulates multiple lottery runs to demonstrate fairness characteristics of a lottery method.
      *
-     * @param method Lottery method to test
-     * @param numEntrants Number of entrants
-     * @param numWinners Number of winners per draw
-     * @param numSimulations Number of lottery simulations to run
-     * @return Map of user ID to number of times selected
+     * @param method          lottery method to test
+     * @param numEntrants     number of entrants to include in each draw
+     * @param numWinners      number of winners to pick per draw
+     * @param numSimulations  number of lottery simulations to run
+     * @return map of user ID to number of times that user was selected across all simulations
      */
     public static Map<String, Integer> simulateLottery(LotteryMethod method,
                                                        int numEntrants,
                                                        int numWinners,
                                                        int numSimulations) {
-        // Create mock waiting list entries with staggered join times
         List<WaitingListEntry> entries = new ArrayList<>();
-        long baseTime = System.currentTimeMillis() / 1000; // seconds
+        long baseTime = System.currentTimeMillis() / 1000;
 
         for (int i = 0; i < numEntrants; i++) {
             WaitingListEntry entry = new WaitingListEntry();
             entry.setEventId("demo-event");
             entry.setUserId("user-" + i);
-            // Stagger join times by 1 hour each
             entry.setJoinedAt(new Timestamp(baseTime + (i * 3600), 0));
             entry.setState("active");
             entry.setSource("list");
             entries.add(entry);
         }
 
-        // Run simulations
         LotteryService lotteryService = new LotteryService();
         Map<String, Integer> selectionCounts = new HashMap<>();
-
-        // Note: This is for demonstration only. In production, you'd use the full
-        // conductLottery method which fetches from Firestore
 
         System.out.println("=== Lottery Simulation ===");
         System.out.println("Method: " + method);
@@ -63,7 +61,11 @@ public class LotteryDemo {
     }
 
     /**
-     * Print expected vs actual probabilities for lottery fairness analysis.
+     * Prints a fairness report comparing actual selection frequencies to expected behavior.
+     *
+     * @param selectionCounts map of user ID to number of times selected
+     * @param numSimulations  total number of simulations run
+     * @param method          lottery method used so notes can explain expected behavior
      */
     public static void printFairnessReport(Map<String, Integer> selectionCounts,
                                            int numSimulations,
@@ -86,4 +88,3 @@ public class LotteryDemo {
         }
     }
 }
-

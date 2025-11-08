@@ -1,3 +1,7 @@
+/**
+ * Adapter listing entrants on an event's waiting list with relative join time.
+ * Fetches display names and profile images lazily via Firestore with simple caching.
+ */
 package ca.team.originkickoff.adapters;
 
 import android.content.res.ColorStateList;
@@ -25,12 +29,21 @@ import java.util.Map;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.WaitingListEntry;
 
+/**
+ * RecyclerView adapter binding {@link ca.team.originkickoff.models.WaitingListEntry} items for display.
+ */
 public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.VH> {
     private final List<WaitingListEntry> items = new ArrayList<>();
     private final Map<String, String> nameCache = new HashMap<>();
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
 
+    /**
+     * Inflates a waiting-list row view.
+     * @param parent parent view group
+     * @param viewType unused view type
+     * @return new view holder
+     */
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -38,29 +51,35 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         return new VH(v);
     }
 
+    /**
+     * Binds the waiting list entry at position, showing name, avatar and relative time.
+     * @param holder target holder
+     * @param position adapter position
+     */
     @Override
     public void onBindViewHolder(@NonNull VH holder, int position) {
         WaitingListEntry e = items.get(position);
         String userId = e.getUserId();
 
-        // Hide user ID and source fields
         holder.userId.setVisibility(View.GONE);
         holder.source.setVisibility(View.GONE);
 
-        // Calculate and display "Joined x days ago"
         String joinedText = calculateJoinedAgo(e.getJoinedAt());
         holder.joinedAt.setText(joinedText);
 
-        // Display user name (fetch from users collection)
         holder.userName.setText(nameCache.containsKey(userId) ? nameCache.get(userId) : "Loading...");
         if (!nameCache.containsKey(userId)) {
             fetchAndCacheName(userId, holder.getBindingAdapterPosition());
         }
 
-        // Load profile picture
         loadProfilePicture(holder, userId);
     }
 
+    /**
+     * Converts a timestamp into a human-readable relative phrase.
+     * @param joinedAt Firestore timestamp when user joined the waitlist
+     * @return string like "Joined 2 days ago"
+     */
     private String calculateJoinedAgo(com.google.firebase.Timestamp joinedAt) {
         if (joinedAt == null) return "Joined recently";
 
@@ -90,18 +109,22 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         }
     }
 
+    /**
+     * Fetches a user's display name and caches the result, refreshing the row.
+     * @param userId users/{id} document id
+     * @param adapterPos adapter position for targeted notify
+     */
     private void fetchAndCacheName(String userId, int adapterPos) {
         if (userId == null || userId.isEmpty()) return;
         db.collection("users").document(userId).get().addOnSuccessListener(doc -> {
             String name = extractName(doc);
             nameCache.put(userId, name);
 
-            // Cache profile image ID if available
             String imageId = doc.getString("profile_image_id");
             if (imageId != null && !imageId.isEmpty()) {
                 imageCache.put(userId, imageId);
             } else {
-                imageCache.put(userId, ""); // Mark as checked but empty
+                imageCache.put(userId, "");
             }
 
             if (adapterPos >= 0 && adapterPos < items.size()) {
@@ -116,13 +139,17 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         });
     }
 
+    /**
+     * Loads profile picture for a given user id, using cached image id when available.
+     * @param holder row view holder
+     * @param userId users/{id} document id
+     */
     private void loadProfilePicture(VH holder, String userId) {
         if (userId == null || userId.isEmpty()) {
             showPlaceholderImage(holder);
             return;
         }
 
-        // Check if we already have the image ID cached
         if (imageCache.containsKey(userId)) {
             String imageId = imageCache.get(userId);
             if (imageId != null && !imageId.isEmpty()) {
@@ -131,11 +158,15 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
                 showPlaceholderImage(holder);
             }
         } else {
-            // Will be loaded when name is fetched
             showPlaceholderImage(holder);
         }
     }
 
+    /**
+     * Retrieves and decodes a Base64 image by its images/{id} document id.
+     * @param holder row view holder
+     * @param imageId images/{id} document id
+     */
     private void loadImageFromFirestore(VH holder, String imageId) {
         db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
             if (imageDoc.exists()) {
@@ -160,6 +191,10 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         }).addOnFailureListener(e -> showPlaceholderImage(holder));
     }
 
+    /**
+     * Shows a placeholder avatar when no image is available.
+     * @param holder row view holder
+     */
     private void showPlaceholderImage(VH holder) {
         holder.profilePic.setImageTintList(ColorStateList.valueOf(
                 ContextCompat.getColor(holder.itemView.getContext(), R.color.ko_teal)));
@@ -169,9 +204,13 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
                 .into(holder.profilePic);
     }
 
+    /**
+     * Attempts to extract a preferred display name from a user document.
+     * @param doc Firestore user document snapshot
+     * @return display name or fallback
+     */
     private String extractName(DocumentSnapshot doc) {
         if (doc == null || !doc.exists()) return "Unknown entrant";
-        // Try common name fields used across this project
         String[] keys = new String[]{"display_name", "displayName", "name", "username", "email"};
         for (String k : keys) {
             Object v = doc.get(k);
@@ -183,9 +222,16 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         return "Unknown entrant";
     }
 
+    /**
+     * @return number of entries in the adapter
+     */
     @Override
     public int getItemCount() { return items.size(); }
 
+    /**
+     * Submits a new list, clearing caches and refreshing.
+     * @param in waiting list entries (nullable)
+     */
     public void submit(List<WaitingListEntry> in) {
         items.clear();
         nameCache.clear();
@@ -194,9 +240,16 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         notifyDataSetChanged();
     }
 
+    /**
+     * ViewHolder for a waiting-list row.
+     */
     static class VH extends RecyclerView.ViewHolder {
         TextView userName, userId, joinedAt, source;
         ImageView profilePic;
+        /**
+         * Constructs the holder and binds view references.
+         * @param itemView inflated item view
+         */
         VH(@NonNull View itemView) {
             super(itemView);
             userName = itemView.findViewById(R.id.tvUserName);

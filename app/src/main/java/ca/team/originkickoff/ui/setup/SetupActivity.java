@@ -1,3 +1,7 @@
+/*
+ * One-time setup gate that routes users to SignUp or Main based on device registration.
+ * Performs a Firestore lookup using the device ID and finishes itself after navigation.
+ */
 package ca.team.originkickoff.ui.setup;
 
 import android.content.Intent;
@@ -10,10 +14,18 @@ import ca.team.originkickoff.R;
 import ca.team.originkickoff.SignUpActivity;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+/**
+ * Initial setup activity that decides whether the user needs to sign up or can proceed.
+ */
 public class SetupActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
 
+    /**
+     * Checks for an existing user mapped to the device ID and navigates accordingly.
+     *
+     * @param savedInstanceState prior state bundle
+     */
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

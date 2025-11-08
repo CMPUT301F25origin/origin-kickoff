@@ -1,3 +1,7 @@
+/*
+ * Sign-up flow for creating a user profile tied to the device ID.
+ * Persists a new user document and then routes to the main experience.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;
@@ -17,6 +21,9 @@ import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Activity that collects basic profile info and registers the device as a user.
+ */
 public class SignUpActivity extends AppCompatActivity {
 
     private static final String TAG = "SignUpActivity";
@@ -26,6 +33,11 @@ public class SignUpActivity extends AppCompatActivity {
 
     private FirebaseFirestore db;
 
+    /**
+     * Initializes views and sets up the sign-up handlers.
+     *
+     * @param savedInstanceState previous state bundle
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -43,6 +55,9 @@ public class SignUpActivity extends AppCompatActivity {
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
     }
 
+    /**
+     * Validates input fields and triggers user creation.
+     */
     private void signUp() {
         String name = etName.getText().toString().trim();
         String email = etEmail.getText().toString().trim();
@@ -58,6 +73,14 @@ public class SignUpActivity extends AppCompatActivity {
         createNewUser(name, email, phone, deviceId);
     }
 
+    /**
+     * Creates a Firestore user document based on provided fields and device ID.
+     *
+     * @param name      display name
+     * @param email     email address
+     * @param phone     optional phone
+     * @param deviceId  device identifier used as canonical user id
+     */
     private void createNewUser(String name, String email, String phone, String deviceId) {
         // Use deviceId as canonical user id & Firestore doc id so a device maps to exactly one user document.
         String userId = deviceId;
@@ -89,6 +112,9 @@ public class SignUpActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Launches the main activity and finishes this one.
+     */
     private void navigateToMain() {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);

@@ -1,3 +1,6 @@
+/**
+ * Firestore-backed record of a conducted lottery draw and its resulting winners.
+ */
 package ca.team.originkickoff.models;
 
 import com.google.firebase.Timestamp;
@@ -10,33 +13,44 @@ import java.util.List;
  * Stored in Firestore to maintain audit trail and prevent duplicate draws.
  */
 public class LotteryResult {
+    /** Event identifier that the draw pertains to. */
     @PropertyName("event_id")
     private String eventId;
 
+    /** Timestamp when the draw was conducted. */
     @PropertyName("conducted_at")
     private Timestamp conductedAt;
 
+    /** Selection method identifier (e.g., random, early_priority_random). */
     @PropertyName("lottery_method")
-    private String lotteryMethod; // "random" or "early_priority_random"
+    private String lotteryMethod;
 
+    /** Total number of entrants in the waiting list at draw time. */
     @PropertyName("total_entrants")
     private int totalEntrants;
 
+    /** Number of winners selected by the draw. */
     @PropertyName("num_winners")
     private int numWinners;
 
+    /** Ordered list of selected winner user IDs. */
     @PropertyName("winner_ids")
     private List<String> winnerIds;
 
+    /** Complete list of entrant user IDs considered in the draw. */
     @PropertyName("all_entrant_ids")
-    private List<String> allEntrantIds; // All users who were in the waiting list
+    private List<String> allEntrantIds;
 
+    /** Organizer user ID who initiated the draw. */
     @PropertyName("conducted_by")
-    private String conductedBy; // organizer user ID
+    private String conductedBy;
 
-    // Empty constructor for Firebase
+    /** No-arg constructor for Firebase. */
     public LotteryResult() {}
 
+    /**
+     * Convenience constructor when not persisting all optional fields.
+     */
     public LotteryResult(String eventId, Timestamp conductedAt, String lotteryMethod,
                         int totalEntrants, int numWinners, List<String> winnerIds,
                         String conductedBy) {

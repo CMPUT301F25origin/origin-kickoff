@@ -1,12 +1,22 @@
+/**
+ * Value object for an event's physical or virtual location including optional Places ID.
+ */
 package ca.team.originkickoff.models;
 
 import java.io.Serializable;
 
+/**
+ * Simple serializable location wrapper used by events and geolocation checks.
+ */
 public class EventLocation implements Serializable {
+    /** Human-readable address or label. */
     private String address;
+    /** Latitude in WGS84. */
     private double latitude;
+    /** Longitude in WGS84. */
     private double longitude;
-    private String placeId; // Google Places ID if from API
+    /** Optional Google Places identifier. */
+    private String placeId;
 
     public EventLocation() {
     }
@@ -59,4 +69,3 @@ public class EventLocation implements Serializable {
         return address;
     }
 }
-

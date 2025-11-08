@@ -1,20 +1,39 @@
+/**
+ * Notification payload model used to render in-app notifications and store metadata.
+ */
 package ca.team.originkickoff.models;
 
 import com.google.firebase.Timestamp;
 
+/**
+ * Represents a single notification entry, including display text and linkage to events/users.
+ */
 public class NotificationItem {
+    /** Firestore document id. */
     private String id;
+    /** Title text shown prominently. */
     private String title;
+    /** Body message text. */
     private String message;
-    private String timestamp; // display-ready string for now
-    private String type; // "result", "update", "general"
-    private String eventId; // Reference to event for result type
-    private String userId; // User this notification is for
-    private Timestamp createdAt; // Firestore timestamp
-    private boolean read; // Whether notification has been read
+    /** Display-ready timestamp string. */
+    private String timestamp;
+    /** Notification category such as result, update, or general. */
+    private String type;
+    /** Related event id for context (when applicable). */
+    private String eventId;
+    /** User id this notification is intended for. */
+    private String userId;
+    /** Server creation timestamp. */
+    private com.google.firebase.Timestamp createdAt;
+    /** Read state flag. */
+    private boolean read;
 
+    /** No-arg constructor for Firebase. */
     public NotificationItem() {}
 
+    /**
+     * Convenience constructor for minimal display-only notifications.
+     */
     public NotificationItem(String id, String title, String message, String timestamp) {
         this.id = id;
         this.title = title;
