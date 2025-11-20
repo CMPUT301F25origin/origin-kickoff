@@ -7,8 +7,10 @@ package ca.team.originkickoff.services;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.google.android.gms.tasks.Task;
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.ListenerRegistration;
@@ -194,5 +196,39 @@ public class NotificationService {
         return db.collection(NOTIFICATIONS_COLL)
                 .document(notificationId)
                 .set(notification);
+    }
+
+    /**
+     * Broadcast a custom organizer message to waiting-list entrants (active state) for an event.
+     * Each notification has type 'waitlist_broadcast'.
+     *
+     * @param userIds active waiting list user IDs
+     * @param eventId event identifier
+     * @param eventName event display name
+     * @param title notification title (fallback applied if blank)
+     * @param message body text (fallback applied if blank)
+     * @return Task resolving when all notifications are written
+     */
+    public Task<Void> notifyWaitingListEntrants(@NonNull List<String> userIds,
+                                                @NonNull String eventId,
+                                                @NonNull String eventName,
+                                                @Nullable String title,
+                                                @Nullable String message) {
+        String safeTitle = (title == null || title.trim().isEmpty()) ? "Update for " + eventName : title.trim();
+        String safeMessage = (message == null || message.trim().isEmpty()) ? "There is an update regarding '" + eventName + "'." : message.trim();
+        List<Task<Void>> tasks = new ArrayList<>();
+        for (String uid : userIds) {
+            String notificationId = db.collection(NOTIFICATIONS_COLL).document().getId();
+            Map<String, Object> data = new HashMap<>();
+            data.put("userId", uid);
+            data.put("eventId", eventId);
+            data.put("type", "waitlist_broadcast");
+            data.put("title", safeTitle);
+            data.put("message", safeMessage);
+            data.put("createdAt", Timestamp.now());
+            data.put("read", false);
+            tasks.add(db.collection(NOTIFICATIONS_COLL).document(notificationId).set(data));
+        }
+        return Tasks.whenAll(tasks);
     }
 }

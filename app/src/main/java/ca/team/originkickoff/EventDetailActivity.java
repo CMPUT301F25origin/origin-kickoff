@@ -795,10 +795,16 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     /**
-     * Placeholder for organizer notification management.
+     * Opens the organizer notifications management screen.
      */
     private void openManageNotifications() {
-        Toast.makeText(this, "Manage Notifications - Coming Soon", Toast.LENGTH_SHORT).show();
+        if (currentEvent == null) {
+            Toast.makeText(this, "Event not loaded", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent(this, ManageNotificationsActivity.class);
+        intent.putExtra(ManageNotificationsActivity.EXTRA_EVENT_ID, currentEvent.getId());
+        startActivity(intent);
     }
 
     /**

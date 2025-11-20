@@ -91,4 +91,63 @@ All your data will be erased!</string>
     <string name="view_map">View Map</string>
     <string name="entrant_join_locations">Entrant Join Locations</string>
     <string name="profile_picture">Profile Picture</string>
+
+    <!-- Manage Lottery Activity -->
+    <string name="event_name_placeholder">Event Name</string>
+    <string name="entrants_loading">Entrants: Loading...</string>
+    <string name="capacity_loading">Capacity: Loading...</string>
+    <string name="lottery_status_label">Lottery Status</string>
+    <string name="status_checking">Status: Checking...</string>
+    <string name="lottery_ready_message">Ready to conduct lottery? Select a method to proceed.</string>
+    <string name="conduct_lottery">Conduct Lottery</string>
+    <string name="notify_waitlist">Notify Waiting List</string>
+    <string name="manage_notifications_title">Manage Notifications</string>
+    <string name="manage_notifications_actions">Broadcast Notifications</string>
+    <string name="notify_waitlist_group">Notify Waiting List Entrants</string>
+    <string name="notify_chosen_group">Notify Chosen Entrants</string>
+    <string name="notify_enrolled_group">Notify Enrolled Entrants</string>
+    <string name="notify_cancelled_group">Notify Cancelled Entrants</string>
+    <string name="broadcast_dialog_title">Send Broadcast</string>
+    <string name="broadcast_dialog_message">Send a notification to %1$d users?</string>
+    <string name="broadcast_title_hint">Title (optional)</string>
+    <string name="broadcast_message_hint">Message to users</string>
+    <string name="broadcast_send">Send</string>
+    <string name="broadcast_cancel">Cancel</string>
+    <string name="broadcast_sent">Broadcast sent</string>
+    <string name="broadcast_failed">Failed to send broadcast</string>
+    <string name="broadcast_message_required">Message is required</string>
+
+    <!-- EventDetailActivity -->
+    <string name="event_not_found">Error: Event not found</string>
+    <string name="loading_user">Loading user...</string>
+    <string name="registration_opening_soon">Registration opening soon</string>
+    <string name="registration_closed">Registration closed</string>
+    <string name="waiting_list_full">Waiting list full</string>
+    <string name="leave_waiting_list">Leave Waiting List</string>
+    <string name="join_waiting_list">Join Waiting List</string>
+    <string name="left_waiting_list">Left waiting list</string>
+    <string name="failed">Failed: %1$s</string>
+    <string name="joined_waiting_list">Joined waiting list</string>
+    <string name="location_permission_denied">Location permission denied. Joining without location.</string>
+    <string name="could_not_retrieve_location">Could not retrieve location. Joining without location.</string>
+    <string name="error_loading_event_details">Error loading event details</string>
+    <string name="organized_by">Organized by: %1$s</string>
+    <string name="event_location">Event Location</string>
+    <string name="event_capacity">Event Capacity: %1$d</string>
+    <string name="entrants_in_waitlist">Entrants in Waitlist: %1$d</string>
+    <string name="spots_left_on_waitlist">Spots left on Waitlist: %1$d</string>
+    <string name="registration_open">Registration Open</string>
+    <string name="error_decoding_qr">Error decoding Base64 QR code</string>
+    <string name="error_decoding_poster">Error decoding Base64 poster image</string>
+    <string name="manage_entrants">Manage Entrants</string>
+    <string name="lottery_results">Lottery Results</string>
+    <string name="manage_lottery">Manage Lottery</string>
+    <string name="lottery_win">🎉 Congratulations! You were selected in the lottery!</string>
+    <string name="lottery_cancelled">You were selected but cancelled your enrollment</string>
+    <string name="lottery_lose">Unfortunately, you were not selected in the lottery</string>
+    <string name="event_not_loaded">Event not loaded</string>
+    <string name="no_lottery_criteria">No lottery criteria specified for this event.</string>
+    <string name="error_opening_image">Error opening image</string>
+    <string name="stats_format">Waitlist:%1$d  Chosen:%2$d  Enrolled:%3$d  Cancelled:%4$d</string>
+    <string name="stats_unavailable">Stats unavailable</string>
 </resources>
