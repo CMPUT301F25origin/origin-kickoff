@@ -126,6 +126,7 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     allEvents.clear();
+                    long now = System.currentTimeMillis();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         try {
                             Event event = document.toObject(Event.class);
@@ -133,6 +134,17 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
 
                             String lotteryStatus = document.getString("lotteryStatus");
                             if ("conducted".equals(lotteryStatus)) {
+                                continue;
+                            }
+
+                            java.util.Date start = event.getRegistrationStartTime();
+                            java.util.Date end = event.getRegistrationEndTime();
+                            if (start == null || end == null) {
+                                // Hide events without both bounds to avoid showing closed ones unintentionally
+                                continue;
+                            }
+                            if (now < start.getTime() || now > end.getTime()) {
+                                // Registration window not open
                                 continue;
                             }
 
@@ -144,10 +156,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                     filterEvents();
 
                     loadingView.setVisibility(View.GONE);
-                    Log.d(TAG, "Loaded " + allEvents.size() + " events from Firestore");
+                    Log.d(TAG, "Loaded " + allEvents.size() + " open events from Firestore");
 
                     if (allEvents.isEmpty()) {
-                        Toast.makeText(this, "No events available", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "No open events right now", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {

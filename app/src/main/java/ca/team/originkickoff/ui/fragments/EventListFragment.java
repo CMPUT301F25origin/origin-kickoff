@@ -164,25 +164,24 @@ public class EventListFragment extends Fragment implements EventAdapter.OnEventC
         Log.d(TAG, "loadEvents() called");
         showLoadingState(true);
 
-        // Changed to getAllEvents to fetch all events from the database
-        firebaseEventService.getAllEvents(new FirebaseEventService.EventsCallback() {
+        // Fetch only events whose registration window is currently open
+        firebaseEventService.getEventsWithOpenRegistration(new FirebaseEventService.EventsCallback() {
             @Override
             public void onSuccess(List<Event> events) {
-                Log.d(TAG, "onSuccess called with " + events.size() + " events");
+                Log.d(TAG, "onSuccess called with " + events.size() + " open events");
                 allEvents.clear();
                 allEvents.addAll(events);
                 filteredEvents.clear();
                 filteredEvents.addAll(events);
-                Log.d(TAG, "Updated adapter with " + filteredEvents.size() + " events");
-                adapter .updateEvents(filteredEvents);
+                adapter.updateEvents(filteredEvents);
                 updateUIState();
                 swipeRefreshLayout.setRefreshing(false);
                 showLoadingState(false);
 
                 if (events.isEmpty()) {
-                    Toast.makeText(getContext(), "No events found", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "No open events right now", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(getContext(), "Loaded " + events.size() + " events", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(getContext(), "Loaded " + events.size() + " open events", Toast.LENGTH_SHORT).show();
                 }
             }
 
