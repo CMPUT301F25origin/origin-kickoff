@@ -35,9 +35,10 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.List;
+import java.util.Map;
 
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
@@ -64,6 +65,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private MaterialButton btnJoinWaitingList;
     private MaterialButton btnLotteryCriteria;
     private MaterialButton btnManageNotifications;
+    private MaterialButton btnOptOutNotifications;
     private ImageView ivQrCode;
     private LinearLayout qrCodeSection;
     private CardView locationCard;
@@ -143,6 +145,7 @@ public class EventDetailActivity extends AppCompatActivity {
         btnJoinWaitingList = findViewById(R.id.btnJoinWaitingList);
         btnLotteryCriteria = findViewById(R.id.btnLotteryCriteria);
         btnManageNotifications = findViewById(R.id.btnManageNotifications);
+        btnOptOutNotifications = findViewById(R.id.btnOptOutNotifications);
         ivQrCode = findViewById(R.id.ivQrCode);
         qrCodeSection = findViewById(R.id.qrCodeSection);
         locationCard = findViewById(R.id.locationCard);
@@ -172,6 +175,14 @@ public class EventDetailActivity extends AppCompatActivity {
             if (currentEvent != null) {
                 openLotteryCriteria();
             }
+        });
+
+        btnOptOutNotifications.setOnClickListener(v -> {
+            if (currentEvent == null || currentUser == null) {
+                Toast.makeText(this, "Loading user...", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            toggleOptOutNotifications();
         });
 
         posterImage.setOnClickListener(v -> {
@@ -627,13 +638,89 @@ public class EventDetailActivity extends AppCompatActivity {
 
             btnManageNotifications.setVisibility(View.VISIBLE);
             btnManageNotifications.setOnClickListener(v -> openManageNotifications());
+
+            // Organizers shouldn't see the opt-out button
+            btnOptOutNotifications.setVisibility(View.GONE);
         } else {
             isOrganizer = false;
             Log.d(TAG, "Current user is not organizer (no match) - entrant view");
             btnEdit.setVisibility(View.GONE);
             btnManageNotifications.setVisibility(View.GONE);
+            btnOptOutNotifications.setVisibility(View.VISIBLE);
             checkLotteryStatusForEntrant();
+            // Load user's current opt-out state for this event
+            loadOptOutPreference();
         }
+    }
+
+    /**
+     * Loads per-user per-event notification preference from Firestore and updates the button text.
+     */
+    private void loadOptOutPreference() {
+        if (currentEvent == null || currentUser == null) return;
+        String eventId = currentEvent.getId();
+        String userId = currentUser.getId();
+        db.collection("events").document(eventId)
+                .collection("notification_preferences")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        Boolean optOut = doc.getBoolean("opt_out");
+                        updateOptOutButton(optOut != null && optOut);
+                    } else {
+                        updateOptOutButton(false);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load notification preference", e);
+                    updateOptOutButton(false);
+                });
+    }
+
+    private void updateOptOutButton(boolean isOptedOut) {
+        if (btnOptOutNotifications == null) return;
+        if (isOptedOut) {
+            btnOptOutNotifications.setText(getString(R.string.opt_in_notifications));
+            btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+            btnOptOutNotifications.setTextColor(Color.parseColor("#003932"));
+        } else {
+            btnOptOutNotifications.setText(getString(R.string.opt_out_notifications));
+            btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#68F0C9")));
+            btnOptOutNotifications.setTextColor(Color.parseColor("#003932"));
+        }
+    }
+
+    private void toggleOptOutNotifications() {
+        if (currentEvent == null || currentUser == null) return;
+        String eventId = currentEvent.getId();
+        String userId = currentUser.getId();
+
+        db.collection("events").document(eventId)
+                .collection("notification_preferences")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    boolean currentlyOptedOut = false;
+                    if (doc.exists()) {
+                        Boolean opt = doc.getBoolean("opt_out");
+                        currentlyOptedOut = opt != null && opt;
+                    }
+                    boolean newOptOut = !currentlyOptedOut;
+                    Map<String, Object> data = new java.util.HashMap<>();
+                    data.put("opt_out", newOptOut);
+                    db.collection("events").document(eventId)
+                            .collection("notification_preferences")
+                            .document(userId)
+                            .set(data)
+                            .addOnSuccessListener(aVoid -> {
+                                updateOptOutButton(newOptOut);
+                                String msg = newOptOut ? getString(R.string.opt_out_toast) : getString(R.string.opt_in_toast);
+                                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     /**
@@ -882,3 +969,4 @@ public class EventDetailActivity extends AppCompatActivity {
         }
     }
 }
+

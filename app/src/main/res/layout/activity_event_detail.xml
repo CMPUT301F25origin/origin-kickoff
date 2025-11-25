@@ -346,6 +346,22 @@
                     app:cornerRadius="999dp"
                     app:elevation="0dp"/>
 
+                <!-- Opt out/in of event notifications (per-user per-event preference) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOptOutNotifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/opt_out_notifications"
+                    android:textColor="#003932"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:backgroundTint="#68F0C9"
+                    android:visibility="gone"
+                    app:cornerRadius="999dp"
+                    app:elevation="0dp"/>
+
             </LinearLayout>
 
             <!-- LOTTERY RESULT (Visible after lottery conducted) -->
