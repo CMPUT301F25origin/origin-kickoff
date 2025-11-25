@@ -150,4 +150,8 @@ All your data will be erased!</string>
     <string name="error_opening_image">Error opening image</string>
     <string name="stats_format">Waitlist:%1$d  Chosen:%2$d  Enrolled:%3$d  Cancelled:%4$d</string>
     <string name="stats_unavailable">Stats unavailable</string>
+    <string name="opt_out_notifications">Opt out of notifications</string>
+    <string name="opt_in_notifications">Opt in to notifications</string>
+    <string name="opt_out_toast">You have opted out of notifications for this event.</string>
+    <string name="opt_in_toast">You will receive notifications for this event.</string>
 </resources>
