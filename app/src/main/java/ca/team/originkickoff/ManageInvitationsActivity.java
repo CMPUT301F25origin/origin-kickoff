@@ -18,6 +18,7 @@ import com.google.firebase.firestore.FirebaseFirestore;
 
 import ca.team.originkickoff.adapters.InvitationsPagerAdapter;
 import ca.team.originkickoff.models.Event;
+import ca.team.originkickoff.services.DeclineResamplingService;
 
 /**
  * Activity for managing lottery invitations with tabs for chosen, cancelled, and enrolled users.
@@ -46,6 +47,9 @@ public class ManageInvitationsActivity extends AppCompatActivity {
             finish();
             return;
         }
+
+        // Begin monitoring declines for automatic resampling
+        DeclineResamplingService.ensureMonitoring(eventId);
 
         initializeViews();
         loadEventData();

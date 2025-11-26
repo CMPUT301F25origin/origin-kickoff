@@ -35,13 +35,15 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import java.util.List;
+import java.util.Map;
 
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
+import ca.team.originkickoff.services.DeclineResamplingService;
 import ca.team.originkickoff.services.WaitingListService;
 
 /**
@@ -64,6 +66,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private MaterialButton btnJoinWaitingList;
     private MaterialButton btnLotteryCriteria;
     private MaterialButton btnManageNotifications;
+    private MaterialButton btnOptOutNotifications;
     private ImageView ivQrCode;
     private LinearLayout qrCodeSection;
     private CardView locationCard;
@@ -72,6 +75,9 @@ public class EventDetailActivity extends AppCompatActivity {
     private LinearLayout actionButtonsContainer;
     private CardView lotteryResultCard;
     private TextView tvLotteryResult;
+    private LinearLayout invitationActionRow; // row with accept/decline buttons
+    private com.google.android.material.button.MaterialButton btnAcceptInvitation;
+    private com.google.android.material.button.MaterialButton btnDeclineInvitation;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -143,6 +149,7 @@ public class EventDetailActivity extends AppCompatActivity {
         btnJoinWaitingList = findViewById(R.id.btnJoinWaitingList);
         btnLotteryCriteria = findViewById(R.id.btnLotteryCriteria);
         btnManageNotifications = findViewById(R.id.btnManageNotifications);
+        btnOptOutNotifications = findViewById(R.id.btnOptOutNotifications);
         ivQrCode = findViewById(R.id.ivQrCode);
         qrCodeSection = findViewById(R.id.qrCodeSection);
         locationCard = findViewById(R.id.locationCard);
@@ -151,6 +158,9 @@ public class EventDetailActivity extends AppCompatActivity {
         actionButtonsContainer = findViewById(R.id.actionButtonsContainer);
         lotteryResultCard = findViewById(R.id.lotteryResultCard);
         tvLotteryResult = findViewById(R.id.tvLotteryResult);
+        invitationActionRow = findViewById(R.id.invitationActionRow);
+        btnAcceptInvitation = findViewById(R.id.btnAcceptInvitation);
+        btnDeclineInvitation = findViewById(R.id.btnDeclineInvitation);
     }
 
     /**
@@ -172,6 +182,14 @@ public class EventDetailActivity extends AppCompatActivity {
             if (currentEvent != null) {
                 openLotteryCriteria();
             }
+        });
+
+        btnOptOutNotifications.setOnClickListener(v -> {
+            if (currentEvent == null || currentUser == null) {
+                Toast.makeText(this, "Loading user...", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            toggleOptOutNotifications();
         });
 
         posterImage.setOnClickListener(v -> {
@@ -635,59 +653,90 @@ public class EventDetailActivity extends AppCompatActivity {
 
             btnManageNotifications.setVisibility(View.VISIBLE);
             btnManageNotifications.setOnClickListener(v -> openManageNotifications());
+
+            // Organizers shouldn't see the opt-out button
+            btnOptOutNotifications.setVisibility(View.GONE);
         } else {
             // Not recognized locally — attempt to resolve organizer doc's device id as a fallback
             isOrganizer = false;
-            Log.d(TAG, "Current user not recognized as organizer locally. Attempting organizer doc fallback.");
-            if (organizerId != null && !organizerId.isEmpty()) {
-                db.collection("users").document(organizerId).get()
-                        .addOnSuccessListener(doc -> {
-                            if (doc != null && doc.exists()) {
-                                String organizerDeviceId = doc.getString("device_id");
-                                String organizerDisplayName = doc.getString("display_name");
-                                String organizerEmail = doc.getString("email");
-                                String currentDeviceId = currentUser.getDeviceId();
-                                String currentDisplayName = currentUser.getDisplayName();
-                                String currentEmail = currentUser.getEmail();
-
-                                boolean matchesDevice = organizerDeviceId != null && currentDeviceId != null && organizerDeviceId.equals(currentDeviceId);
-                                boolean matchesDisplayName = organizerDisplayName != null && currentDisplayName != null && organizerDisplayName.trim().equalsIgnoreCase(currentDisplayName.trim());
-                                boolean matchesEmail = organizerEmail != null && currentEmail != null && organizerEmail.trim().equalsIgnoreCase(currentEmail.trim());
-
-                                if (matchesDevice || matchesDisplayName || matchesEmail) {
-                                    // The organizer document appears to refer to this user/device -> treat as organizer
-                                    isOrganizer = true;
-                                    Log.d(TAG, "Organizer doc appears to match current user -> enabling organizer view");
-                                    btnEdit.setVisibility(View.VISIBLE);
-                                    btnEdit.setOnClickListener(v -> openEditEvent());
-                                    btnJoinWaitingList.setText(getString(R.string.manage_entrants));
-                                    btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
-                                    btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
-                                    btnJoinWaitingList.setOnClickListener(v -> openManageEntrants());
-                                    checkLotteryStatusAndUpdateButton();
-                                    btnManageNotifications.setVisibility(View.VISIBLE);
-                                    btnManageNotifications.setOnClickListener(v -> openManageNotifications());
-                                    return;
-                                }
-                            }
-                            // Fallback still not matched -> entrant view
-                            Log.d(TAG, "Organizer fallback did not match; showing entrant view");
-                            btnEdit.setVisibility(View.GONE);
-                            btnManageNotifications.setVisibility(View.GONE);
-                            checkLotteryStatusForEntrant();
-                        })
-                        .addOnFailureListener(e -> {
-                            Log.e(TAG, "Failed to load organizer user doc for fallback check", e);
-                            btnEdit.setVisibility(View.GONE);
-                            btnManageNotifications.setVisibility(View.GONE);
-                            checkLotteryStatusForEntrant();
-                        });
-            } else {
-                btnEdit.setVisibility(View.GONE);
-                btnManageNotifications.setVisibility(View.GONE);
-                checkLotteryStatusForEntrant();
-            }
+            Log.d(TAG, "Current user is not organizer (no match) - entrant view");
+            btnEdit.setVisibility(View.GONE);
+            btnManageNotifications.setVisibility(View.GONE);
+            btnOptOutNotifications.setVisibility(View.VISIBLE);
+            checkLotteryStatusForEntrant();
+            // Load user's current opt-out state for this event
+            loadOptOutPreference();
         }
+    }
+
+    /**
+     * Loads per-user per-event notification preference from Firestore and updates the button text.
+     */
+    private void loadOptOutPreference() {
+        if (currentEvent == null || currentUser == null) return;
+        String eventId = currentEvent.getId();
+        String userId = currentUser.getId();
+        db.collection("events").document(eventId)
+                .collection("notification_preferences")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        Boolean optOut = doc.getBoolean("opt_out");
+                        updateOptOutButton(optOut != null && optOut);
+                    } else {
+                        updateOptOutButton(false);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to load notification preference", e);
+                    updateOptOutButton(false);
+                });
+    }
+
+    private void updateOptOutButton(boolean isOptedOut) {
+        if (btnOptOutNotifications == null) return;
+        if (isOptedOut) {
+            btnOptOutNotifications.setText(getString(R.string.opt_in_notifications));
+            btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+            btnOptOutNotifications.setTextColor(Color.parseColor("#003932"));
+        } else {
+            btnOptOutNotifications.setText(getString(R.string.opt_out_notifications));
+            btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#68F0C9")));
+            btnOptOutNotifications.setTextColor(Color.parseColor("#003932"));
+        }
+    }
+
+    private void toggleOptOutNotifications() {
+        if (currentEvent == null || currentUser == null) return;
+        String eventId = currentEvent.getId();
+        String userId = currentUser.getId();
+
+        db.collection("events").document(eventId)
+                .collection("notification_preferences")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    boolean currentlyOptedOut = false;
+                    if (doc.exists()) {
+                        Boolean opt = doc.getBoolean("opt_out");
+                        currentlyOptedOut = opt != null && opt;
+                    }
+                    boolean newOptOut = !currentlyOptedOut;
+                    Map<String, Object> data = new java.util.HashMap<>();
+                    data.put("opt_out", newOptOut);
+                    db.collection("events").document(eventId)
+                            .collection("notification_preferences")
+                            .document(userId)
+                            .set(data)
+                            .addOnSuccessListener(aVoid -> {
+                                updateOptOutButton(newOptOut);
+                                String msg = newOptOut ? getString(R.string.opt_out_toast) : getString(R.string.opt_in_toast);
+                                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+                            })
+                            .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                })
+                .addOnFailureListener(e -> Toast.makeText(this, "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
     /**
@@ -807,6 +856,20 @@ public class EventDetailActivity extends AppCompatActivity {
 
         lotteryResultCard.setVisibility(View.VISIBLE);
 
+        if ("chosen".equals(status)) {
+            // Show accept / decline actions
+            if (invitationActionRow != null) {
+                invitationActionRow.setVisibility(View.VISIBLE);
+                setupInvitationActionButtons(status);
+            }
+        } else if ("enrolled".equals(status)) {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        } else if ("cancelled".equals(status)) {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        } else {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        }
+
         if ("chosen".equals(status) || "enrolled".equals(status)) {
             tvLotteryResult.setText("🎉 Congratulations! You were selected in the lottery!");
             tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0"));
@@ -819,6 +882,70 @@ public class EventDetailActivity extends AppCompatActivity {
         }
 
         Log.d(TAG, "Lottery result card visibility set to VISIBLE, action buttons set to GONE");
+    }
+
+    /**
+     * Sets up the accept/decline buttons for the invitation action row.
+     *
+     * @param status the lottery status (e.g., "chosen")
+     */
+    private void setupInvitationActionButtons(String status) {
+        if (currentEvent == null || currentUser == null) return;
+        if (btnAcceptInvitation != null) {
+            btnAcceptInvitation.setOnClickListener(v -> {
+                btnAcceptInvitation.setEnabled(false);
+                btnDeclineInvitation.setEnabled(false);
+                DeclineResamplingService.getInstance()
+                        .acceptInvitation(currentEvent.getId(), currentUser.getId())
+                        .addOnSuccessListener(changed -> {
+                            if (Boolean.TRUE.equals(changed)) {
+                                Toast.makeText(this, "Invitation accepted", Toast.LENGTH_SHORT).show();
+                                invitationActionRow.setVisibility(View.GONE);
+                                tvLotteryResult.setText("You are enrolled!");
+                                tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0"));
+                            } else {
+                                Toast.makeText(this, "Unable to accept (already enrolled or state changed)", Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "Failed to accept: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            btnAcceptInvitation.setEnabled(true);
+                            btnDeclineInvitation.setEnabled(true);
+                        });
+            });
+        }
+        if (btnDeclineInvitation != null) {
+            btnDeclineInvitation.setOnClickListener(v -> {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Decline Invitation")
+                        .setMessage("Are you sure you want to decline your spot? This may be offered to someone else.")
+                        .setPositiveButton("Decline", (d,w) -> {
+                            btnAcceptInvitation.setEnabled(false);
+                            btnDeclineInvitation.setEnabled(false);
+                            DeclineResamplingService.getInstance()
+                                    .declineInvitation(currentEvent.getId(), currentUser.getId())
+                                    .addOnSuccessListener(changed -> {
+                                        if (Boolean.TRUE.equals(changed)) {
+                                            Toast.makeText(this, "Invitation declined", Toast.LENGTH_SHORT).show();
+                                            invitationActionRow.setVisibility(View.GONE);
+                                            tvLotteryResult.setText("You declined your spot.");
+                                            tvLotteryResult.setTextColor(Color.parseColor("#FFD60A"));
+                                        } else {
+                                            Toast.makeText(this, "Unable to decline (state changed)", Toast.LENGTH_SHORT).show();
+                                            btnAcceptInvitation.setEnabled(true);
+                                            btnDeclineInvitation.setEnabled(true);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(this, "Failed to decline: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                        btnAcceptInvitation.setEnabled(true);
+                                        btnDeclineInvitation.setEnabled(true);
+                                    });
+                        })
+                        .setNegativeButton("Cancel", (d,w) -> d.dismiss())
+                        .show();
+            });
+        }
     }
 
     /**

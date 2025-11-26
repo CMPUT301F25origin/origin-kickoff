@@ -216,19 +216,43 @@ public class NotificationService {
                                                 @Nullable String message) {
         String safeTitle = (title == null || title.trim().isEmpty()) ? "Update for " + eventName : title.trim();
         String safeMessage = (message == null || message.trim().isEmpty()) ? "There is an update regarding '" + eventName + "'." : message.trim();
-        List<Task<Void>> tasks = new ArrayList<>();
-        for (String uid : userIds) {
-            String notificationId = db.collection(NOTIFICATIONS_COLL).document().getId();
-            Map<String, Object> data = new HashMap<>();
-            data.put("userId", uid);
-            data.put("eventId", eventId);
-            data.put("type", "waitlist_broadcast");
-            data.put("title", safeTitle);
-            data.put("message", safeMessage);
-            data.put("createdAt", Timestamp.now());
-            data.put("read", false);
-            tasks.add(db.collection(NOTIFICATIONS_COLL).document(notificationId).set(data));
-        }
-        return Tasks.whenAll(tasks);
+
+        // First, load per-event notification preferences to exclude opted-out users
+        return db.collection("events").document(eventId)
+                .collection("notification_preferences")
+                .get()
+                .continueWithTask(prefTask -> {
+                    List<String> optedOut = new ArrayList<>();
+                    if (prefTask.isSuccessful() && prefTask.getResult() != null) {
+                        for (com.google.firebase.firestore.DocumentSnapshot doc : prefTask.getResult().getDocuments()) {
+                            Boolean opt = doc.getBoolean("opt_out");
+                            if (opt != null && opt) {
+                                optedOut.add(doc.getId()); // doc id is userId
+                            }
+                        }
+                    }
+
+                    List<Task<Void>> tasks = new ArrayList<>();
+                    for (String uid : userIds) {
+                        if (optedOut.contains(uid)) {
+                            Log.d(TAG, "Skipping notification for user (opted out): " + uid);
+                            continue;
+                        }
+                        String notificationId = db.collection(NOTIFICATIONS_COLL).document().getId();
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("userId", uid);
+                        data.put("eventId", eventId);
+                        data.put("type", "waitlist_broadcast");
+                        data.put("title", safeTitle);
+                        data.put("message", safeMessage);
+                        data.put("createdAt", Timestamp.now());
+                        data.put("read", false);
+                        tasks.add(db.collection(NOTIFICATIONS_COLL).document(notificationId).set(data));
+                    }
+                    if (tasks.isEmpty()) {
+                        return Tasks.forResult(null);
+                    }
+                    return Tasks.whenAll(tasks);
+                });
     }
 }
