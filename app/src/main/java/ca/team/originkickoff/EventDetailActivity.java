@@ -696,6 +696,8 @@ public class EventDetailActivity extends AppCompatActivity {
 
     private void updateOptOutButton(boolean isOptedOut) {
         if (btnOptOutNotifications == null) return;
+        // Define organizerId locally (was previously undefined in this scope)
+        String organizerId = currentEvent != null ? currentEvent.getOrganizerId() : null;
         if (isOptedOut) {
             btnOptOutNotifications.setText(getString(R.string.opt_in_notifications));
             btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
