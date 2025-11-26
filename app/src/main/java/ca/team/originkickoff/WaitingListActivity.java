@@ -76,7 +76,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         mapPreviewCard = findViewById(R.id.mapPreviewCard);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new WaitingListAdapter();
+        adapter = new WaitingListAdapter(entry -> showRemoveEntrantDialog(entry));
         recyclerView.setAdapter(adapter);
 
         // Load event details first to check geolocation requirement
@@ -314,5 +314,68 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         intent.putExtra("longitudes", longitudes);
         intent.putExtra("user_ids", userIds);
         startActivity(intent);
+    }
+
+    /**
+     * Shows a confirmation dialog to remove the given entrant.
+     */
+    private void showRemoveEntrantDialog(WaitingListEntry entry) {
+        if (entry == null) return;
+        // Fetch user's display name from Firestore, then show confirmation dialog with proper name.
+        String userId = entry.getUserId();
+        if (userId == null || userId.isEmpty()) {
+            showRemoveDialogWithName("Entrant", entry);
+            return;
+        }
+
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    String name = extractDisplayNameFromDoc(doc);
+                    if (name == null || name.isEmpty()) name = userId;
+                    showRemoveDialogWithName(name, entry);
+                })
+                .addOnFailureListener(e -> {
+                    // Fallback to userId on failure
+                    showRemoveDialogWithName(userId, entry);
+                });
+    }
+
+    private void showRemoveDialogWithName(String displayName, WaitingListEntry entry) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.remove_entrant_confirm_title))
+                .setMessage(getString(R.string.remove_entrant_confirm_message, displayName))
+                .setNegativeButton(R.string.cancel, (d, w) -> d.dismiss())
+                .setPositiveButton(R.string.remove_entrant_confirm_remove, (d, w) -> {
+                    // Call service.leave to mark the entrant left and decrement counters
+                    service.leave(eventId, entry.getUserId())
+                            .addOnSuccessListener(changed -> {
+                                if (changed != null && changed) {
+                                    Toast.makeText(this, R.string.remove_entrant_removed, Toast.LENGTH_SHORT).show();
+                                    loadEntries();
+                                } else {
+                                    Toast.makeText(this, R.string.remove_entrant_failed, Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(this, R.string.remove_entrant_failed, Toast.LENGTH_SHORT).show();
+                            });
+                })
+                .show();
+    }
+
+    private String extractDisplayNameFromDoc(com.google.firebase.firestore.DocumentSnapshot doc) {
+        if (doc == null || !doc.exists()) return null;
+        String[] keys = new String[]{"display_name", "displayName", "name", "username", "email"};
+        for (String k : keys) {
+            Object v = doc.get(k);
+            if (v instanceof String) {
+                String s = ((String) v).trim();
+                if (!s.isEmpty()) return s;
+            }
+        }
+        return null;
     }
 }

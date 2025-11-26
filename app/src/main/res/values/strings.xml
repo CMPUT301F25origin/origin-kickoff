@@ -150,4 +150,11 @@ All your data will be erased!</string>
     <string name="error_opening_image">Error opening image</string>
     <string name="stats_format">Waitlist:%1$d  Chosen:%2$d  Enrolled:%3$d  Cancelled:%4$d</string>
     <string name="stats_unavailable">Stats unavailable</string>
+
+    <!-- Waiting List Removal Confirmation -->
+    <string name="remove_entrant_confirm_title">Remove entrant?</string>
+    <string name="remove_entrant_confirm_message">Are you sure you want to remove %1$s from the waiting list?</string>
+    <string name="remove_entrant_confirm_remove">Remove</string>
+    <string name="remove_entrant_removed">Entrant removed</string>
+    <string name="remove_entrant_failed">Failed to remove entrant</string>
 </resources>
