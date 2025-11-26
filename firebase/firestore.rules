@@ -1,0 +1,33 @@
+// Firestore security rules example for the `users` collection.
+// Save this file locally and use `firebase deploy --only firestore:rules` from your project
+// (with Firebase CLI logged into the same project) to apply. Adjust the checks to match your
+// app's exact data model.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection: each document ID should be the Firebase Auth UID.
+    match /users/{userId} {
+
+      // Allow creation only if authenticated and the document ID matches the caller's uid.
+      allow create: if request.auth != null
+                    && request.auth.uid == userId
+                    // Basic shape checks to avoid malformed writes
+                    && request.resource.data.keys().hasAll(['id','device_id','display_name','email','created_at','updated_at'])
+                    && request.resource.data.id == userId;
+
+      // Allow read to everyone (or restrict as needed). Example below restricts reads to the owner.
+      allow get, list: if request.auth != null && request.auth.uid == userId;
+
+      // Allow updates/deletes only by the owner.
+      allow update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Default: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

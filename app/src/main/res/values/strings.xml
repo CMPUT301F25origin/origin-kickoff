@@ -157,4 +157,8 @@ All your data will be erased!</string>
     <string name="remove_entrant_confirm_remove">Remove</string>
     <string name="remove_entrant_removed">Entrant removed</string>
     <string name="remove_entrant_failed">Failed to remove entrant</string>
+    <string name="opt_out_notifications">Opt out of notifications</string>
+    <string name="opt_in_notifications">Opt in to notifications</string>
+    <string name="opt_out_toast">You have opted out of notifications for this event.</string>
+    <string name="opt_in_toast">You will receive notifications for this event.</string>
 </resources>

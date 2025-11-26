@@ -346,6 +346,22 @@
                     app:cornerRadius="999dp"
                     app:elevation="0dp"/>
 
+                <!-- Opt out/in of event notifications (per-user per-event preference) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOptOutNotifications"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/opt_out_notifications"
+                    android:textColor="#003932"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:backgroundTint="#68F0C9"
+                    android:visibility="gone"
+                    app:cornerRadius="999dp"
+                    app:elevation="0dp"/>
+
             </LinearLayout>
 
             <!-- LOTTERY RESULT (Visible after lottery conducted) -->
@@ -388,6 +404,48 @@
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:gravity="center"/>
+
+                    <!-- Added action buttons for invitation response -->
+                    <LinearLayout
+                        android:id="@+id/invitationActionRow"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center"
+                        android:layout_marginTop="16dp"
+                        android:visibility="gone">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnAcceptInvitation"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="Accept"
+                            android:textAllCaps="false"
+                            android:textStyle="bold"
+                            android:textColor="#003932"
+                            android:backgroundTint="#4DE8C0"
+                            app:cornerRadius="999dp"
+                            app:elevation="0dp"/>
+
+                        <Space
+                            android:layout_width="12dp"
+                            android:layout_height="1dp"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnDeclineInvitation"
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_weight="1"
+                            android:text="Decline"
+                            android:textAllCaps="false"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF"
+                            android:backgroundTint="#FF3B30"
+                            app:cornerRadius="999dp"
+                            app:elevation="0dp"/>
+
+                    </LinearLayout>
 
                 </LinearLayout>
 
