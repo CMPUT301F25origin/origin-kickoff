@@ -49,6 +49,16 @@
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_remove_entrant"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Remove"
+            android:textAllCaps="false"
+            android:textColor="?attr/colorError"
+            app:cornerRadius="8dp" />
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

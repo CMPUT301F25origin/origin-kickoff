@@ -4,12 +4,16 @@
 package ca.team.originkickoff.models;
 
 import com.google.firebase.Timestamp;
+import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.PropertyName;
 
 /**
  * Represents an invitation status for a lottery winner tracking acceptance state.
  */
 public class InvitationStatus {
+    @Exclude
+    private String id;
+
     /** Event identifier. */
     @PropertyName("event_id")
     private String eventId;
@@ -44,6 +48,9 @@ public class InvitationStatus {
     }
 
     // Getters and Setters
+    public String getId() { return id; }
+    public void setId(String id) { this.id = id; }
+
     @PropertyName("event_id")
     public String getEventId() { return eventId; }
     @PropertyName("event_id")

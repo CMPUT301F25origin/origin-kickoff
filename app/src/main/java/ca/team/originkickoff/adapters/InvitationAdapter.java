@@ -18,6 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.google.android.material.button.MaterialButton;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -34,17 +35,26 @@ import ca.team.originkickoff.models.InvitationStatus;
  * Adapter for displaying {@link ca.team.originkickoff.models.InvitationStatus} items.
  */
 public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.ViewHolder> {
+
+    public interface OnRemoveEntrantListener {
+        void onRemoveEntrant(InvitationStatus invitation);
+    }
+
     private List<InvitationStatus> invitations;
     private final Map<String, String> nameCache = new HashMap<>();
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private OnRemoveEntrantListener removeEntrantListener;
+    private String status;
 
     /**
      * Creates a new adapter instance.
      * @param invitations initial invitation list (nullable)
      */
-    public InvitationAdapter(List<InvitationStatus> invitations) {
+    public InvitationAdapter(List<InvitationStatus> invitations, OnRemoveEntrantListener listener, String status) {
         this.invitations = invitations;
+        this.removeEntrantListener = listener;
+        this.status = status;
     }
 
     /**
@@ -98,6 +108,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         private final TextView tvUserName;
         private final TextView tvSelectedDate;
         private final ImageView ivProfilePic;
+        private final MaterialButton btnRemoveEntrant;
 
         /**
          * Constructs the holder and binds view references.
@@ -108,6 +119,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             tvUserName = itemView.findViewById(R.id.tv_user_name);
             tvSelectedDate = itemView.findViewById(R.id.tv_selected_date);
             ivProfilePic = itemView.findViewById(R.id.ivProfilePic);
+            btnRemoveEntrant = itemView.findViewById(R.id.btn_remove_entrant);
         }
 
         /**
@@ -132,6 +144,17 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             }
 
             loadProfilePicture(userId);
+
+            if ("chosen".equals(status)) {
+                btnRemoveEntrant.setVisibility(View.VISIBLE);
+                btnRemoveEntrant.setOnClickListener(v -> {
+                    if (removeEntrantListener != null) {
+                        removeEntrantListener.onRemoveEntrant(invitation);
+                    }
+                });
+            } else {
+                btnRemoveEntrant.setVisibility(View.GONE);
+            }
         }
 
         /**

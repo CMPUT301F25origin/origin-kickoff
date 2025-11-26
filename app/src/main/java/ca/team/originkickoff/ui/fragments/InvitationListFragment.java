@@ -11,15 +11,20 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.firebase.firestore.WriteBatch;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +36,7 @@ import ca.team.originkickoff.models.InvitationStatus;
 /**
  * Fragment for displaying a list of invitations filtered by a specific status.
  */
-public class InvitationListFragment extends Fragment {
+public class InvitationListFragment extends Fragment implements InvitationAdapter.OnRemoveEntrantListener {
     private static final String TAG = "InvitationListFragment";
     private static final String ARG_EVENT_ID = "event_id";
     private static final String ARG_STATUS = "status";
@@ -43,13 +48,6 @@ public class InvitationListFragment extends Fragment {
     private TextView tvEmpty;
     private InvitationAdapter adapter;
 
-    /**
-     * Factory method to build a fragment scoped to an event and status filter.
-     *
-     * @param eventId target event ID
-     * @param status  invitation status to display
-     * @return configured fragment instance
-     */
     public static InvitationListFragment newInstance(String eventId, String status) {
         InvitationListFragment fragment = new InvitationListFragment();
         Bundle args = new Bundle();
@@ -59,9 +57,6 @@ public class InvitationListFragment extends Fragment {
         return fragment;
     }
 
-    /**
-     * Reads arguments passed by the factory method.
-     */
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -71,14 +66,6 @@ public class InvitationListFragment extends Fragment {
         }
     }
 
-    /**
-     * Inflates the layout and initializes RecyclerView bindings.
-     *
-     * @param inflater  layout inflater
-     * @param container parent container
-     * @param savedInstanceState prior state bundle
-     * @return inflated view
-     */
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
@@ -90,7 +77,7 @@ public class InvitationListFragment extends Fragment {
         tvEmpty = view.findViewById(R.id.tv_empty);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new InvitationAdapter(new ArrayList<>());
+        adapter = new InvitationAdapter(new ArrayList<>(), this, status);
         recyclerView.setAdapter(adapter);
 
         loadInvitations();
@@ -98,9 +85,6 @@ public class InvitationListFragment extends Fragment {
         return view;
     }
 
-    /**
-     * Subscribes to invitation_status documents and updates the adapter.
-     */
     private void loadInvitations() {
         progressBar.setVisibility(View.VISIBLE);
         tvEmpty.setVisibility(View.GONE);
@@ -122,19 +106,18 @@ public class InvitationListFragment extends Fragment {
                         List<InvitationStatus> invitations = new ArrayList<>();
                         for (QueryDocumentSnapshot doc : snapshots) {
                             InvitationStatus invitation = doc.toObject(InvitationStatus.class);
+                            invitation.setId(doc.getId()); // Capture the document ID for later use
                             invitations.add(invitation);
                         }
                         adapter.updateData(invitations);
                         tvEmpty.setVisibility(View.GONE);
                     } else {
+                        adapter.updateData(new ArrayList<>()); // Clear the list on empty results
                         showEmpty();
                     }
                 });
     }
 
-    /**
-     * Shows a context-aware empty message based on the selected status.
-     */
     private void showEmpty() {
         tvEmpty.setVisibility(View.VISIBLE);
         String message;
@@ -152,5 +135,62 @@ public class InvitationListFragment extends Fragment {
                 message = "No results";
         }
         tvEmpty.setText(message);
+    }
+
+    @Override
+    public void onRemoveEntrant(InvitationStatus invitation) {
+        new AlertDialog.Builder(getContext())
+                .setTitle("Remove Entrant")
+                .setMessage("Are you sure you want to remove this entrant from the lottery?")
+                .setPositiveButton("Remove", (dialog, which) -> {
+                    removeEntrantFromLottery(invitation);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void removeEntrantFromLottery(InvitationStatus invitation) {
+        progressBar.setVisibility(View.VISIBLE);
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+
+        db.collection("lottery_results")
+                .whereEqualTo("event_id", eventId)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    if (!queryDocumentSnapshots.isEmpty()) {
+                        String lotteryResultDocId = queryDocumentSnapshots.getDocuments().get(0).getId();
+
+                        // Create a batch write to perform both updates atomically
+                        WriteBatch batch = db.batch();
+
+                        // Action 1: Remove user from the 'winner_ids' array in lottery_results
+                        DocumentReference lotteryResultRef = db.collection("lottery_results").document(lotteryResultDocId);
+                        batch.update(lotteryResultRef, "winner_ids", FieldValue.arrayRemove(invitation.getUserId()));
+
+                        // Action 2: Update the user's status to 'cancelled' in their invitation document
+                        DocumentReference invitationStatusRef = db.collection("invitation_status").document(invitation.getId());
+                        batch.update(invitationStatusRef, "status", "cancelled");
+
+                        // Commit the atomic batch
+                        batch.commit()
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(getContext(), "Entrant has been removed.", Toast.LENGTH_SHORT).show();
+                                    progressBar.setVisibility(View.GONE);
+                                    // The UI will now update automatically via the snapshot listener
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(getContext(), "Failed to remove entrant.", Toast.LENGTH_SHORT).show();
+                                    Log.e(TAG, "Failed to commit batch remove", e);
+                                    progressBar.setVisibility(View.GONE);
+                                });
+                    } else {
+                        Toast.makeText(getContext(), "Lottery results document not found.", Toast.LENGTH_SHORT).show();
+                        progressBar.setVisibility(View.GONE);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(getContext(), "Failed to find lottery results: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    progressBar.setVisibility(View.GONE);
+                });
     }
 }
