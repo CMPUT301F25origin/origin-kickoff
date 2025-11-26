@@ -43,6 +43,7 @@ import java.util.Map;
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
+import ca.team.originkickoff.services.DeclineResamplingService;
 import ca.team.originkickoff.services.WaitingListService;
 
 /**
@@ -74,6 +75,9 @@ public class EventDetailActivity extends AppCompatActivity {
     private LinearLayout actionButtonsContainer;
     private CardView lotteryResultCard;
     private TextView tvLotteryResult;
+    private LinearLayout invitationActionRow; // row with accept/decline buttons
+    private com.google.android.material.button.MaterialButton btnAcceptInvitation;
+    private com.google.android.material.button.MaterialButton btnDeclineInvitation;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -154,6 +158,9 @@ public class EventDetailActivity extends AppCompatActivity {
         actionButtonsContainer = findViewById(R.id.actionButtonsContainer);
         lotteryResultCard = findViewById(R.id.lotteryResultCard);
         tvLotteryResult = findViewById(R.id.tvLotteryResult);
+        invitationActionRow = findViewById(R.id.invitationActionRow);
+        btnAcceptInvitation = findViewById(R.id.btnAcceptInvitation);
+        btnDeclineInvitation = findViewById(R.id.btnDeclineInvitation);
     }
 
     /**
@@ -840,6 +847,20 @@ public class EventDetailActivity extends AppCompatActivity {
 
         lotteryResultCard.setVisibility(View.VISIBLE);
 
+        if ("chosen".equals(status)) {
+            // Show accept / decline actions
+            if (invitationActionRow != null) {
+                invitationActionRow.setVisibility(View.VISIBLE);
+                setupInvitationActionButtons(status);
+            }
+        } else if ("enrolled".equals(status)) {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        } else if ("cancelled".equals(status)) {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        } else {
+            if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+        }
+
         if ("chosen".equals(status) || "enrolled".equals(status)) {
             tvLotteryResult.setText("🎉 Congratulations! You were selected in the lottery!");
             tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0"));
@@ -852,6 +873,70 @@ public class EventDetailActivity extends AppCompatActivity {
         }
 
         Log.d(TAG, "Lottery result card visibility set to VISIBLE, action buttons set to GONE");
+    }
+
+    /**
+     * Sets up the accept/decline buttons for the invitation action row.
+     *
+     * @param status the lottery status (e.g., "chosen")
+     */
+    private void setupInvitationActionButtons(String status) {
+        if (currentEvent == null || currentUser == null) return;
+        if (btnAcceptInvitation != null) {
+            btnAcceptInvitation.setOnClickListener(v -> {
+                btnAcceptInvitation.setEnabled(false);
+                btnDeclineInvitation.setEnabled(false);
+                DeclineResamplingService.getInstance()
+                        .acceptInvitation(currentEvent.getId(), currentUser.getId())
+                        .addOnSuccessListener(changed -> {
+                            if (Boolean.TRUE.equals(changed)) {
+                                Toast.makeText(this, "Invitation accepted", Toast.LENGTH_SHORT).show();
+                                invitationActionRow.setVisibility(View.GONE);
+                                tvLotteryResult.setText("You are enrolled!");
+                                tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0"));
+                            } else {
+                                Toast.makeText(this, "Unable to accept (already enrolled or state changed)", Toast.LENGTH_SHORT).show();
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "Failed to accept: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            btnAcceptInvitation.setEnabled(true);
+                            btnDeclineInvitation.setEnabled(true);
+                        });
+            });
+        }
+        if (btnDeclineInvitation != null) {
+            btnDeclineInvitation.setOnClickListener(v -> {
+                new androidx.appcompat.app.AlertDialog.Builder(this)
+                        .setTitle("Decline Invitation")
+                        .setMessage("Are you sure you want to decline your spot? This may be offered to someone else.")
+                        .setPositiveButton("Decline", (d,w) -> {
+                            btnAcceptInvitation.setEnabled(false);
+                            btnDeclineInvitation.setEnabled(false);
+                            DeclineResamplingService.getInstance()
+                                    .declineInvitation(currentEvent.getId(), currentUser.getId())
+                                    .addOnSuccessListener(changed -> {
+                                        if (Boolean.TRUE.equals(changed)) {
+                                            Toast.makeText(this, "Invitation declined", Toast.LENGTH_SHORT).show();
+                                            invitationActionRow.setVisibility(View.GONE);
+                                            tvLotteryResult.setText("You declined your spot.");
+                                            tvLotteryResult.setTextColor(Color.parseColor("#FFD60A"));
+                                        } else {
+                                            Toast.makeText(this, "Unable to decline (state changed)", Toast.LENGTH_SHORT).show();
+                                            btnAcceptInvitation.setEnabled(true);
+                                            btnDeclineInvitation.setEnabled(true);
+                                        }
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(this, "Failed to decline: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                        btnAcceptInvitation.setEnabled(true);
+                                        btnDeclineInvitation.setEnabled(true);
+                                    });
+                        })
+                        .setNegativeButton("Cancel", (d,w) -> d.dismiss())
+                        .show();
+            });
+        }
     }
 
     /**
