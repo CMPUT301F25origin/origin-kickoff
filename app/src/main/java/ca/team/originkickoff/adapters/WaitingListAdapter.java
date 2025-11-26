@@ -37,6 +37,15 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
     private final Map<String, String> nameCache = new HashMap<>();
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final OnEntrantClickListener entrantClickListener;
+
+    // Listener interface for entry click actions (e.g. show remove dialog)
+    public interface OnEntrantClickListener { void onEntrantClick(WaitingListEntry entry); }
+
+    // Default constructor kept for compatibility, but prefer using the listener-aware ctor
+    public WaitingListAdapter() { this.entrantClickListener = null; }
+
+    public WaitingListAdapter(OnEntrantClickListener listener) { this.entrantClickListener = listener; }
 
     /**
      * Inflates a waiting-list row view.
@@ -73,6 +82,14 @@ public class WaitingListAdapter extends RecyclerView.Adapter<WaitingListAdapter.
         }
 
         loadProfilePicture(holder, userId);
+
+        // When organizer taps the name, delegate to listener to prompt removal (consistent with app dialogs)
+        // Make the whole row clickable (adapter user can decide behavior via listener)
+        if (entrantClickListener != null) {
+            holder.itemView.setOnClickListener(v -> entrantClickListener.onEntrantClick(e));
+        } else {
+            holder.itemView.setOnClickListener(null);
+        }
     }
 
     /**

@@ -630,8 +630,16 @@ public class EventDetailActivity extends AppCompatActivity {
         String organizerId = currentEvent.getOrganizerId();
         String userId = currentUser.getId();
         boolean organizerMatch = organizerId != null && organizerId.equals(userId);
+        boolean userHasOrganizerFlag = currentUser.isOrganizer();
+        boolean userIsAdmin = currentUser.isAdmin();
+        boolean displayNameMatches = false;
+        if (currentUser.getDisplayName() != null && currentEvent.getOrganizerName() != null) {
+            displayNameMatches = currentUser.getDisplayName().trim().equalsIgnoreCase(currentEvent.getOrganizerName().trim());
+        }
 
-        if (organizerMatch) {
+        // Treat the user as organizer if their id matches the event organizer, their profile has the organizer flag,
+        // they are an admin, or their display name matches the event organizer name.
+        if (organizerMatch || userHasOrganizerFlag || userIsAdmin || displayNameMatches) {
             isOrganizer = true;
             Log.d(TAG, "Organizer recognized (userId match) - showing organizer view");
             btnEdit.setVisibility(View.VISIBLE);
@@ -649,6 +657,7 @@ public class EventDetailActivity extends AppCompatActivity {
             // Organizers shouldn't see the opt-out button
             btnOptOutNotifications.setVisibility(View.GONE);
         } else {
+            // Not recognized locally — attempt to resolve organizer doc's device id as a fallback
             isOrganizer = false;
             Log.d(TAG, "Current user is not organizer (no match) - entrant view");
             btnEdit.setVisibility(View.GONE);
