@@ -106,25 +106,43 @@ public class ManageNotificationsActivity extends AppCompatActivity {
 
     private void loadStats() {
         waitingListService.countActive(eventId)
-                .addOnSuccessListener(waitlistCount -> FirebaseFirestore.getInstance()
-                        .collection("invitation_status")
-                        .whereEqualTo("event_id", eventId)
-                        .get()
-                        .addOnSuccessListener(snaps -> {
-                            int chosen = 0, enrolled = 0, cancelled = 0;
-                            for (QueryDocumentSnapshot d : snaps) {
-                                String status = d.getString("status");
-                                if ("chosen".equals(status)) chosen++;
-                                else if ("enrolled".equals(status)) enrolled++;
-                                else if ("cancelled".equals(status)) cancelled++;
-                            }
-                            tvStats.setText(getString(R.string.stats_format, waitlistCount, chosen, enrolled, cancelled));
-                            showLoading(false);
-                        })
-                        .addOnFailureListener(e -> {
-                            tvStats.setText(R.string.stats_unavailable);
-                            showLoading(false);
-                        }))
+                .addOnSuccessListener(waitlistCount -> {
+                    final int activeWaitlistCount = waitlistCount; // ensure effectively final
+                    FirebaseFirestore db = FirebaseFirestore.getInstance();
+                    db.collection("invitation_status")
+                            .whereEqualTo("event_id", eventId)
+                            .get()
+                            .addOnSuccessListener(invSnaps -> {
+                                int chosenTmp = 0, enrolledTmp = 0, cancelledInvTmp = 0;
+                                for (QueryDocumentSnapshot d : invSnaps) {
+                                    String status = d.getString("status");
+                                    if ("chosen".equals(status)) chosenTmp++;
+                                    else if ("enrolled".equals(status)) enrolledTmp++;
+                                    else if ("cancelled".equals(status)) cancelledInvTmp++;
+                                }
+                                final int chosen = chosenTmp;
+                                final int enrolled = enrolledTmp;
+                                final int cancelledInv = cancelledInvTmp;
+                                db.collection("waiting_list_entries")
+                                        .whereEqualTo("event_id", eventId)
+                                        .whereEqualTo("state", "left")
+                                        .get()
+                                        .addOnSuccessListener(leftSnaps -> {
+                                            int removed = leftSnaps.size();
+                                            final int totalCancelled = cancelledInv + removed;
+                                            tvStats.setText(getString(R.string.stats_format, activeWaitlistCount, chosen, enrolled, totalCancelled));
+                                            showLoading(false);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            tvStats.setText(getString(R.string.stats_format, activeWaitlistCount, chosen, enrolled, cancelledInv));
+                                            showLoading(false);
+                                        });
+                            })
+                            .addOnFailureListener(e -> {
+                                tvStats.setText(R.string.stats_unavailable);
+                                showLoading(false);
+                            });
+                })
                 .addOnFailureListener(e -> {
                     tvStats.setText(R.string.stats_unavailable);
                     showLoading(false);
@@ -147,6 +165,13 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                     .addOnFailureListener(e -> { showLoading(false); Toast.makeText(this, R.string.broadcast_failed, Toast.LENGTH_SHORT).show(); });
             return;
         }
+        if (group == Group.CANCELLED) {
+            fetchCancelledEntrantIds(eventId, new CancelledEntrantsCallback() {
+                @Override public void onSuccess(java.util.List<String> ids) { showLoading(false); promptBroadcast(ids, eventName); }
+                @Override public void onError(Exception e) { showLoading(false); Toast.makeText(ManageNotificationsActivity.this, R.string.broadcast_failed, Toast.LENGTH_SHORT).show(); }
+            });
+            return;
+        }
         String status = mapGroupToStatus(group);
         FirebaseFirestore.getInstance().collection("invitation_status")
                 .whereEqualTo("event_id", eventId)
@@ -165,6 +190,39 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                     showLoading(false);
                     Toast.makeText(this, R.string.broadcast_failed, Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    /**
+     * Fetch union of users who are considered "cancelled entrants":
+     * 1) invitation_status documents with status=cancelled (declined winners)
+     * 2) waiting_list_entries state=left (manually removed / self left prior to lottery)
+     */
+    private void fetchCancelledEntrantIds(String eventId, CancelledEntrantsCallback cb) {
+        FirebaseFirestore db = FirebaseFirestore.getInstance();
+        db.collection("invitation_status")
+                .whereEqualTo("event_id", eventId)
+                .whereEqualTo("status", "cancelled")
+                .get()
+                .addOnSuccessListener(invCancelled -> {
+                    java.util.Set<String> userIds = new java.util.HashSet<>();
+                    for (QueryDocumentSnapshot doc : invCancelled) {
+                        String uid = doc.getString("user_id");
+                        if (uid != null && !uid.isEmpty()) userIds.add(uid);
+                    }
+                    db.collection("waiting_list_entries")
+                            .whereEqualTo("event_id", eventId)
+                            .whereEqualTo("state", "left")
+                            .get()
+                            .addOnSuccessListener(waitlistLeft -> {
+                                for (QueryDocumentSnapshot doc : waitlistLeft) {
+                                    String uid = doc.getString("user_id");
+                                    if (uid != null && !uid.isEmpty()) userIds.add(uid);
+                                }
+                                cb.onSuccess(new java.util.ArrayList<>(userIds));
+                            })
+                            .addOnFailureListener(cb::onError);
+                })
+                .addOnFailureListener(cb::onError);
     }
 
     private String mapGroupToStatus(Group g) {
@@ -221,5 +279,10 @@ public class ManageNotificationsActivity extends AppCompatActivity {
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    private interface CancelledEntrantsCallback {
+        void onSuccess(java.util.List<String> ids);
+        void onError(Exception e);
     }
 }
