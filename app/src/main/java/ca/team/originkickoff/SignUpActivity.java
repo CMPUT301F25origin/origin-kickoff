@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -57,6 +58,13 @@ public class SignUpActivity extends AppCompatActivity {
         btnSignUp = findViewById(R.id.btnSignUp);
 
         btnSignUp.setOnClickListener(v -> signUp());
+
+        // Bind admin test button if present
+        int adminBtnId = getResources().getIdentifier("btnAdminSignIn", "id", getPackageName());
+        View adminBtn = adminBtnId != 0 ? findViewById(adminBtnId) : null;
+        if (adminBtn != null) {
+            adminBtn.setOnClickListener(v -> quickAdminSignIn());
+        }
 
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
     }
@@ -146,5 +154,44 @@ public class SignUpActivity extends AppCompatActivity {
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void quickAdminSignIn() {
+        String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+        // Ensure FirebaseAuth session exists (anonymous is fine)
+        if (mAuth.getCurrentUser() == null) {
+            mAuth.signInAnonymously()
+                .addOnSuccessListener(authResult -> upsertAdminAndOpen(deviceId))
+                .addOnFailureListener(e -> Toast.makeText(this, "Admin sign-in failed: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        } else {
+            upsertAdminAndOpen(deviceId);
+        }
+    }
+
+    private void upsertAdminAndOpen(String deviceId) {
+        String uid = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getUid() : deviceId;
+        Map<String, Object> admin = new HashMap<>();
+        admin.put("id", uid);
+        admin.put("device_id", deviceId);
+        admin.put("display_name", "Test Admin");
+        admin.put("email", "admin@test.local");
+        admin.put("is_admin", true);
+        admin.put("is_organizer", false);
+        admin.put("notif_marketing", false);
+        admin.put("notif_service", true);
+        admin.put("updated_at", FieldValue.serverTimestamp());
+        admin.put("created_at", FieldValue.serverTimestamp());
+
+        db.collection("users").document(uid).set(admin)
+            .addOnSuccessListener(aVoid -> {
+                Toast.makeText(this, "Signed in as Admin (test)", Toast.LENGTH_SHORT).show();
+                // Use explicit component name to avoid class reference indexing issues
+                Intent i = new Intent();
+                i.setClassName(getPackageName(), "ca.team.originkickoff.AdminEventsActivity");
+                i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(i);
+                finish();
+            })
+            .addOnFailureListener(e -> Toast.makeText(this, "Failed to create admin: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 }
