@@ -61,8 +61,8 @@
         <activity android:name=".MyEventsActivity" android:exported="false" android:launchMode="singleTop" />
         <activity android:name=".WaitlistMapActivity" android:exported="false" />
 
-        <!-- Admin test activity -->
-        <activity android:name=".AdminEventsActivity" android:exported="false" />
+        <!-- Organizer entrants screen -->
+        <activity android:name=".ui.OrganizerEntrantsActivity" android:exported="false" />
 
     </application>
 

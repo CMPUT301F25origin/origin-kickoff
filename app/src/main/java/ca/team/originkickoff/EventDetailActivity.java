@@ -39,7 +39,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
 import java.util.Map;
-
+import java.util.List;
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
@@ -630,8 +630,16 @@ public class EventDetailActivity extends AppCompatActivity {
         String organizerId = currentEvent.getOrganizerId();
         String userId = currentUser.getId();
         boolean organizerMatch = organizerId != null && organizerId.equals(userId);
+        boolean userHasOrganizerFlag = currentUser.isOrganizer();
+        boolean userIsAdmin = currentUser.isAdmin();
+        boolean displayNameMatches = false;
+        if (currentUser.getDisplayName() != null && currentEvent.getOrganizerName() != null) {
+            displayNameMatches = currentUser.getDisplayName().trim().equalsIgnoreCase(currentEvent.getOrganizerName().trim());
+        }
 
-        if (organizerMatch) {
+        // Treat the user as organizer if their id matches the event organizer, their profile has the organizer flag,
+        // they are an admin, or their display name matches the event organizer name.
+        if (organizerMatch || userHasOrganizerFlag || userIsAdmin || displayNameMatches) {
             isOrganizer = true;
             Log.d(TAG, "Organizer recognized (userId match) - showing organizer view");
             btnEdit.setVisibility(View.VISIBLE);
@@ -649,6 +657,7 @@ public class EventDetailActivity extends AppCompatActivity {
             // Organizers shouldn't see the opt-out button
             btnOptOutNotifications.setVisibility(View.GONE);
         } else {
+            // Not recognized locally — attempt to resolve organizer doc's device id as a fallback
             isOrganizer = false;
             Log.d(TAG, "Current user is not organizer (no match) - entrant view");
             btnEdit.setVisibility(View.GONE);
@@ -687,6 +696,8 @@ public class EventDetailActivity extends AppCompatActivity {
 
     private void updateOptOutButton(boolean isOptedOut) {
         if (btnOptOutNotifications == null) return;
+        // Define organizerId locally (was previously undefined in this scope)
+        String organizerId = currentEvent != null ? currentEvent.getOrganizerId() : null;
         if (isOptedOut) {
             btnOptOutNotifications.setText(getString(R.string.opt_in_notifications));
             btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
@@ -695,6 +706,55 @@ public class EventDetailActivity extends AppCompatActivity {
             btnOptOutNotifications.setText(getString(R.string.opt_out_notifications));
             btnOptOutNotifications.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#68F0C9")));
             btnOptOutNotifications.setTextColor(Color.parseColor("#003932"));
+            Log.d(TAG, "Current user not recognized as organizer locally. Attempting organizer doc fallback.");
+            if (organizerId != null && !organizerId.isEmpty()) {
+                db.collection("users").document(organizerId).get()
+                        .addOnSuccessListener(doc -> {
+                            if (doc != null && doc.exists()) {
+                                String organizerDeviceId = doc.getString("device_id");
+                                String organizerDisplayName = doc.getString("display_name");
+                                String organizerEmail = doc.getString("email");
+                                String currentDeviceId = currentUser.getDeviceId();
+                                String currentDisplayName = currentUser.getDisplayName();
+                                String currentEmail = currentUser.getEmail();
+
+                                boolean matchesDevice = organizerDeviceId != null && currentDeviceId != null && organizerDeviceId.equals(currentDeviceId);
+                                boolean matchesDisplayName = organizerDisplayName != null && currentDisplayName != null && organizerDisplayName.trim().equalsIgnoreCase(currentDisplayName.trim());
+                                boolean matchesEmail = organizerEmail != null && currentEmail != null && organizerEmail.trim().equalsIgnoreCase(currentEmail.trim());
+
+                                if (matchesDevice || matchesDisplayName || matchesEmail) {
+                                    // The organizer document appears to refer to this user/device -> treat as organizer
+                                    isOrganizer = true;
+                                    Log.d(TAG, "Organizer doc appears to match current user -> enabling organizer view");
+                                    btnEdit.setVisibility(View.VISIBLE);
+                                    btnEdit.setOnClickListener(v -> openEditEvent());
+                                    btnJoinWaitingList.setText(getString(R.string.manage_entrants));
+                                    btnJoinWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+                                    btnJoinWaitingList.setTextColor(Color.parseColor("#003932"));
+                                    btnJoinWaitingList.setOnClickListener(v -> openManageEntrants());
+                                    checkLotteryStatusAndUpdateButton();
+                                    btnManageNotifications.setVisibility(View.VISIBLE);
+                                    btnManageNotifications.setOnClickListener(v -> openManageNotifications());
+                                    return;
+                                }
+                            }
+                            // Fallback still not matched -> entrant view
+                            Log.d(TAG, "Organizer fallback did not match; showing entrant view");
+                            btnEdit.setVisibility(View.GONE);
+                            btnManageNotifications.setVisibility(View.GONE);
+                            checkLotteryStatusForEntrant();
+                        })
+                        .addOnFailureListener(e -> {
+                            Log.e(TAG, "Failed to load organizer user doc for fallback check", e);
+                            btnEdit.setVisibility(View.GONE);
+                            btnManageNotifications.setVisibility(View.GONE);
+                            checkLotteryStatusForEntrant();
+                        });
+            } else {
+                btnEdit.setVisibility(View.GONE);
+                btnManageNotifications.setVisibility(View.GONE);
+                checkLotteryStatusForEntrant();
+            }
         }
     }
 
