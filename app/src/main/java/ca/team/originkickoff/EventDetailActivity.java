@@ -87,6 +87,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private final UserRepository userRepository = new UserRepository();
     private User currentUser;
     private boolean isOrganizer = false;
+    private boolean isAdminViewOnly = false; // Admin browsing mode - read-only
     private FusedLocationProviderClient fusedLocationClient;
     private boolean isShowingLotteryResult = false;
 
@@ -106,6 +107,8 @@ public class EventDetailActivity extends AppCompatActivity {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
         eventId = getIntent().getStringExtra(EXTRA_EVENT_ID);
+        isAdminViewOnly = getIntent().getBooleanExtra("admin_view_only", false);
+
         if (eventId == null) {
             Toast.makeText(this, "Error: Event not found", Toast.LENGTH_SHORT).show();
             finish();
@@ -114,6 +117,15 @@ public class EventDetailActivity extends AppCompatActivity {
 
         initializeViews();
         setupListeners();
+
+        // Hide bottom navigation if admin is in view-only mode
+        if (isAdminViewOnly) {
+            View bottomNav = findViewById(R.id.bottomNav);
+            if (bottomNav != null) {
+                bottomNav.setVisibility(View.GONE);
+            }
+        }
+
         resolveCurrentUser();
         loadEventData();
     }
@@ -197,6 +209,12 @@ public class EventDetailActivity extends AppCompatActivity {
                 openImageViewer(currentEvent.getPosterBase64());
             }
         });
+
+        // Disable navigation if admin is in view-only mode
+        if (isAdminViewOnly) {
+            // No bottom navigation setup for admin view-only
+            return;
+        }
 
         LinearLayout navHome = findViewById(R.id.navHome);
         navHome.setOnClickListener(v -> navigateBottomTab(MainActivity.class));
@@ -627,15 +645,37 @@ public class EventDetailActivity extends AppCompatActivity {
             isOrganizer = false;
             return;
         }
+
         String organizerId = currentEvent.getOrganizerId();
         String userId = currentUser.getId();
         boolean organizerMatch = organizerId != null && organizerId.equals(userId);
         boolean userIsAdmin = currentUser.isAdmin();
 
-        // Treat the user as organizer ONLY if their id matches the event organizer or if they are an admin
-        if (organizerMatch || userIsAdmin) {
+        // If user is admin but NOT the organizer of this specific event, enable view-only mode
+        if (userIsAdmin && !organizerMatch) {
+            isAdminViewOnly = true;
+        }
+
+        // If admin is in view-only mode (browsing), hide all action buttons
+        if (isAdminViewOnly) {
+            Log.d(TAG, "Admin view-only mode - hiding all action buttons");
+            isOrganizer = false;
+            btnEdit.setVisibility(View.GONE);
+            btnJoinWaitingList.setVisibility(View.GONE);
+            btnLotteryCriteria.setVisibility(View.GONE);
+            btnManageNotifications.setVisibility(View.GONE);
+            btnOptOutNotifications.setVisibility(View.GONE);
+            lotteryResultCard.setVisibility(View.GONE);
+            qrCodeSection.setVisibility(View.GONE);
+            // Show read-only indicator
+            Toast.makeText(this, "Viewing as Admin (Read-Only)", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Treat the user as organizer ONLY if their id matches the event organizer
+        if (organizerMatch) {
             isOrganizer = true;
-            Log.d(TAG, "Organizer recognized (userId match or admin) - showing organizer view");
+            Log.d(TAG, "Organizer recognized (userId match) - showing organizer view");
             btnEdit.setVisibility(View.VISIBLE);
             btnEdit.setOnClickListener(v -> openEditEvent());
             btnJoinWaitingList.setText("Manage Entrants");

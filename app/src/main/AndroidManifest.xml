@@ -64,6 +64,9 @@
         <!-- Organizer entrants screen -->
         <activity android:name=".ui.OrganizerEntrantsActivity" android:exported="false" />
 
+        <!-- Admin screens -->
+        <activity android:name=".AdminEventsActivity" android:exported="false" />
+
     </application>
 
 </manifest>
