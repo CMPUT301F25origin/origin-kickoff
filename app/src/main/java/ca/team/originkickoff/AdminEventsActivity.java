@@ -61,6 +61,13 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
             back.setOnClickListener(v -> finish());
         }
 
+        if (rvAdminEvents == null) {
+            Log.e(TAG, "RecyclerView not found, using fallback");
+            Toast.makeText(this, "Error loading view", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         adapter = new EventAdapter(this);
         rvAdminEvents.setLayoutManager(new LinearLayoutManager(this));
         rvAdminEvents.setAdapter(adapter);
@@ -75,7 +82,9 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
             public void onSuccess(List<Event> events) {
                 if (progress != null) progress.setVisibility(View.GONE);
                 if (events == null) events = new ArrayList<>();
-                adapter.setEvents(events);
+                if (adapter != null) {
+                    adapter.setEvents(events);
+                }
                 if (tvEmpty != null) tvEmpty.setVisibility(events.isEmpty() ? View.VISIBLE : View.GONE);
             }
 
@@ -94,6 +103,13 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
 
     @Override
     public void onEventClick(Event event) {
-        Toast.makeText(this, event.getName(), Toast.LENGTH_SHORT).show();
+        // Admin can only view/browse events - open in read-only mode
+        Toast.makeText(this, "Viewing event: " + event.getName(), Toast.LENGTH_SHORT).show();
+
+        // Open event detail activity to view event information
+        android.content.Intent intent = new android.content.Intent(this, EventDetailActivity.class);
+        intent.putExtra("event_id", event.getId());
+        intent.putExtra("admin_view_only", true); // Flag to indicate admin read-only mode
+        startActivity(intent);
     }
 }
