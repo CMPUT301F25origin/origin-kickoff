@@ -185,9 +185,8 @@ public class SignUpActivity extends AppCompatActivity {
         db.collection("users").document(uid).set(admin)
             .addOnSuccessListener(aVoid -> {
                 Toast.makeText(this, "Signed in as Admin (test)", Toast.LENGTH_SHORT).show();
-                // Use explicit component name to avoid class reference indexing issues
                 Intent i = new Intent();
-                i.setClassName(getPackageName(), "ca.team.originkickoff.AdminEventsActivity");
+                i.setClassName(getPackageName(), "ca.team.originkickoff.AdminMainActivity");
                 i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
                 startActivity(i);
                 finish();

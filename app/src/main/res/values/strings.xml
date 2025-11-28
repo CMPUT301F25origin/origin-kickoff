@@ -161,4 +161,17 @@ All your data will be erased!</string>
     <string name="opt_in_notifications">Opt in to notifications</string>
     <string name="opt_out_toast">You have opted out of notifications for this event.</string>
     <string name="opt_in_toast">You will receive notifications for this event.</string>
+    <string name="failed_to_load_users">Failed to load users</string>
+    <string name="role_admin">Admin</string>
+    <string name="role_organizer">Organizer</string>
+    <string name="role_entrant">Entrant</string>
+    <string name="unknown">Unknown</string>
+
+    <!-- Admin Dashboard -->
+    <string name="admin_dashboard">Dashboard</string>
+    <string name="admin_events">Events</string>
+    <string name="admin_users">Users</string>
+    <string name="admin_images">Images</string>
+    <string name="admin_logs">Logs</string>
+    <string name="remove">Remove</string>
 </resources>

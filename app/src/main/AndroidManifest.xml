@@ -66,6 +66,10 @@
 
         <!-- Admin screens -->
         <activity android:name=".AdminEventsActivity" android:exported="false" />
+        <activity android:name=".AdminMainActivity" android:exported="false" />
+        <activity android:name=".AdminUsersActivity" android:exported="false" />
+        <activity android:name=".AdminImagesActivity" android:exported="false" />
+        <activity android:name=".AdminLogsActivity" android:exported="false" />
 
     </application>
 

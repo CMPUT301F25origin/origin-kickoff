@@ -126,10 +126,11 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                                 db.collection("waiting_list_entries")
                                         .whereEqualTo("event_id", eventId)
                                         .whereEqualTo("state", "left")
+                                        .whereEqualTo("removed_by_organizer", true)
                                         .get()
                                         .addOnSuccessListener(leftSnaps -> {
-                                            int removed = leftSnaps.size();
-                                            final int totalCancelled = cancelledInv + removed;
+                                            int removedByOrganizer = leftSnaps.size();
+                                            final int totalCancelled = cancelledInv + removedByOrganizer;
                                             tvStats.setText(getString(R.string.stats_format, activeWaitlistCount, chosen, enrolled, totalCancelled));
                                             showLoading(false);
                                         })
@@ -195,7 +196,7 @@ public class ManageNotificationsActivity extends AppCompatActivity {
     /**
      * Fetch union of users who are considered "cancelled entrants":
      * 1) invitation_status documents with status=cancelled (declined winners)
-     * 2) waiting_list_entries state=left (manually removed / self left prior to lottery)
+     * 2) waiting_list_entries state=left AND removed_by_organizer=true (explicit organizer removals)
      */
     private void fetchCancelledEntrantIds(String eventId, CancelledEntrantsCallback cb) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -212,6 +213,7 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                     db.collection("waiting_list_entries")
                             .whereEqualTo("event_id", eventId)
                             .whereEqualTo("state", "left")
+                            .whereEqualTo("removed_by_organizer", true)
                             .get()
                             .addOnSuccessListener(waitlistLeft -> {
                                 for (QueryDocumentSnapshot doc : waitlistLeft) {
