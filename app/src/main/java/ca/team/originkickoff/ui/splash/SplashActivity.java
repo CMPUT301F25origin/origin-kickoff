@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 
-import ca.team.originkickoff.AdminEventsActivity;
+import ca.team.originkickoff.AdminMainActivity;
 import ca.team.originkickoff.MainActivity;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.SignUpActivity;
@@ -48,7 +48,7 @@ public class SplashActivity extends AppCompatActivity {
                         // Check if user is admin
                         Boolean isAdmin = legacyDoc.getBoolean("is_admin");
                         if (isAdmin != null && isAdmin) {
-                            startActivity(new Intent(this, AdminEventsActivity.class));
+                            startActivity(new Intent(this, AdminMainActivity.class));
                         } else {
                             startActivity(new Intent(this, MainActivity.class));
                         }
@@ -64,7 +64,7 @@ public class SplashActivity extends AppCompatActivity {
                                         // Check if user is admin
                                         Boolean isAdmin = querySnapshots.getDocuments().get(0).getBoolean("is_admin");
                                         if (isAdmin != null && isAdmin) {
-                                            startActivity(new Intent(this, AdminEventsActivity.class));
+                                            startActivity(new Intent(this, AdminMainActivity.class));
                                         } else {
                                             startActivity(new Intent(this, MainActivity.class));
                                         }
@@ -90,7 +90,7 @@ public class SplashActivity extends AppCompatActivity {
                                     // Check if user is admin
                                     Boolean isAdmin = querySnapshots.getDocuments().get(0).getBoolean("is_admin");
                                     if (isAdmin != null && isAdmin) {
-                                        startActivity(new Intent(this, AdminEventsActivity.class));
+                                        startActivity(new Intent(this, AdminMainActivity.class));
                                     } else {
                                         startActivity(new Intent(this, MainActivity.class));
                                     }
