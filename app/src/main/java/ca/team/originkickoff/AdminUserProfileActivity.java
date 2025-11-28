@@ -25,6 +25,17 @@ import ca.team.originkickoff.adapters.EventAdapter;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
 
+/**
+ * Admin User Profile screen showing a user's info, organized events, and joined events.
+ *
+ * <p>Behavior:</p>
+ * <ul>
+ *   <li>Loads user details from Firestore and binds display name, email, and device id.</li>
+ *   <li>Lists organized events (events.organizerId == userId) and joined events from waiting_list_entries.</li>
+ *   <li>Allows deleting the profile, also removing any waiting list entries, then finishes the screen.</li>
+ *   <li>Bottom admin navigation is wired via {@link AdminNavHelper} with the Users tab active.</li>
+ * </ul>
+ */
 public class AdminUserProfileActivity extends AppCompatActivity {
     public static final String EXTRA_USER_ID = "extra_user_id";
 

@@ -37,10 +37,22 @@ import java.util.Map;
 import java.util.Set;
 
 import ca.team.originkickoff.adapters.NotificationLogAdapter;
-import ca.team.originkickoff.models.NotificationLog;
 import ca.team.originkickoff.models.Event;
+import ca.team.originkickoff.models.NotificationLog;
 import ca.team.originkickoff.models.User;
 
+/**
+ * Admin Logs screen for reviewing notifications sent by organizers.
+ *
+ * <p>Features:</p>
+ * <ul>
+ *   <li>Admin-only access enforced via a Firestore lookup on the current device's user (is_admin).</li>
+ *   <li>Pulls paginated notification data from the "notifications" collection ordered by createdAt.</li>
+ *   <li>Augments each page with event and user display names using batched whereIn queries.</li>
+ *   <li>Client-side text filter by event name/id; server-side date range filtering.</li>
+ *   <li>Infinite scroll pagination with startAfter cursors.</li>
+ * </ul>
+ */
 public class AdminLogsActivity extends AppCompatActivity {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private RecyclerView rv;
@@ -72,6 +84,9 @@ public class AdminLogsActivity extends AppCompatActivity {
         enforceAdminAccessAndInit();
     }
 
+    /**
+     * Verifies admin access based on the device-bound user document and initializes the UI on success.
+     */
     private void enforceAdminAccessAndInit() {
         String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         db.collection("users")
@@ -98,6 +113,9 @@ public class AdminLogsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Wires views, sets up filters and pagination listeners, and triggers the initial load.
+     */
     private void initViewsAndData() {
         rv = findViewById(R.id.rvLogs);
         tvEmpty = findViewById(R.id.tvEmpty);
@@ -149,6 +167,11 @@ public class AdminLogsActivity extends AppCompatActivity {
         resetAndLoad();
     }
 
+    /**
+     * Opens a date picker and applies either the From or To filter, then reloads data.
+     *
+     * @param isFrom true to set the lower bound (From), false for upper bound (To).
+     */
     private void pickDate(boolean isFrom) {
         final Calendar c = Calendar.getInstance();
         DatePickerDialog d = new DatePickerDialog(this, (DatePicker view, int year, int month, int dayOfMonth) -> {
@@ -160,6 +183,9 @@ public class AdminLogsActivity extends AppCompatActivity {
         d.show();
     }
 
+    /**
+     * Resets pagination state and loads the first page according to current filters.
+     */
     private void resetAndLoad() {
         lastSnapshot = null;
         hasMore = true;
@@ -168,6 +194,11 @@ public class AdminLogsActivity extends AppCompatActivity {
         loadNextPage();
     }
 
+    /**
+     * Builds the base Firestore query against the notifications collection with date constraints.
+     *
+     * @return configured query limited by {@link #PAGE_SIZE}
+     */
     private Query buildBaseQuery() {
         // Pull from user notifications collection; organizers trigger these writes
         Query q = db.collection("notifications").orderBy("createdAt", Query.Direction.DESCENDING);
@@ -176,6 +207,9 @@ public class AdminLogsActivity extends AppCompatActivity {
         return q.limit(PAGE_SIZE);
     }
 
+    /**
+     * Loads the next page of results using the current cursor and appends them to the adapter.
+     */
     private void loadNextPage() {
         if (!hasMore || isLoading) return;
         isLoading = true;
@@ -207,6 +241,12 @@ public class AdminLogsActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Enriches raw notification documents with event and user names via batched lookups,
+     * applies client-side text filter, and appends the transformed items to the list.
+     *
+     * @param docs the page of notification documents to augment
+     */
     private void augmentAndAppend(List<QueryDocumentSnapshot> docs) {
         // Collect unique ids to batch fetch events and users
         Set<String> eventIds = new HashSet<>();
@@ -301,6 +341,14 @@ public class AdminLogsActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Utility: splits a list into fixed-size chunks to respect Firestore whereIn limits.
+     *
+     * @param list source list
+     * @param size chunk size (max 10 for Firestore whereIn)
+     * @param <T> element type
+     * @return list of sublists of at most {@code size}
+     */
     private static <T> List<List<T>> chunk(List<T> list, int size) {
         List<List<T>> chunks = new ArrayList<>();
         for (int i = 0; i < list.size(); i += size) {
@@ -309,6 +357,9 @@ public class AdminLogsActivity extends AppCompatActivity {
         return chunks;
     }
 
+    /**
+     * Toggles empty-state label visibility based on adapter item count.
+     */
     private void showEmptyIfNeeded() {
         if (tvEmpty != null) tvEmpty.setVisibility(adapter.getItemCount() == 0 ? View.VISIBLE : View.GONE);
     }

@@ -22,6 +22,17 @@ import java.util.List;
 import ca.team.originkickoff.adapters.UsersAdapter;
 import ca.team.originkickoff.models.User;
 
+/**
+ * Admin Users screen that lists all users with search and role filters.
+ *
+ * <p>Features:</p>
+ * <ul>
+ *   <li>Pulls user documents from Firestore and maintains a local list.</li>
+ *   <li>Search by name/email and cycle role filter (All/Organizer/Admin/Entrant).</li>
+ *   <li>Opens {@link AdminUserProfileActivity} on user tap.</li>
+ *   <li>Reloads on resume to reflect any profile deletions or updates.</li>
+ * </ul>
+ */
 public class AdminUsersActivity extends AppCompatActivity implements UsersAdapter.OnUserClickListener {
     private RecyclerView recyclerUsers;
     private UsersAdapter adapter;
