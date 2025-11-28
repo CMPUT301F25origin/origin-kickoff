@@ -38,6 +38,7 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_users);
+        AdminNavHelper.setup(this, AdminNavHelper.Tab.USERS);
 
         View back = findViewById(R.id.btnBack);
         if (back != null) back.setOnClickListener(v -> finish());
@@ -137,7 +138,21 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        // Reload users to reflect any deletions/changes performed in detail screens
+        loadAllUsers();
+    }
+
+    @Override
     public void onUserClick(User user) {
-        Toast.makeText(this, user.getDisplayName() != null ? user.getDisplayName() : user.getId(), Toast.LENGTH_SHORT).show();
+        // Open profile screen
+        if (user == null || user.getId() == null) {
+            Toast.makeText(this, getString(R.string.failed_to_load_users), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        android.content.Intent intent = new android.content.Intent(this, AdminUserProfileActivity.class);
+        intent.putExtra(AdminUserProfileActivity.EXTRA_USER_ID, user.getId());
+        startActivity(intent);
     }
 }

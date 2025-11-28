@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="70dp"
+    android:background="#1C201E"
+    android:orientation="horizontal"
+    android:baselineAligned="false"
+    android:weightSum="5"
+    android:paddingTop="6dp">
+
+    <!-- Dashboard -->
+    <LinearLayout
+        android:id="@+id/navDashboard"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
+        <ImageView
+            android:id="@+id/iconDashboard"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@string/admin_dashboard"
+            android:src="@android:drawable/ic_menu_view"
+            app:tint="@android:color/white"/>
+        <TextView
+            android:id="@+id/labelDashboard"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/admin_dashboard"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+    <!-- Events -->
+    <LinearLayout
+        android:id="@+id/navEvents"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
+        <ImageView
+            android:id="@+id/iconEvents"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@string/admin_events"
+            android:src="@android:drawable/ic_menu_month"
+            app:tint="@android:color/white"/>
+        <TextView
+            android:id="@+id/labelEvents"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/admin_events"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+    <!-- Users -->
+    <LinearLayout
+        android:id="@+id/navUsers"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
+        <ImageView
+            android:id="@+id/iconUsers"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@string/admin_users"
+            android:src="@android:drawable/ic_menu_myplaces"
+            app:tint="@android:color/white"/>
+        <TextView
+            android:id="@+id/labelUsers"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/admin_users"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+    <!-- Images -->
+    <LinearLayout
+        android:id="@+id/navImages"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
+        <ImageView
+            android:id="@+id/iconImages"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@string/admin_images"
+            android:src="@android:drawable/ic_menu_gallery"
+            app:tint="@android:color/white"/>
+        <TextView
+            android:id="@+id/labelImages"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/admin_images"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+    <!-- Logs -->
+    <LinearLayout
+        android:id="@+id/navLogs"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="2dp">
+        <ImageView
+            android:id="@+id/iconLogs"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:contentDescription="@string/admin_logs"
+            android:src="@android:drawable/ic_menu_info_details"
+            app:tint="@android:color/white"/>
+        <TextView
+            android:id="@+id/labelLogs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/admin_logs"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginTop="2dp"/>
+    </LinearLayout>
+
+</LinearLayout>
