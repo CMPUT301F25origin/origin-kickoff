@@ -7,7 +7,6 @@ import android.view.View;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import android.widget.TextView;
 import android.widget.ImageView;
 
@@ -19,6 +18,7 @@ public class AdminMainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_main);
+        AdminNavHelper.setup(this, AdminNavHelper.Tab.DASHBOARD);
 
         View cardEvents = findViewById(R.id.itemManageEvents);
         View cardUsers = findViewById(R.id.itemUserManagement);
@@ -29,20 +29,6 @@ public class AdminMainActivity extends AppCompatActivity {
         bindCard(cardUsers, "User Management", "Browse user profiles", R.drawable.ic_search, () -> openUsers());
         bindCard(cardImages, "Images", "Review uploaded images", R.drawable.ic_search, () -> openImages());
         bindCard(cardLogs, "Notification Logs", "View broadcast logs", R.drawable.ic_search, () -> openLogs());
-
-        BottomNavigationView bottomNav = findViewById(R.id.bottomNav);
-        if (bottomNav != null) {
-            bottomNav.setSelectedItemId(R.id.nav_dashboard);
-            bottomNav.setOnItemSelectedListener(item -> {
-                int id = item.getItemId();
-                if (id == R.id.nav_dashboard) return true;
-                if (id == R.id.nav_events) { openEvents(); return true; }
-                if (id == R.id.nav_users) { openUsers(); return true; }
-                if (id == R.id.nav_images) { openImages(); return true; }
-                if (id == R.id.nav_logs) { openLogs(); return true; }
-                return false;
-            });
-        }
     }
 
     private interface Action { void run(); }

@@ -174,4 +174,7 @@ All your data will be erased!</string>
     <string name="admin_images">Images</string>
     <string name="admin_logs">Logs</string>
     <string name="remove">Remove</string>
+    <string name="organized_events">Organized Events</string>
+    <string name="joined_events">Joined Events</string>
+    <string name="profile_deleted">Profile deleted</string>
 </resources>

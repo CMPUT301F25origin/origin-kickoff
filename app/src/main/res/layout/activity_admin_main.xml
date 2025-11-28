@@ -39,7 +39,7 @@
         app:layout_constraintTop_toBottomOf="@id/txtQuickActions"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/bottomNav">
+        app:layout_constraintBottom_toTopOf="@id/adminBottomNav">
 
         <LinearLayout
             android:id="@+id/dashboardContainer"
@@ -63,16 +63,13 @@
         </LinearLayout>
     </ScrollView>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
+    <include
+        android:id="@+id/adminBottomNav"
+        layout="@layout/layout_admin_bottom_nav"
         android:layout_width="0dp"
-        android:layout_height="70dp"
-        android:background="#1C201E"
-        app:itemTextColor="@color/white"
-        app:itemIconTint="@color/white"
-        app:menu="@menu/bottom_nav_menu"
+        android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

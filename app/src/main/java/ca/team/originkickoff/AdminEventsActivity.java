@@ -31,47 +31,22 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        int layoutId = getResources().getIdentifier("activity_admin_events", "layout", getPackageName());
-        if (layoutId != 0) {
-            setContentView(layoutId);
-        } else {
-            // Fallback: create a simple RecyclerView-only layout programmatically
-            RecyclerView rv = new RecyclerView(this);
-            rv.setId(View.generateViewId());
-            setContentView(rv);
-            rv.setLayoutManager(new LinearLayoutManager(this));
-            adapter = new EventAdapter(this);
-            rv.setAdapter(adapter);
-            rvAdminEvents = rv;
-            loadAllEvents();
-            return;
-        }
-
-        int rvId = getResources().getIdentifier("rvAdminEvents", "id", getPackageName());
-        int progressId = getResources().getIdentifier("progress", "id", getPackageName());
-        int emptyId = getResources().getIdentifier("tvEmpty", "id", getPackageName());
-        int backId = getResources().getIdentifier("btnBack", "id", getPackageName());
-
-        rvAdminEvents = findViewById(rvId);
-        progress = findViewById(progressId);
-        tvEmpty = findViewById(emptyId);
-        View back = findViewById(backId);
-        if (back != null && back instanceof ImageView) {
-            back.setOnClickListener(v -> finish());
-        }
-
+        int layoutId = R.layout.activity_admin_events;
+        setContentView(layoutId);
+        AdminNavHelper.setup(this, AdminNavHelper.Tab.EVENTS);
+        rvAdminEvents = findViewById(R.id.rvAdminEvents);
+        progress = findViewById(R.id.progress);
+        tvEmpty = findViewById(R.id.tvEmpty);
+        View back = findViewById(R.id.btnBack);
+        if (back instanceof ImageView) back.setOnClickListener(v -> finish());
         if (rvAdminEvents == null) {
-            Log.e(TAG, "RecyclerView not found, using fallback");
-            Toast.makeText(this, "Error loading view", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.failed_to_load_users, Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
-
         adapter = new EventAdapter(this);
         rvAdminEvents.setLayoutManager(new LinearLayoutManager(this));
         rvAdminEvents.setAdapter(adapter);
-
         loadAllEvents();
     }
 
@@ -82,21 +57,18 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
             public void onSuccess(List<Event> events) {
                 if (progress != null) progress.setVisibility(View.GONE);
                 if (events == null) events = new ArrayList<>();
-                if (adapter != null) {
-                    adapter.setEvents(events);
-                }
+                if (adapter != null) adapter.setEvents(events);
                 if (tvEmpty != null) tvEmpty.setVisibility(events.isEmpty() ? View.VISIBLE : View.GONE);
             }
-
             @Override
             public void onError(String errorMessage) {
                 if (progress != null) progress.setVisibility(View.GONE);
                 if (tvEmpty != null) {
                     tvEmpty.setVisibility(View.VISIBLE);
-                    tvEmpty.setText("Failed to load events");
+                    tvEmpty.setText(R.string.no_events);
                 }
                 Log.e(TAG, "Error: " + errorMessage);
-                Toast.makeText(AdminEventsActivity.this, "Error: " + errorMessage, Toast.LENGTH_SHORT).show();
+                Toast.makeText(AdminEventsActivity.this, getString(R.string.failed) + " " + errorMessage, Toast.LENGTH_SHORT).show();
             }
         });
     }
