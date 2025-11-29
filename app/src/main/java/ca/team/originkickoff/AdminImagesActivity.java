@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import android.util.Base64;
+import android.util.Log;
 
 import ca.team.originkickoff.adapters.AdminImageAdapter;
 
@@ -42,6 +43,8 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
     private final java.util.Set<String> addedUrls = new java.util.HashSet<>();
     private boolean showEvents = true;
     private boolean showUsers = true;
+
+    private static final String TAG = "AdminImages";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -91,13 +94,20 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
                 String b64 = d.getString("posterBase64");
                 if (posterUrl != null && !posterUrl.isEmpty()) {
                     String path = inferStoragePathFromUrl(posterUrl);
-                    AdminImageAdapter.Item it = new AdminImageAdapter.Item(d.getId(), name != null ? name : "Event", posterUrl, path, "event");
-                    addItemUnique(it);
+                    if (path != null && !path.isEmpty()) {
+                        // Validate path exists by asking Storage for a fresh download URL
+                        storage.getReference().child(path).getDownloadUrl().addOnSuccessListener(uri -> {
+                            AdminImageAdapter.Item it = new AdminImageAdapter.Item(d.getId(), name != null ? name : "Event", uri.toString(), path, "event");
+                            addItemUnique(it);
+                            adapter.setItems(filterNow());
+                        }).addOnFailureListener(e -> Log.d(TAG, "Skip invalid event poster: " + path));
+                    }
                 } else if (b64 != null && !b64.isEmpty()) {
                     try {
                         byte[] bytes = Base64.decode(b64, Base64.DEFAULT);
                         AdminImageAdapter.Item it = new AdminImageAdapter.Item(d.getId(), name != null ? name : "Event", null, null, "event", bytes);
                         addItemUnique(it);
+                        adapter.setItems(filterNow());
                     } catch (Exception ignored) {}
                 }
             }
@@ -107,8 +117,13 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
                     String display = u.getString("display_name");
                     if (photoUrl != null && !photoUrl.isEmpty()) {
                         String path = inferStoragePathFromUrl(photoUrl);
-                        AdminImageAdapter.Item it = new AdminImageAdapter.Item(u.getId(), display != null ? display : "User", photoUrl, path, "user");
-                        addItemUnique(it);
+                        if (path != null && !path.isEmpty()) {
+                            storage.getReference().child(path).getDownloadUrl().addOnSuccessListener(uri -> {
+                                AdminImageAdapter.Item it = new AdminImageAdapter.Item(u.getId(), display != null ? display : "User", uri.toString(), path, "user");
+                                addItemUnique(it);
+                                adapter.setItems(filterNow());
+                            }).addOnFailureListener(e -> Log.d(TAG, "Skip invalid user photo: " + path));
+                        }
                     } else {
                         String conventional = "profile_pictures/" + u.getId() + ".jpg";
                         StorageReference ref = storage.getReference().child(conventional);
@@ -128,13 +143,26 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
 
     private void addItemUnique(AdminImageAdapter.Item it) {
         if (it == null) return;
+        boolean hasUrl = it.url != null && !it.url.isEmpty() && (it.url.startsWith("http://") || it.url.startsWith("https://"));
+        boolean hasBytes = it.bytes != null && it.bytes.length > 0;
+        if (!hasUrl && !hasBytes) {
+            Log.d(TAG, "Skip item without image data: id=" + it.id + " kind=" + it.kind);
+            return;
+        }
         if (it.storagePath != null && !it.storagePath.isEmpty()) {
             String norm = it.storagePath.startsWith("/") ? it.storagePath.substring(1) : it.storagePath;
-            if (!addedPaths.add(norm)) return;
-        } else if (it.url != null && !it.url.isEmpty()) {
-            if (!addedUrls.add(it.url)) return;
+            if (!addedPaths.add(norm)) {
+                Log.d(TAG, "Duplicate by path: " + norm);
+                return;
+            }
+        } else if (hasUrl) {
+            if (!addedUrls.add(it.url)) {
+                Log.d(TAG, "Duplicate by url: " + it.url);
+                return;
+            }
         }
         all.add(it);
+        Log.d(TAG, "Added image: kind=" + it.kind + " id=" + it.id + (hasUrl ? " url" : " bytes"));
     }
 
     private void loadFromStorage() {
@@ -201,6 +229,12 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         for (AdminImageAdapter.Item it : all) {
             if ("event".equals(it.kind) && !showEvents) continue;
             if ("user".equals(it.kind) && !showUsers) continue;
+            boolean hasUrl = it.url != null && !it.url.isEmpty() && (it.url.startsWith("http://") || it.url.startsWith("https://"));
+            boolean hasBytes = it.bytes != null && it.bytes.length > 0;
+            if (!hasUrl && !hasBytes) {
+                Log.d(TAG, "Filter skip (no image): id=" + it.id + " kind=" + it.kind);
+                continue;
+            }
             base.add(it);
         }
         if (q.isEmpty()) return base;
@@ -215,32 +249,65 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
     @Override
     public void onDelete(AdminImageAdapter.Item item) {
         if (item == null) return;
-        if (item.storagePath == null || item.storagePath.isEmpty()) {
+        String path = item.storagePath;
+        if ((path == null || path.isEmpty()) && item.url != null && !item.url.isEmpty()) {
+            path = inferStoragePathFromUrl(item.url);
+        }
+        // If we still don't have a storage path and it's an event base64 image, clear field
+        if ((path == null || path.isEmpty()) && "event".equals(item.kind)) {
+            // Attempt to clear base64 poster if present
+            if (item.id != null && !item.id.isEmpty()) {
+                db.collection("events").document(item.id).get().addOnSuccessListener(doc -> {
+                    if (doc.exists()) {
+                        String b64 = doc.getString("posterBase64");
+                        if (b64 != null && !b64.isEmpty()) {
+                            doc.getReference().update("posterBase64", null, "posterUrl", null)
+                                    .addOnSuccessListener(unused -> {
+                                        removeItemByUrlOrId(item);
+                                        Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show();
+                                    })
+                                    .addOnFailureListener(e -> Toast.makeText(this, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                            return;
+                        }
+                    }
+                    Toast.makeText(this, "Missing storage path", Toast.LENGTH_SHORT).show();
+                });
+            } else {
+                Toast.makeText(this, "Missing storage path", Toast.LENGTH_SHORT).show();
+            }
+            return;
+        }
+        if (path == null || path.isEmpty()) {
             Toast.makeText(this, "Missing storage path", Toast.LENGTH_SHORT).show();
             return;
         }
-        storage.getReference().child(item.storagePath).delete()
+        final String finalPath = path;
+        storage.getReference().child(finalPath).delete()
                 .addOnSuccessListener(unused -> {
                     if ("event".equals(item.kind)) {
-                        // If this was an event poster, clear the posterUrl field
-                        db.collection("events").document(item.id).get().addOnSuccessListener(doc -> {
-                            if (doc.exists()) {
-                                String posterUrl = doc.getString("posterUrl");
-                                if (posterUrl != null && !posterUrl.isEmpty()) {
-                                    doc.getReference().update("posterUrl", null);
-                                }
-                            }
-                        });
+                        if (item.id != null && !item.id.isEmpty()) {
+                            db.collection("events").document(item.id).update("posterUrl", null, "posterBase64", null);
+                        }
                     } else if ("user".equals(item.kind)) {
-                        db.collection("users").document(item.id).update("photoUrl", null);
+                        if (item.id != null && !item.id.isEmpty()) {
+                            db.collection("users").document(item.id).update("photoUrl", null);
+                        }
                     }
-                    // Remove from list and refresh
-                    for (int i = 0; i < all.size(); i++) {
-                        if (all.get(i).url.equals(item.url)) { all.remove(i); break; }
-                    }
-                    adapter.setItems(filterNow());
+                    removeItemByUrlOrId(item);
                     Toast.makeText(this, "Image deleted", Toast.LENGTH_SHORT).show();
                 })
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+    }
+
+    private void removeItemByUrlOrId(AdminImageAdapter.Item item) {
+        // Remove from master list
+        for (int i = 0; i < all.size(); i++) {
+            AdminImageAdapter.Item it = all.get(i);
+            boolean match = false;
+            if (item.url != null && it.url != null) match = item.url.equals(it.url);
+            if (!match && item.id != null && !item.id.isEmpty() && it.id != null) match = item.id.equals(it.id);
+            if (match) { all.remove(i); break; }
+        }
+        adapter.setItems(filterNow());
     }
 }

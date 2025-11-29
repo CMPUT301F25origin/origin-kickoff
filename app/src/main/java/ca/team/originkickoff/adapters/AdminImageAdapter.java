@@ -1,15 +1,21 @@
 package ca.team.originkickoff.adapters;
 
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,9 +52,17 @@ public class AdminImageAdapter extends RecyclerView.Adapter<AdminImageAdapter.Ho
         this.listener = l;
     }
 
-    public void setItems(List<Item> data) {
+    public void setItems(List<Item> list) {
         items.clear();
-        if (data != null) items.addAll(data);
+        if (list != null) {
+            for (Item it : list) {
+                boolean hasUrl = it != null && it.url != null && !it.url.isEmpty();
+                boolean hasBytes = it != null && it.bytes != null && it.bytes.length > 0;
+                if (hasUrl || hasBytes) {
+                    items.add(it);
+                }
+            }
+        }
         notifyDataSetChanged();
     }
 
@@ -62,15 +76,45 @@ public class AdminImageAdapter extends RecyclerView.Adapter<AdminImageAdapter.Ho
     public void onBindViewHolder(@NonNull Holder h, int position) {
         Item it = items.get(position);
         if (it.bytes != null && it.bytes.length > 0) {
-            h.ivThumb.setImageBitmap(BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.length));
-        } else {
+            android.graphics.Bitmap bmp = BitmapFactory.decodeByteArray(it.bytes, 0, it.bytes.length);
+            if (bmp != null) {
+                h.ivThumb.setImageBitmap(bmp);
+            } else {
+                // Failed to decode bytes; remove tile using current adapter position
+                int adapterPos = h.getBindingAdapterPosition();
+                if (adapterPos != RecyclerView.NO_POSITION) removeAt(adapterPos);
+                return;
+            }
+        } else if (!TextUtils.isEmpty(it.url)) {
             Glide.with(h.itemView.getContext())
                     .load(it.url)
-                    .placeholder(R.drawable.sample_event_1)
-                    .error(R.drawable.sample_event_1)
+                    .listener(new RequestListener<Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                            int adapterPos = h.getBindingAdapterPosition();
+                            if (adapterPos != RecyclerView.NO_POSITION) {
+                                removeAt(adapterPos);
+                            }
+                            return true; // consume failure
+                        }
+                        @Override
+                        public boolean onResourceReady(@NonNull Drawable resource, Object model, Target<Drawable> target, com.bumptech.glide.load.DataSource dataSource, boolean isFirstResource) {
+                            return false;
+                        }
+                    })
                     .into(h.ivThumb);
+        } else {
+            int adapterPos = h.getBindingAdapterPosition();
+            if (adapterPos != RecyclerView.NO_POSITION) removeAt(adapterPos);
+            return;
         }
         h.btnDelete.setOnClickListener(v -> { if (listener != null) listener.onDelete(it); });
+    }
+
+    private void removeAt(int position) {
+        if (position < 0 || position >= items.size()) return;
+        items.remove(position);
+        notifyItemRemoved(position);
     }
 
     @Override
