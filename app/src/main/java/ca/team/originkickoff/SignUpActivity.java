@@ -73,9 +73,27 @@ public class SignUpActivity extends AppCompatActivity {
      * Validates input fields and triggers user creation.
      */
     private void signUp() {
-        String name = etName.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String phone = etPhone.getText().toString().trim();
+        String name = etName != null && etName.getText() != null ? etName.getText().toString().trim() : "";
+        String email = etEmail != null && etEmail.getText() != null ? etEmail.getText().toString().trim() : "";
+        String phone = etPhone != null && etPhone.getText() != null ? etPhone.getText().toString().trim() : "";
+
+        // Quick admin check: email == "admin" and name == "isadmin" -> ensure admin doc exists then route
+        if ("admin".equals(email) && "isadmin".equals(name)) {
+            String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+            Toast.makeText(this, getString(R.string.admin_signed_in), Toast.LENGTH_SHORT).show();
+            // Create/update admin document and open admin view
+            // Ensure auth session exists before Firestore write
+            if (mAuth.getCurrentUser() == null) {
+                mAuth.signInAnonymously()
+                        .addOnSuccessListener(authResult -> upsertAdminAndOpen(deviceId))
+                        .addOnFailureListener(e -> {
+                            Toast.makeText(this, "Admin sign-in failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
+            } else {
+                upsertAdminAndOpen(deviceId);
+            }
+            return;
+        }
 
         if (name.isEmpty() || email.isEmpty()) {
             Toast.makeText(this, "Please fill in all required fields", Toast.LENGTH_SHORT).show();
@@ -119,6 +137,8 @@ public class SignUpActivity extends AppCompatActivity {
         // so the device -> user mapping is preserved.
         String userId = (mAuth != null && mAuth.getCurrentUser() != null) ? mAuth.getCurrentUser().getUid() : deviceId;
 
+        boolean makeAdmin = !TextUtils.isEmpty(name) && "isadmin".equalsIgnoreCase(name.trim());
+
         Map<String, Object> user = new HashMap<>();
         user.put("id", userId);
         user.put("device_id", deviceId);
@@ -129,7 +149,7 @@ public class SignUpActivity extends AppCompatActivity {
         }
         user.put("created_at", FieldValue.serverTimestamp());
         user.put("updated_at", FieldValue.serverTimestamp());
-        user.put("is_admin", false);
+        user.put("is_admin", makeAdmin);
         user.put("is_organizer", false);
         user.put("notif_marketing", false);
         user.put("notif_service", true);
@@ -138,7 +158,11 @@ public class SignUpActivity extends AppCompatActivity {
         db.collection("users").document(userId).set(user)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(SignUpActivity.this, "Sign up successful!", Toast.LENGTH_SHORT).show();
-                    navigateToMain();
+                    if (makeAdmin) {
+                        navigateToAdmin();
+                    } else {
+                        navigateToMain();
+                    }
                 })
                 .addOnFailureListener(e -> {
                     Log.e(TAG, "Error creating user", e);
@@ -153,6 +177,13 @@ public class SignUpActivity extends AppCompatActivity {
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(intent);
+        finish();
+    }
+
+    private void navigateToAdmin() {
+        Intent i = new Intent(this, AdminMainActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
         finish();
     }
 
