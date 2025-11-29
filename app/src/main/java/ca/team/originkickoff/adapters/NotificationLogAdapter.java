@@ -16,6 +16,10 @@ import java.util.Locale;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.NotificationLog;
 
+/**
+ * RecyclerView adapter that renders NotificationLog items on the admin logs screen.
+ * Binds event name, labeled sender/recipient/type lines, and a formatted timestamp.
+ */
 public class NotificationLogAdapter extends RecyclerView.Adapter<NotificationLogAdapter.Holder> {
     private final List<NotificationLog> items = new ArrayList<>();
     private final SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
