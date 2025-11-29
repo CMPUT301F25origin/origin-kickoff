@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -10,9 +9,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/bg_card_ripple"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp"
-        android:clickable="true"
-        android:focusable="true">
+        android:layout_marginBottom="12dp">
 
         <!-- Event Image -->
         <ImageView
@@ -34,7 +31,7 @@
                 android:id="@+id/tvEventName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Event Name"
+                android:text="@string/event_name_placeholder"
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -44,7 +41,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Oct 26, 2024"
+                android:text="@string/date_tbd_label"
                 android:textColor="#BFBFBF"
                 android:textSize="13sp" />
 
@@ -55,7 +52,7 @@
                 android:gravity="center_vertical"
                 android:layout_marginTop="10dp">
 
-                <!-- Spots left -->
+                <!-- Spots left / status -->
                 <TextView
                     android:id="@+id/tvSpotsLeft"
                     android:layout_width="wrap_content"
@@ -64,7 +61,7 @@
                     android:gravity="center_vertical"
                     android:paddingStart="10dp"
                     android:paddingEnd="10dp"
-                    android:text="1000 spots left"
+                    android:text="@string/spots_left_format"
                     android:textColor="@android:color/white"
                     android:textSize="12sp" />
 
@@ -77,7 +74,7 @@
                     android:id="@+id/tvRequirements"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Req: Geolocation"
+                    android:text="@string/req_geolocation"
                     android:textColor="#A4A4A4"
                     android:textSize="11sp"/>
             </LinearLayout>
@@ -92,6 +89,7 @@
         android:src="@drawable/ic_close"
         android:layout_gravity="top|end"
         android:layout_margin="8dp"
-        android:visibility="gone" />
+        android:visibility="gone"
+        android:contentDescription="@string/remove_event" />
 
 </FrameLayout>

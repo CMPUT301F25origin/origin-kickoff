@@ -19,12 +19,16 @@ public class AdminMainActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_main);
+        // Ensure we are NOT in forced user mode when landing on admin dashboard
+        SessionManager.setForceUserMode(false);
         AdminNavHelper.setup(this, AdminNavHelper.Tab.DASHBOARD);
 
         // Wire switch-to-user button
         View switchBtn = findViewById(R.id.btnSwitchToUser);
         if (switchBtn != null) {
             switchBtn.setOnClickListener(v -> {
+                // Enter forced user mode so admin behaves like normal entrant/organizer
+                SessionManager.setForceUserMode(true);
                 Intent i = new Intent(this, MainActivity.class);
                 startActivity(i);
                 // Do not finish; allow back to admin

@@ -78,9 +78,9 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
         // Admin can only view/browse events - open in read-only mode
         Toast.makeText(this, "Viewing event: " + event.getName(), Toast.LENGTH_SHORT).show();
 
-        // Open event detail activity to view event information
+        // Open event detail activity to view event information (use correct extra key)
         android.content.Intent intent = new android.content.Intent(this, EventDetailActivity.class);
-        intent.putExtra("event_id", event.getId());
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, event.getId()); // FIX: was "event_id"
         intent.putExtra("admin_view_only", true); // Flag to indicate admin read-only mode
         startActivity(intent);
     }
