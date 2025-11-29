@@ -18,6 +18,22 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSwitchToUser"
+        android:text="Switch to user view"
+        android:textAllCaps="false"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="20dp"
+        app:icon="@android:drawable/ic_menu_revert"
+        app:iconPadding="8dp"
+        app:iconTint="@android:color/white"
+        app:backgroundTint="#22312E"
+        android:textColor="#FFFFFF"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
     <TextView
         android:id="@+id/txtQuickActions"
         android:text="Quick Actions"

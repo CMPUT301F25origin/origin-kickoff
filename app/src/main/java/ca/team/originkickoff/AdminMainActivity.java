@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.widget.TextView;
 import android.widget.ImageView;
+import android.widget.Button;
 
 /**
  * Admin entry activity with bottom bar: Dashboard, Events, Users, Images, Logs.
@@ -19,6 +20,16 @@ public class AdminMainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_admin_main);
         AdminNavHelper.setup(this, AdminNavHelper.Tab.DASHBOARD);
+
+        // Wire switch-to-user button
+        View switchBtn = findViewById(R.id.btnSwitchToUser);
+        if (switchBtn != null) {
+            switchBtn.setOnClickListener(v -> {
+                Intent i = new Intent(this, MainActivity.class);
+                startActivity(i);
+                // Do not finish; allow back to admin
+            });
+        }
 
         View cardEvents = findViewById(R.id.itemManageEvents);
         View cardUsers = findViewById(R.id.itemUserManagement);

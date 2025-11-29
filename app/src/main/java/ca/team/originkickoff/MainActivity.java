@@ -30,6 +30,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -58,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     private Long selectedDate = null;
     private String selectedLocation = null;
     private View loadingView;
+    private View btnSwitchToAdmin;
+    private boolean isAdminUser = false;
 
     private long lastNavTapAtMs = 0L;
 
@@ -80,9 +83,15 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         db = FirebaseFirestore.getInstance();
 
         loadingView = findViewById(R.id.loadingView);
+        btnSwitchToAdmin = findViewById(R.id.btnSwitchToAdmin);
+        if (btnSwitchToAdmin != null) btnSwitchToAdmin.setOnClickListener(v -> {
+            Intent i = new Intent(MainActivity.this, AdminMainActivity.class);
+            startActivity(i);
+        });
 
         setupRecyclerView();
         setupClickListeners();
+        checkAdminAndToggleSwitch();
         loadEventsFromFirestore();
     }
 
@@ -92,6 +101,7 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     @Override
     protected void onResume() {
         super.onResume();
+        checkAdminAndToggleSwitch();
         loadEventsFromFirestore();
     }
 
@@ -413,5 +423,30 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         }
 
         eventAdapter.setEvents(tempFiltered);
+    }
+
+    /**
+     * Checks if the current user/device is an admin and shows/hides the admin switch button.
+     */
+    private void checkAdminAndToggleSwitch() {
+        String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+        db.collection("users")
+                .whereEqualTo("device_id", deviceId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    boolean admin = false;
+                    if (snapshot != null && !snapshot.isEmpty()) {
+                        DocumentSnapshot doc = snapshot.getDocuments().get(0);
+                        Boolean flag = doc.getBoolean("is_admin");
+                        admin = flag != null && flag;
+                    }
+                    isAdminUser = admin;
+                    if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(isAdminUser ? View.VISIBLE : View.GONE);
+                })
+                .addOnFailureListener(e -> {
+                    isAdminUser = false;
+                    if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(View.GONE);
+                });
     }
 }

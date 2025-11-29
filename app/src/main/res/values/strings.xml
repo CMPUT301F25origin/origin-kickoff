@@ -178,4 +178,5 @@ All your data will be erased!</string>
     <string name="joined_events">Joined Events</string>
     <string name="profile_deleted">Profile deleted</string>
     <string name="admin_access_only">Admins only. Access denied.</string>
+    <string name="admin_signed_in">Signed in as Admin</string>
 </resources>
