@@ -69,6 +69,9 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
         loadAllUsers();
     }
 
+    /**
+     * Attaches live text watcher to search input for incremental filtering.
+     */
     private void setupSearch() {
         if (inputSearch == null) return;
         inputSearch.addTextChangedListener(new TextWatcher() {
@@ -78,12 +81,18 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
         });
     }
 
+    /**
+     * Configures role filter button and initializes its label.
+     */
     private void setupRoleFilter() {
         if (btnRole == null) return;
         btnRole.setOnClickListener(v -> cycleRoleFilter());
         updateRoleButtonLabel();
     }
 
+    /**
+     * Cycles through role filter states (All -> Organizer -> Admin -> Entrant -> All) and reapplies filters.
+     */
     private void cycleRoleFilter() {
         switch (roleFilter) {
             case ALL: roleFilter = RoleFilter.ORGANIZER; break;
@@ -95,6 +104,9 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
         applyFilters();
     }
 
+    /**
+     * Updates button text to reflect the current role filter state.
+     */
     private void updateRoleButtonLabel() {
         if (btnRole == null) return;
         String label;
@@ -107,6 +119,9 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
         btnRole.setText(label);
     }
 
+    /**
+     * Loads all user documents from Firestore into local cache then applies active filters.
+     */
     private void loadAllUsers() {
         db.collection("users")
                 .get()
@@ -124,6 +139,9 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
                 .addOnFailureListener(e -> Toast.makeText(this, getString(R.string.failed_to_load_users), Toast.LENGTH_SHORT).show());
     }
 
+    /**
+     * Applies current search query and role filter selection to produce filtered user list for adapter.
+     */
     private void applyFilters() {
         String query = (inputSearch != null && inputSearch.getText() != null) ? inputSearch.getText().toString().trim().toLowerCase() : "";
         List<User> filtered = new ArrayList<>();
@@ -155,6 +173,11 @@ public class AdminUsersActivity extends AppCompatActivity implements UsersAdapte
         loadAllUsers();
     }
 
+    /**
+     * Handles user click opening the admin user profile activity for the selected user.
+     *
+     * @param user clicked user model
+     */
     @Override
     public void onUserClick(User user) {
         // Open profile screen
