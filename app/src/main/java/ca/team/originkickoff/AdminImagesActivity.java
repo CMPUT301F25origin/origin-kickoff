@@ -77,11 +77,18 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         loadImages();
     }
 
+    /**
+     * Updates filter button alpha styling to reflect active/inactive state selections.
+     */
     private void styleFilters() {
         if (btnEvents != null) btnEvents.setAlpha(showEvents ? 1f : 0.5f);
         if (btnUsers != null) btnUsers.setAlpha(showUsers ? 1f : 0.5f);
     }
 
+    /**
+     * Loads image references from Firestore (events/users) then supplements with raw Storage listings.
+     * Clears previous cached lists before aggregation.
+     */
     private void loadImages() {
         all.clear();
         addedPaths.clear();
@@ -141,6 +148,11 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         }).addOnFailureListener(e -> { adapter.setItems(filterNow()); loadFromStorage(); });
     }
 
+    /**
+     * Adds an image item to the master list ensuring uniqueness by storage path or URL; skips invalid items.
+     *
+     * @param it candidate image adapter item
+     */
     private void addItemUnique(AdminImageAdapter.Item it) {
         if (it == null) return;
         boolean hasUrl = it.url != null && !it.url.isEmpty() && (it.url.startsWith("http://") || it.url.startsWith("https://"));
@@ -165,6 +177,9 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         Log.d(TAG, "Added image: kind=" + it.kind + " id=" + it.id + (hasUrl ? " url" : " bytes"));
     }
 
+    /**
+     * Kicks off listing of common storage folders to find images not referenced in Firestore.
+     */
     private void loadFromStorage() {
         // Try common folders: event_posters, profile_pictures, and generic events/*
         StorageReference root = storage.getReference();
@@ -173,6 +188,12 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         listRecursive(root.child("events"), "event");
     }
 
+    /**
+     * Lists all direct child items of a storage directory and appends them as image items.
+     *
+     * @param dir  storage reference directory
+     * @param kind semantic kind (event/user)
+     */
     private void listFlat(StorageReference dir, String kind) {
         dir.listAll().addOnSuccessListener((ListResult res) -> {
             for (StorageReference item : res.getItems()) {
@@ -185,6 +206,12 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         }).addOnFailureListener(e -> {});
     }
 
+    /**
+     * Recursively walks a storage directory adding any file items encountered.
+     *
+     * @param dir  starting storage reference
+     * @param kind semantic kind (event/user)
+     */
     private void listRecursive(StorageReference dir, String kind) {
         dir.listAll().addOnSuccessListener((ListResult res) -> {
             for (StorageReference item : res.getItems()) {
@@ -200,10 +227,12 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         }).addOnFailureListener(e -> {});
     }
 
-    private String stripLeadingSlash(String p) {
-        return p != null && p.startsWith("/") ? p.substring(1) : p;
-    }
-
+    /**
+     * Parses a Firebase Storage download URL into its underlying object path.
+     *
+     * @param url public download URL
+     * @return decoded storage path or null if parsing fails
+     */
     private String inferStoragePathFromUrl(String url) {
         try {
             // Download URL format contains "/o/<bucketPath>?"
@@ -219,10 +248,18 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         return null;
     }
 
+    /**
+     * Applies current text + kind filters and refreshes adapter items.
+     */
     private void applyFilter() {
         adapter.setItems(filterNow());
     }
 
+    /**
+     * Produces a filtered list snapshot based on search query and kind toggles.
+     *
+     * @return filtered live list of items
+     */
     private List<AdminImageAdapter.Item> filterNow() {
         String q = etSearch != null && etSearch.getText() != null ? etSearch.getText().toString().trim().toLowerCase() : "";
         List<AdminImageAdapter.Item> base = new ArrayList<>();
@@ -246,6 +283,11 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         return res;
     }
 
+    /**
+     * Deletes the backing storage object or clears Firestore fields for base64-only posters, then updates UI.
+     *
+     * @param item selected image item to remove
+     */
     @Override
     public void onDelete(AdminImageAdapter.Item item) {
         if (item == null) return;
@@ -299,6 +341,11 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
                 .addOnFailureListener(e -> Toast.makeText(this, "Failed to delete: " + e.getMessage(), Toast.LENGTH_SHORT).show());
     }
 
+    /**
+     * Removes an item from the master list by matching URL or ID and refreshes adapter.
+     *
+     * @param item item descriptor to remove
+     */
     private void removeItemByUrlOrId(AdminImageAdapter.Item item) {
         // Remove from master list
         for (int i = 0; i < all.size(); i++) {
@@ -310,4 +357,12 @@ public class AdminImagesActivity extends AppCompatActivity implements AdminImage
         }
         adapter.setItems(filterNow());
     }
+
+    /**
+     * Removes a leading '/' from a storage path if present.
+     *
+     * @param p raw path
+     * @return normalized path
+     */
+    private String stripLeadingSlash(String p) { return p != null && p.startsWith("/") ? p.substring(1) : p; }
 }

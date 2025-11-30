@@ -89,12 +89,23 @@ public class AdminUserProfileActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Loads the Firestore user document by id and binds its fields to UI.
+     *
+     * @param userId Firestore document id of the user
+     */
     private void loadUser(String userId) {
         db.collection("users").document(userId).get()
                 .addOnSuccessListener(this::bindUser)
                 .addOnFailureListener(e -> Toast.makeText(this, R.string.failed_to_load_users, Toast.LENGTH_SHORT).show());
     }
 
+    /**
+     * Binds a user snapshot to on-screen text views, applying fallbacks where necessary.
+     * Finishes the activity if the snapshot is invalid.
+     *
+     * @param snapshot Firestore document snapshot of the user
+     */
     private void bindUser(DocumentSnapshot snapshot) {
         if (!snapshot.exists()) {
             Toast.makeText(this, R.string.failed_to_load_users, Toast.LENGTH_SHORT).show();
@@ -116,12 +127,22 @@ public class AdminUserProfileActivity extends AppCompatActivity {
         if (txtDeviceId != null) txtDeviceId.setText(getString(R.string.device_id, device));
     }
 
+    /**
+     * Queries events where this user is the organizer and sends them to adapter.
+     *
+     * @param userId user id to match organizerId field
+     */
     private void loadOrganizedEvents(String userId) {
         db.collection("events").whereEqualTo("organizerId", userId).get()
                 .addOnSuccessListener(this::bindOrganizedEvents)
                 .addOnFailureListener(e -> organizedAdapter.setEvents(new ArrayList<>()));
     }
 
+    /**
+     * Converts query snapshot of organized events into model list and updates adapter.
+     *
+     * @param snaps query snapshot of event documents
+     */
     private void bindOrganizedEvents(QuerySnapshot snaps) {
         List<Event> out = new ArrayList<>();
         if (snaps != null) {
@@ -136,6 +157,11 @@ public class AdminUserProfileActivity extends AppCompatActivity {
         organizedAdapter.setEvents(out);
     }
 
+    /**
+     * Loads events the user has actively joined by mining waiting list entries then fetching event docs in chunks.
+     *
+     * @param userId user document id used in waiting_list_entries user_id field
+     */
     private void loadJoinedEvents(String userId) {
         // joined events => events where waiting_list_entries has state==active for this user
         db.collection("waiting_list_entries")
@@ -179,6 +205,14 @@ public class AdminUserProfileActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> joinedAdapter.setEvents(new ArrayList<>()));
     }
 
+    /**
+     * Utility to split a list into fixed-size sublists.
+     *
+     * @param list source list
+     * @param size max chunk size (>0)
+     * @param <T>  element type
+     * @return list of chunks preserving order
+     */
     private static <T> List<List<T>> chunk(List<T> list, int size) {
         List<List<T>> chunks = new ArrayList<>();
         for (int i = 0; i < list.size(); i += size) {
@@ -187,6 +221,11 @@ public class AdminUserProfileActivity extends AppCompatActivity {
         return chunks;
     }
 
+    /**
+     * Deletes the user profile and associated waiting list entries, then finishes activity.
+     *
+     * @param userId Firestore user document id to delete
+     */
     private void deleteProfile(String userId) {
         // Delete user document and related waitlist entries
         db.collection("users").document(userId).delete()

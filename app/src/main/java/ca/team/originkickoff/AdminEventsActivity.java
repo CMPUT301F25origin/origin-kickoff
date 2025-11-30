@@ -50,6 +50,9 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
         loadAllEvents();
     }
 
+    /**
+     * Loads all events for administrative overview and updates adapter/empty state.
+     */
     private void loadAllEvents() {
         if (progress != null) progress.setVisibility(View.VISIBLE);
         eventService.getAllEvents(new FirebaseEventService.EventsCallback() {
@@ -73,6 +76,11 @@ public class AdminEventsActivity extends AppCompatActivity implements EventAdapt
         });
     }
 
+    /**
+     * Handles an admin tapping an event; opens read-only detail view.
+     *
+     * @param event the event model tapped
+     */
     @Override
     public void onEventClick(Event event) {
         // Admin can only view/browse events - open in read-only mode

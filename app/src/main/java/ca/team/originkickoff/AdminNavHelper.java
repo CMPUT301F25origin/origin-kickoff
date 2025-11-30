@@ -16,6 +16,13 @@ public final class AdminNavHelper {
 
     public enum Tab { DASHBOARD, EVENTS, USERS, IMAGES, LOGS }
 
+    /**
+     * Wires click listeners for all admin bottom navigation items and highlights the active tab.
+     * Should be invoked after setContentView in each admin Activity.
+     *
+     * @param activity host activity
+     * @param active   enum value representing currently active tab
+     */
     public static void setup(Activity activity, Tab active) {
         View dashboard = activity.findViewById(R.id.navDashboard);
         View events = activity.findViewById(R.id.navEvents);
@@ -51,6 +58,12 @@ public final class AdminNavHelper {
         highlight(logs, active == Tab.LOGS);
     }
 
+    /**
+     * Applies visual highlight styles to a tab container (icon tint + label color) when active.
+     *
+     * @param container root view of the tab item
+     * @param active    whether this tab is active
+     */
     private static void highlight(View container, boolean active) {
         if (container == null) return;
         ImageView icon = null;
