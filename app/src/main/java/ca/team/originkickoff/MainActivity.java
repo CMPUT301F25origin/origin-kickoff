@@ -74,6 +74,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        // If we are in forced user mode, do not auto-show switch-to-admin until we resolve admin
+        // (will show a "Switch to Admin" button allowing return)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -83,8 +85,11 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         db = FirebaseFirestore.getInstance();
 
         loadingView = findViewById(R.id.loadingView);
+        if (loadingView != null) loadingView.setVisibility(View.GONE); // hide overlay initially
         btnSwitchToAdmin = findViewById(R.id.btnSwitchToAdmin);
         if (btnSwitchToAdmin != null) btnSwitchToAdmin.setOnClickListener(v -> {
+            // Leaving user mode and going back to admin dashboard
+            SessionManager.setForceUserMode(false);
             Intent i = new Intent(MainActivity.this, AdminMainActivity.class);
             startActivity(i);
         });
@@ -252,10 +257,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
      */
     @Override
     public void onEventClick(Event event) {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main, EventDetailFragment.newInstance(event.getId()))
-                .addToBackStack(null)
-                .commit();
+        if (event == null) return;
+        Intent intent = new Intent(MainActivity.this, EventDetailActivity.class);
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, event.getId());
+        startActivity(intent);
     }
 
     /**
@@ -429,6 +434,12 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
      * Checks if the current user/device is an admin and shows/hides the admin switch button.
      */
     private void checkAdminAndToggleSwitch() {
+        if (SessionManager.isForceUserMode()) {
+            // In forced user mode: treat as normal user (hide admin switch button label maybe?)
+            if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(View.VISIBLE); // show to allow switching back
+            isAdminUser = false; // disable admin behaviors like special filtering
+            return;
+        }
         String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
         db.collection("users")
                 .whereEqualTo("device_id", deviceId)

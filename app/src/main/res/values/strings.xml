@@ -179,4 +179,8 @@ All your data will be erased!</string>
     <string name="profile_deleted">Profile deleted</string>
     <string name="admin_access_only">Admins only. Access denied.</string>
     <string name="admin_signed_in">Signed in as Admin</string>
+    <string name="remove_event">Remove Event</string>
+    <string name="date_tbd_label">Date TBD</string>
+    <string name="spots_left_format">%1$d spots left</string>
+    <string name="req_geolocation">Req: Geolocation</string>
 </resources>
