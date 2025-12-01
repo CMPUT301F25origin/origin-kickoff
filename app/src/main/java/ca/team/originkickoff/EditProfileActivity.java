@@ -1,4 +1,4 @@
-/*
+/**
  * Profile editing screen for updating user display info and avatar.
  * Supports image upload (Base64) with size validation and Firestore persistence.
  */

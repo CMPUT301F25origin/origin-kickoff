@@ -1,4 +1,4 @@
-/*
+/**
  * Detailed event screen showing metadata, poster, lottery status, and actions.
  * Handles waitlist join/leave, location preview, and organizer-specific controls.
  */

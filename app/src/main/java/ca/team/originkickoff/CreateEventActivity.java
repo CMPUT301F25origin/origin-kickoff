@@ -1,4 +1,4 @@
-/*
+/**
  * Event creation workflow allowing organizers to set metadata, registration windows, poster, and limits.
  * Persists a new event document in Firestore with optional waitlist constraints.
  */
