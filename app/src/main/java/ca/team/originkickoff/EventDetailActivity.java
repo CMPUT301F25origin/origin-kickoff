@@ -76,6 +76,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private LinearLayout invitationActionRow; // row with accept/decline buttons
     private com.google.android.material.button.MaterialButton btnAcceptInvitation;
     private com.google.android.material.button.MaterialButton btnDeclineInvitation;
+    private com.google.android.material.button.MaterialButton btnContinueWaitingList;
 
     private FirebaseFirestore db;
     private String eventId;
@@ -172,6 +173,7 @@ public class EventDetailActivity extends AppCompatActivity {
         invitationActionRow = findViewById(R.id.invitationActionRow);
         btnAcceptInvitation = findViewById(R.id.btnAcceptInvitation);
         btnDeclineInvitation = findViewById(R.id.btnDeclineInvitation);
+        btnContinueWaitingList = findViewById(R.id.btnContinueWaitingList);
     }
 
     /**
@@ -856,12 +858,20 @@ public class EventDetailActivity extends AppCompatActivity {
                 invitationActionRow.setVisibility(View.VISIBLE);
                 setupInvitationActionButtons(status);
             }
+            if (btnContinueWaitingList != null) btnContinueWaitingList.setVisibility(View.GONE);
         } else if ("enrolled".equals(status)) {
             if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+            if (btnContinueWaitingList != null) btnContinueWaitingList.setVisibility(View.GONE);
         } else if ("cancelled".equals(status)) {
             if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+            if (btnContinueWaitingList != null) btnContinueWaitingList.setVisibility(View.GONE);
         } else {
+            // User was not selected - show "Continue on Waiting List" button
             if (invitationActionRow != null) invitationActionRow.setVisibility(View.GONE);
+            if (btnContinueWaitingList != null) {
+                // Check if user already opted in
+                checkResamplingOptInStatus();
+            }
         }
 
         if ("chosen".equals(status) || "enrolled".equals(status)) {
@@ -879,18 +889,97 @@ public class EventDetailActivity extends AppCompatActivity {
     }
 
     /**
+     * Checks if the user has already opted in for resampling and updates button accordingly.
+     */
+    private void checkResamplingOptInStatus() {
+        if (currentEvent == null || currentUser == null) return;
+
+        db.collection("waiting_list_entries")
+                .whereEqualTo("event_id", currentEvent.getId())
+                .whereEqualTo("user_id", currentUser.getId())
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    if (!snapshots.isEmpty()) {
+                        Boolean optedIn = snapshots.getDocuments().get(0).getBoolean("resampling_opt_in");
+                        if (Boolean.TRUE.equals(optedIn)) {
+                            // Already opted in - show confirmation message instead of button
+                            btnContinueWaitingList.setEnabled(false);
+                            btnContinueWaitingList.setText(getString(R.string.opted_in_for_resampling));
+                            btnContinueWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#2A3A38")));
+                            btnContinueWaitingList.setVisibility(View.VISIBLE);
+                        } else {
+                            // Not opted in yet - show active button
+                            btnContinueWaitingList.setEnabled(true);
+                            btnContinueWaitingList.setText(getString(R.string.continue_on_waiting_list));
+                            btnContinueWaitingList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#4DE8C0")));
+                            btnContinueWaitingList.setVisibility(View.VISIBLE);
+                            btnContinueWaitingList.setOnClickListener(v -> optInForResampling());
+                        }
+                    } else {
+                        // User not in waiting list - hide button
+                        btnContinueWaitingList.setVisibility(View.GONE);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Error checking resampling opt-in status", e);
+                    btnContinueWaitingList.setVisibility(View.GONE);
+                });
+    }
+
+    /**
+     * Opts the user in for automatic resampling if a spot opens up.
+     */
+    private void optInForResampling() {
+        if (currentEvent == null || currentUser == null) return;
+
+        btnContinueWaitingList.setEnabled(false);
+
+        db.collection("waiting_list_entries")
+                .whereEqualTo("event_id", currentEvent.getId())
+                .whereEqualTo("user_id", currentUser.getId())
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshots -> {
+                    if (!snapshots.isEmpty()) {
+                        snapshots.getDocuments().get(0).getReference()
+                                .update("resampling_opt_in", true)
+                                .addOnSuccessListener(aVoid -> {
+                                    Toast.makeText(this, getString(R.string.opted_in_for_resampling),
+                                            Toast.LENGTH_LONG).show();
+                                    btnContinueWaitingList.setText(getString(R.string.opted_in_for_resampling));
+                                    btnContinueWaitingList.setBackgroundTintList(
+                                            ColorStateList.valueOf(Color.parseColor("#2A3A38")));
+                                })
+                                .addOnFailureListener(e -> {
+                                    Toast.makeText(this, "Failed to opt in: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                    btnContinueWaitingList.setEnabled(true);
+                                });
+                    } else {
+                        Toast.makeText(this, "You are not on the waiting list", Toast.LENGTH_SHORT).show();
+                        btnContinueWaitingList.setVisibility(View.GONE);
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to opt in: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    btnContinueWaitingList.setEnabled(true);
+                });
+    }
+
+    /**
      * Sets up the accept/decline buttons for the invitation action row.
      *
      * @param _status the lottery status (e.g., "chosen") (unused)
      */
     @SuppressWarnings("unused")
-    private void setupInvitationActionButtons(String _status) { // underscore to silence unused param lint
+    private void setupInvitationActionButtons(String _status) {
         if (currentEvent == null || currentUser == null) return;
         if (btnAcceptInvitation != null) {
             btnAcceptInvitation.setOnClickListener(v -> {
                 btnAcceptInvitation.setEnabled(false);
                 btnDeclineInvitation.setEnabled(false);
-                DeclineResamplingService.getInstance()
+                ca.team.originkickoff.services.DeclineResamplingService.getInstance()
                         .acceptInvitation(currentEvent.getId(), currentUser.getId())
                         .addOnSuccessListener(changed -> {
                             if (Boolean.TRUE.equals(changed)) {
@@ -917,7 +1006,7 @@ public class EventDetailActivity extends AppCompatActivity {
                         .setPositiveButton("Decline", (d,w) -> {
                             btnAcceptInvitation.setEnabled(false);
                             btnDeclineInvitation.setEnabled(false);
-                            DeclineResamplingService.getInstance()
+                            ca.team.originkickoff.services.DeclineResamplingService.getInstance()
                                     .declineInvitation(currentEvent.getId(), currentUser.getId())
                                     .addOnSuccessListener(changed -> {
                                         if (Boolean.TRUE.equals(changed)) {
