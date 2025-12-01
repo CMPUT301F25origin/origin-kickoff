@@ -91,6 +91,10 @@ public class InvitationListFragment extends Fragment {
 
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         adapter = new InvitationAdapter(new ArrayList<>());
+
+        // Enable cancel button only for "chosen" status (users who haven't accepted yet)
+        adapter.setShowCancelButton("chosen".equals(status));
+
         recyclerView.setAdapter(adapter);
 
         loadInvitations();

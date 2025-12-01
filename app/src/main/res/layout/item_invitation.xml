@@ -49,6 +49,18 @@
                 android:layout_marginTop="4dp" />
         </LinearLayout>
 
+        <ImageButton
+            android:id="@+id/btnCancelInvitation"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="8dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/cancel_invitation"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            app:tint="#FF6B6B"
+            android:visibility="gone"
+            android:padding="8dp"/>
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

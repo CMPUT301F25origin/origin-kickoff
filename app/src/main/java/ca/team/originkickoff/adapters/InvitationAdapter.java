@@ -9,15 +9,19 @@ import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -38,6 +42,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
     private final Map<String, String> nameCache = new HashMap<>();
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private boolean showCancelButton = false;
 
     /**
      * Creates a new adapter instance.
@@ -56,6 +61,14 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         nameCache.clear();
         imageCache.clear();
         notifyDataSetChanged();
+    }
+
+    /**
+     * Sets whether the cancel button should be shown for items.
+     * @param show true to show cancel button for "chosen" status items
+     */
+    public void setShowCancelButton(boolean show) {
+        this.showCancelButton = show;
     }
 
     /**
@@ -98,6 +111,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         private final TextView tvUserName;
         private final TextView tvSelectedDate;
         private final ImageView ivProfilePic;
+        private final ImageButton btnCancelInvitation;
 
         /**
          * Constructs the holder and binds view references.
@@ -108,6 +122,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             tvUserName = itemView.findViewById(R.id.tv_user_name);
             tvSelectedDate = itemView.findViewById(R.id.tv_selected_date);
             ivProfilePic = itemView.findViewById(R.id.ivProfilePic);
+            btnCancelInvitation = itemView.findViewById(R.id.btnCancelInvitation);
         }
 
         /**
@@ -132,6 +147,66 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
             }
 
             loadProfilePicture(userId);
+
+            // Show cancel button only for "chosen" status (not yet accepted)
+            if (showCancelButton && "chosen".equals(invitation.getStatus())) {
+                btnCancelInvitation.setVisibility(View.VISIBLE);
+                btnCancelInvitation.setOnClickListener(v -> showCancelConfirmationDialog(invitation, position));
+            } else {
+                btnCancelInvitation.setVisibility(View.GONE);
+            }
+        }
+
+        /**
+         * Shows a confirmation dialog before cancelling an invitation.
+         * @param invitation the invitation to cancel
+         * @param position adapter position
+         */
+        private void showCancelConfirmationDialog(InvitationStatus invitation, int position) {
+            String userName = nameCache.getOrDefault(invitation.getUserId(), "this user");
+
+            new AlertDialog.Builder(itemView.getContext())
+                    .setTitle("Cancel Invitation")
+                    .setMessage("Are you sure you want to cancel the invitation for " + userName + "?")
+                    .setPositiveButton("Yes, Cancel", (dialog, which) -> cancelInvitation(invitation, position))
+                    .setNegativeButton("No", null)
+                    .show();
+        }
+
+        /**
+         * Cancels the invitation by updating the status to "cancelled" in Firestore.
+         * @param invitation the invitation to cancel
+         * @param position adapter position
+         */
+        private void cancelInvitation(InvitationStatus invitation, int position) {
+            // Find the invitation document and update its status
+            db.collection("invitation_status")
+                    .whereEqualTo("event_id", invitation.getEventId())
+                    .whereEqualTo("user_id", invitation.getUserId())
+                    .whereEqualTo("status", "chosen")
+                    .get()
+                    .addOnSuccessListener(querySnapshot -> {
+                        if (!querySnapshot.isEmpty()) {
+                            querySnapshot.getDocuments().get(0).getReference()
+                                    .update("status", "cancelled",
+                                            "responded_at", Timestamp.now())
+                                    .addOnSuccessListener(aVoid -> {
+                                        Toast.makeText(itemView.getContext(),
+                                                "Invitation cancelled successfully",
+                                                Toast.LENGTH_SHORT).show();
+                                    })
+                                    .addOnFailureListener(e -> {
+                                        Toast.makeText(itemView.getContext(),
+                                                "Failed to cancel invitation",
+                                                Toast.LENGTH_SHORT).show();
+                                    });
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(itemView.getContext(),
+                                "Failed to cancel invitation",
+                                Toast.LENGTH_SHORT).show();
+                    });
         }
 
         /**
