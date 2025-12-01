@@ -119,7 +119,7 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     }
 
     /**
-     * Fetches event details from Firestore to obtain event location and name.
+     * Fetches event details (name and coordinates) to plot the event marker once available.
      */
     private void fetchEventDetails() {
         db.collection("events").document(eventId).get()
@@ -141,7 +141,8 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     }
 
     /**
-     * Resolves display names for user IDs so map markers can show readable titles.
+     * Resolves display names for entrant user ids to provide readable marker titles.
+     * Refreshes map markers after all names are fetched.
      */
     private void fetchUserNames() {
         Log.d(TAG, "Fetching user names for " + userIds.size() + " users");
@@ -201,8 +202,8 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     }
 
     /**
-     * Called when Google Map is ready. Configures UI settings and plots markers.
-     * @param map GoogleMap instance
+     * Called when Google Map is ready; configures UI gestures and plots markers (entrants + event).
+     * @param map GoogleMap instance provided by the framework
      */
     @Override
     public void onMapReady(@NonNull GoogleMap map) {
@@ -231,7 +232,7 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     }
 
     /**
-     * Adds entrant and event markers to the map and adjusts camera bounds.
+     * Adds entrant markers (red) and event marker (blue/custom) then fits camera to all markers with padding.
      */
     private void plotMarkers() {
         if (googleMap == null || latitudes == null || longitudes == null) {
@@ -314,8 +315,9 @@ public class WaitingListMapActivity extends AppCompatActivity implements OnMapRe
     }
 
     /**
-     * Toggles immersive full-screen UI and updates overlay control visibility.
-     * @param immersive true to enable immersive mode
+     * Toggles immersive mode altering system UI visibility and overlay controls for full screen map viewing.
+     *
+     * @param immersive true to enable immersive fullscreen
      */
     private void setSystemUiImmersive(boolean immersive) {
         isImmersive = immersive;

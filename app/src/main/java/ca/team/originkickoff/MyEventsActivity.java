@@ -72,7 +72,7 @@ public class MyEventsActivity extends AppCompatActivity {
     }
 
     /**
-     * Queries user document to decide whether organizer tab should display.
+     * Queries Firestore to determine if current device user has organizer privileges and proceeds to setup tabs.
      */
     private void checkIfUserIsOrganizer() {
         String deviceId = DeviceUtils.getDeviceId(this);
@@ -105,9 +105,10 @@ public class MyEventsActivity extends AppCompatActivity {
     }
 
     /**
-     * Sets up ViewPager tabs based on organizer role.
+     * Configures ViewPager2 and TabLayout dynamically based on whether organizer tab should be shown.
+     * Also manages FAB visibility tied to the organized events tab.
      *
-     * @param showOrganizerTab whether to include the organized events tab
+     * @param showOrganizerTab true to include organized events tab
      */
     private void setupTabs(boolean showOrganizerTab) {
         // Create adapter with dynamic tab count
@@ -172,6 +173,9 @@ public class MyEventsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Wires bottom navigation click listeners and visually highlights the events tab.
+     */
     private void setupBottomNav() {
         LinearLayout navHome = findViewById(R.id.navHome);
         LinearLayout navEvents = findViewById(R.id.navEvents);
@@ -192,7 +196,11 @@ public class MyEventsActivity extends AppCompatActivity {
         navProfile.setOnClickListener(v -> navigateBottomTab(ProfileActivity.class));
     }
 
-    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    /**
+     * Debounced bottom navigation helper to switch destination activities without animation.
+     *
+     * @param targetActivity destination class to open
+     */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
         if (getClass().equals(targetActivity)) return; // already on this tab

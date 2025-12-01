@@ -56,6 +56,9 @@ public class ManageInvitationsActivity extends AppCompatActivity {
         setupTabs();
     }
 
+    /**
+     * Inflates and binds view references (header text, tab layout, pager) and configures action bar.
+     */
     private void initializeViews() {
         tvEventName = findViewById(R.id.tv_event_name);
         tabLayout = findViewById(R.id.tab_layout);
@@ -68,7 +71,8 @@ public class ManageInvitationsActivity extends AppCompatActivity {
     }
 
     /**
-     * Fetches event data to show its name in the header.
+     * Loads the event document to retrieve its name for contextual display in the header.
+     * Silently logs failures without interrupting tab setup.
      */
     private void loadEventData() {
         FirebaseFirestore.getInstance()
@@ -90,7 +94,8 @@ public class ManageInvitationsActivity extends AppCompatActivity {
     }
 
     /**
-     * Sets up the ViewPager2 and TabLayout with invitation status tabs.
+     * Configures ViewPager2 with invitation status tabs (Chosen, Cancelled, Enrolled) and attaches TabLayout.
+     * Starts on the "Chosen" tab for immediate lottery results visibility.
      */
     private void setupTabs() {
         InvitationsPagerAdapter adapter = new InvitationsPagerAdapter(this, eventId);

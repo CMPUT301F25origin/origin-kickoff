@@ -234,9 +234,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     }
 
     /**
-     * Navigates to a bottom-tab destination with debounce and no transition.
+     * Navigates to a bottom navigation destination activity using a debounce and no animations.
+     * Skips if target is the current class.
      *
-     * @param targetActivity activity class to open
+     * @param targetActivity destination activity class
      */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
@@ -397,7 +398,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     }
 
     /**
-     * Applies search text, category, date, and location filters to the in-memory list.
+     * Applies in-memory filters (search text, category, date, location) to the current open events list
+     * and submits the filtered list to the adapter.
      */
     private void filterEvents() {
         List<Event> tempFiltered = new ArrayList<>(allEvents);

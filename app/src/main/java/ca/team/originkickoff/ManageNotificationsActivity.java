@@ -61,11 +61,17 @@ public class ManageNotificationsActivity extends AppCompatActivity {
         setupButtons();
     }
 
+    /**
+     * Initializes service instances used for notifications and waiting list queries.
+     */
     private void initializeServices() {
         notificationService = new NotificationService();
         waitingListService = new WaitingListService();
     }
 
+    /**
+     * Binds view references and configures action bar for this screen.
+     */
     private void initializeViews() {
         tvEventName = findViewById(R.id.tv_event_name);
         tvStats = findViewById(R.id.tv_stats);
@@ -81,6 +87,9 @@ public class ManageNotificationsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Fetches the event document and then loads current participant stats.
+     */
     private void loadEventAndStats() {
         showLoading(true);
         FirebaseFirestore.getInstance().collection("events").document(eventId).get()
@@ -104,6 +113,9 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Aggregates counts for active waitlist, chosen, enrolled, and cancelled entrants and updates stats label.
+     */
     private void loadStats() {
         waitingListService.countActive(eventId)
                 .addOnSuccessListener(waitlistCount -> {
@@ -150,6 +162,9 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Attaches click listeners for each broadcast group button.
+     */
     private void setupButtons() {
         btnNotifyWaitlist.setOnClickListener(v -> fetchGroupAndPromptBroadcast(Group.WAITLIST));
         btnNotifyChosen.setOnClickListener(v -> fetchGroupAndPromptBroadcast(Group.CHOSEN));
@@ -157,6 +172,11 @@ public class ManageNotificationsActivity extends AppCompatActivity {
         btnNotifyCancelled.setOnClickListener(v -> fetchGroupAndPromptBroadcast(Group.CANCELLED));
     }
 
+    /**
+     * Retrieves user ids for a specified notification group (waitlist/chosen/enrolled/cancelled) then prompts for broadcast.
+     *
+     * @param group target entrant group enumeration
+     */
     private void fetchGroupAndPromptBroadcast(Group group) {
         String eventName = currentEvent != null ? currentEvent.getName() : getString(R.string.event_name_placeholder);
         showLoading(true);
@@ -194,9 +214,10 @@ public class ManageNotificationsActivity extends AppCompatActivity {
     }
 
     /**
-     * Fetch union of users who are considered "cancelled entrants":
-     * 1) invitation_status documents with status=cancelled (declined winners)
-     * 2) waiting_list_entries state=left AND removed_by_organizer=true (explicit organizer removals)
+     * Builds a union of user ids considered cancelled entrants for messaging.
+     *
+     * @param eventId event identifier
+     * @param cb      callback receiving list of user ids
      */
     private void fetchCancelledEntrantIds(String eventId, CancelledEntrantsCallback cb) {
         FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -227,6 +248,12 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                 .addOnFailureListener(cb::onError);
     }
 
+    /**
+     * Maps a Group enum to its invitation_status string (except waitlist which is handled externally).
+     *
+     * @param g group enum value
+     * @return Firestore status string
+     */
     private String mapGroupToStatus(Group g) {
         switch (g) {
             case CHOSEN: return "chosen";
@@ -236,6 +263,12 @@ public class ManageNotificationsActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Shows a dialog allowing title/message input and sends notifications to provided user ids.
+     *
+     * @param userIds   list of target user document ids
+     * @param eventName name of the event for context
+     */
     private void promptBroadcast(List<String> userIds, String eventName) {
         if (userIds.isEmpty()) {
             Toast.makeText(this, R.string.no_notifications, Toast.LENGTH_SHORT).show();
@@ -273,6 +306,11 @@ public class ManageNotificationsActivity extends AppCompatActivity {
                 .show();
     }
 
+    /**
+     * Toggles the visibility of the progress bar loading indicator.
+     *
+     * @param show true to display loading spinner
+     */
     private void showLoading(boolean show) {
         progressBar.setVisibility(show ? View.VISIBLE : View.GONE);
     }
