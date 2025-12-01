@@ -447,6 +447,21 @@
 
                     </LinearLayout>
 
+                    <!-- Button for users who lost lottery to stay on waiting list -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnContinueWaitingList"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/continue_on_waiting_list"
+                        android:textAllCaps="false"
+                        android:textStyle="bold"
+                        android:textColor="#FFFFFF"
+                        android:backgroundTint="#4DE8C0"
+                        app:cornerRadius="12dp"
+                        app:elevation="0dp"
+                        android:visibility="gone"/>
+
                 </LinearLayout>
 
             </androidx.cardview.widget.CardView>

@@ -190,4 +190,8 @@ All your data will be erased!</string>
     <string name="cancel_invitation_message">Are you sure you want to cancel the invitation for %1$s?</string>
     <string name="yes_cancel">Yes, Cancel</string>
     <string name="no">No</string>
+
+    <!-- Lottery Lost - Continue Waiting List -->
+    <string name="continue_on_waiting_list">Continue on Waiting List</string>
+    <string name="opted_in_for_resampling">You\'ve opted to remain on the waiting list. If a spot opens up, you may be selected!</string>
 </resources>
