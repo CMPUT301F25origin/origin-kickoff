@@ -1,4 +1,4 @@
-/*
+/**
  * Event editing workflow enabling organizers to modify existing event metadata and registration windows.
  * Loads current event, allows changes, and updates Firestore document while preserving poster if unchanged.
  */
@@ -37,6 +37,7 @@ import java.util.Map;
 
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.EventLocation;
+import android.content.DialogInterface;
 
 /**
  * Activity allowing organizers to edit existing event metadata, timing, and poster.
@@ -420,6 +421,14 @@ public class EditEventActivity extends AppCompatActivity {
         int minute = c.get(Calendar.MINUTE);
         TimePickerDialog dlg = new TimePickerDialog(this, (view, hourOfDay, minute1) -> cb.onTimeChosen(hourOfDay, minute1), hour, minute, true);
         dlg.show();
+        // Ensure dialog action buttons (OK/Cancel) are visible and white
+        try {
+            Button positive = dlg.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negative = dlg.getButton(DialogInterface.BUTTON_NEGATIVE);
+            if (positive != null) positive.setTextColor(0xFFFFFFFF);
+            if (negative != null) negative.setTextColor(0xFFFFFFFF);
+        } catch (Exception ignored) {
+        }
     }
 
     /**

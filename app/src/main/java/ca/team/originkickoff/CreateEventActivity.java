@@ -1,10 +1,11 @@
-/*
+/**
  * Event creation workflow allowing organizers to set metadata, registration windows, poster, and limits.
  * Persists a new event document in Firestore with optional waitlist constraints.
  */
 package ca.team.originkickoff;
 
 import android.app.TimePickerDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -338,6 +339,14 @@ public class CreateEventActivity extends AppCompatActivity {
         int minute = c.get(Calendar.MINUTE);
         TimePickerDialog dlg = new TimePickerDialog(this, (view, hourOfDay, minute1) -> cb.onTimeChosen(hourOfDay, minute1), hour, minute, true);
         dlg.show();
+        // Ensure dialog action buttons (OK/Cancel) are visible against light backgrounds
+        try {
+            Button positive = dlg.getButton(DialogInterface.BUTTON_POSITIVE);
+            Button negative = dlg.getButton(DialogInterface.BUTTON_NEGATIVE);
+            if (positive != null) positive.setTextColor(0xFFFFFFFF);
+            if (negative != null) negative.setTextColor(0xFFFFFFFF);
+        } catch (Exception ignored) {
+        }
     }
 
     /**

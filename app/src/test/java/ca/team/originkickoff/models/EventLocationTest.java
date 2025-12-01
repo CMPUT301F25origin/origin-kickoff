@@ -1,85 +1,55 @@
 package ca.team.originkickoff.models;
 
-import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+/**
+ * Unit tests for {@link EventLocation}. Fast, deterministic, no Android dependencies.
+ */
 public class EventLocationTest {
 
-    private EventLocation location;
-
-    @Before
-    public void setUp() {
-        location = new EventLocation();
-    }
-
-    // region Constructor Tests
     @Test
-    public void testEmptyConstructor() {
-        // Test Case: 0 (Zero) - Ensure default values are null or zero
-        assertNull("Address should be null", location.getAddress());
-        assertEquals("Latitude should be 0.0", 0.0, location.getLatitude(), 0.0);
-        assertEquals("Longitude should be 0.0", 0.0, location.getLongitude(), 0.0);
-        assertNull("PlaceId should be null", location.getPlaceId());
+    public void defaultConstructor_hasNullsAndZeroes() {
+        EventLocation loc = new EventLocation();
+        assertNull(loc.getAddress());
+        assertEquals(0.0, loc.getLatitude(), 0.0);
+        assertEquals(0.0, loc.getLongitude(), 0.0);
+        assertNull(loc.getPlaceId());
+        assertNull(loc.toString()); // toString returns address
     }
 
     @Test
-    public void testFullConstructor() {
-        // Test Case: 1 (One) - All arguments
-        EventLocation fullLocation = new EventLocation("123 Main St, Anytown", 40.7128, -74.0060, "ChIJgUbEo8FbwokR5C4e9vJkM");
-        assertEquals("123 Main St, Anytown", fullLocation.getAddress());
-        assertEquals(40.7128, fullLocation.getLatitude(), 0.0);
-        assertEquals(-74.0060, fullLocation.getLongitude(), 0.0);
-        assertEquals("ChIJgUbEo8FbwokR5C4e9vJkM", fullLocation.getPlaceId());
+    public void fullConstructor_assignsAllFields() {
+        EventLocation loc = new EventLocation("123 Main St", 45.5, -73.6, "PLACE_ID_123");
+        assertEquals("123 Main St", loc.getAddress());
+        assertEquals(45.5, loc.getLatitude(), 0.0);
+        assertEquals(-73.6, loc.getLongitude(), 0.0);
+        assertEquals("PLACE_ID_123", loc.getPlaceId());
+        assertEquals("123 Main St", loc.toString());
     }
 
     @Test
-    public void testConstructorWithoutPlaceId() {
-        // Test Case: More than 1 (Multiple arguments, one variant)
-        EventLocation noPlaceIdLocation = new EventLocation("City Park", 40.7128, -74.0060);
-        assertEquals("City Park", noPlaceIdLocation.getAddress());
-        assertEquals(40.7128, noPlaceIdLocation.getLatitude(), 0.0);
-        assertEquals(-74.0060, noPlaceIdLocation.getLongitude(), 0.0);
-        assertNull("PlaceId should be null", noPlaceIdLocation.getPlaceId());
-    }
-    // endregion
-
-    // region Getters and Setters Tests
-    @Test
-    public void testGetAndSetAddress() {
-        assertNull(location.getAddress()); // Null case
-        location.setAddress("University Campus");
-        assertEquals("University Campus", location.getAddress());
+    public void threeArgConstructor_setsPlaceIdNull() {
+        EventLocation loc = new EventLocation("Park", 10.1, 20.2);
+        assertEquals("Park", loc.getAddress());
+        assertEquals(10.1, loc.getLatitude(), 0.0);
+        assertEquals(20.2, loc.getLongitude(), 0.0);
+        assertNull(loc.getPlaceId());
+        assertEquals("Park", loc.toString());
     }
 
     @Test
-    public void testGetAndSetLatitude() {
-        assertEquals(0.0, location.getLatitude(), 0.0); // Zero case
-        location.setLatitude(53.5232);
-        assertEquals(53.5232, location.getLatitude(), 0.0);
+    public void setters_updateFields_andToStringReflectsAddress() {
+        EventLocation loc = new EventLocation();
+        loc.setAddress("New Address");
+        loc.setLatitude(1.234);
+        loc.setLongitude(-9.876);
+        loc.setPlaceId("PID");
+        assertEquals("New Address", loc.getAddress());
+        assertEquals(1.234, loc.getLatitude(), 0.0);
+        assertEquals(-9.876, loc.getLongitude(), 0.0);
+        assertEquals("PID", loc.getPlaceId());
+        assertEquals("New Address", loc.toString());
     }
-
-    @Test
-    public void testGetAndSetLongitude() {
-        assertEquals(0.0, location.getLongitude(), 0.0); // Zero case
-        location.setLongitude(-113.5263);
-        assertEquals(-113.5263, location.getLongitude(), 0.0);
-    }
-
-    @Test
-    public void testGetAndSetPlaceId() {
-        assertNull(location.getPlaceId()); // Null case
-        location.setPlaceId("some-google-place-id");
-        assertEquals("some-google-place-id", location.getPlaceId());
-    }
-    // endregion
-
-    // region Other Method Tests
-    @Test
-    public void testToString() {
-        assertNull("toString() should return null for a null address", location.toString()); // Null case
-        location.setAddress("123 Test Street");
-        assertEquals("toString() should return the address", "123 Test Street", location.toString());
-    }
-    // endregion
 }
+

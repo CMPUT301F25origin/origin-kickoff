@@ -43,7 +43,10 @@ public class DeclineResamplingService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     private final Set<String> processedDeclines = ConcurrentHashMap.newKeySet();
+    private final Set<String> processedNewJoiners = ConcurrentHashMap.newKeySet();
     private ListenerRegistration declineListener;
+    private ListenerRegistration newJoinerListener;
+    private boolean newJoinerListenerInitialized = false;
 
     // Singleton optional helper (no global side effects unless used)
     private static DeclineResamplingService INSTANCE;
@@ -84,7 +87,7 @@ public class DeclineResamplingService {
                 .addSnapshotListener((snap, err) -> {
                     if (err != null) {
                         android.util.Log.w(TAG, "Decline listener error", err);
-                        return; // passive failure; caller can log externally
+                        return;
                     }
                     if (snap == null) return;
                     for (DocumentSnapshot doc : snap.getDocuments()) {
@@ -97,6 +100,12 @@ public class DeclineResamplingService {
                         }
                     }
                 });
+
+        // Check immediately for any unfilled spots and fill them
+        checkAndFillUnfilledSpots(eventId);
+
+        // Monitor for new waiting list joiners and auto-select them if spots available
+        startNewJoinerMonitoring(eventId);
     }
 
     /** Stop monitoring declines (if active). */
@@ -105,7 +114,303 @@ public class DeclineResamplingService {
             declineListener.remove();
             declineListener = null;
         }
+        if (newJoinerListener != null) {
+            newJoinerListener.remove();
+            newJoinerListener = null;
+        }
         processedDeclines.clear();
+        processedNewJoiners.clear();
+        newJoinerListenerInitialized = false;
+    }
+
+    /**
+     * Start monitoring for new waiting list joiners who join AFTER the lottery.
+     * These users will be automatically selected if there are unfilled spots.
+     * @param eventId event identifier
+     */
+    private void startNewJoinerMonitoring(@NonNull String eventId) {
+        newJoinerListener = db.collection(WAITLIST_COLL)
+                .whereEqualTo("event_id", eventId)
+                .whereEqualTo("state", "active")
+                .addSnapshotListener((snap, err) -> {
+                    if (err != null) {
+                        android.util.Log.w(TAG, "New joiner listener error", err);
+                        return;
+                    }
+                    if (snap == null) return;
+
+                    // On first snapshot, mark all existing users as already processed
+                    if (!newJoinerListenerInitialized) {
+                        for (DocumentSnapshot doc : snap.getDocuments()) {
+                            String userId = doc.getString("user_id");
+                            if (userId != null) {
+                                processedNewJoiners.add(userId);
+                            }
+                        }
+                        newJoinerListenerInitialized = true;
+                        android.util.Log.d(TAG, "New joiner listener initialized. Marked " + processedNewJoiners.size() + " existing users as processed.");
+                        return; // Don't process initial snapshot
+                    }
+
+                    // After initialization, only process truly new ADDED entries
+                    for (DocumentChange change : snap.getDocumentChanges()) {
+                        if (change.getType() == DocumentChange.Type.ADDED) {
+                            DocumentSnapshot doc = change.getDocument();
+                            String userId = doc.getString("user_id");
+
+                            if (userId != null && !processedNewJoiners.contains(userId)) {
+                                processedNewJoiners.add(userId);
+                                android.util.Log.d(TAG, "New user joined waiting list: " + userId + ". Checking for auto-selection.");
+
+                                // Immediately check if they should be auto-selected
+                                checkAndAutoSelectNewJoiner(eventId, userId);
+                            }
+                        }
+                    }
+                });
+    }
+
+    /**
+     * Check for unfilled winner spots and fill them immediately from existing waiting list.
+     * This is called when monitoring starts to handle cases where someone declined before monitoring began.
+     * @param eventId event identifier
+     */
+    private void checkAndFillUnfilledSpots(@NonNull String eventId) {
+        android.util.Log.d(TAG, "Checking for unfilled spots for event=" + eventId);
+
+        db.collection(LOTTERY_RESULTS_COLL).document(eventId)
+                .get()
+                .addOnSuccessListener(lotteryDoc -> {
+                    if (!lotteryDoc.exists()) {
+                        android.util.Log.d(TAG, "No lottery conducted yet for event=" + eventId);
+                        return;
+                    }
+
+                    LotteryResult result = lotteryDoc.toObject(LotteryResult.class);
+                    if (result == null) return;
+
+                    List<String> currentWinners = result.getWinnerIds() != null ? result.getWinnerIds() : new ArrayList<>();
+                    Integer selectionSize = result.getNumWinners();
+
+                    if (selectionSize == null || selectionSize <= 0) {
+                        android.util.Log.d(TAG, "No selection size set for event=" + eventId);
+                        return;
+                    }
+
+                    int unfilledSpots = selectionSize - currentWinners.size();
+                    if (unfilledSpots <= 0) {
+                        android.util.Log.d(TAG, "No unfilled spots for event=" + eventId + " (winners=" + currentWinners.size() + ", capacity=" + selectionSize + ")");
+                        return;
+                    }
+
+                    android.util.Log.d(TAG, "Found " + unfilledSpots + " unfilled spots for event=" + eventId + ". Attempting to fill them.");
+
+                    // Get all candidates from waiting list who opted in for resampling
+                    String methodValue = result.getLotteryMethod();
+                    Task<QuerySnapshot> declinedTask = db.collection(INVITATION_STATUS_COLL)
+                            .whereEqualTo("event_id", eventId)
+                            .whereEqualTo("status", "cancelled")
+                            .get();
+                    Task<QuerySnapshot> activeWaitlistTask = db.collection(WAITLIST_COLL)
+                            .whereEqualTo("event_id", eventId)
+                            .whereEqualTo("state", "active")
+                            .get();
+
+                    Tasks.whenAllSuccess(declinedTask, activeWaitlistTask)
+                            .addOnSuccessListener(results -> {
+                                // Build exclusion set (current winners + previously cancelled users)
+                                Set<String> exclude = new HashSet<>(currentWinners);
+
+                                QuerySnapshot declinedSnaps = declinedTask.getResult();
+                                if (declinedSnaps != null) {
+                                    for (DocumentSnapshot d : declinedSnaps.getDocuments()) {
+                                        String uid = d.getString("user_id");
+                                        if (uid != null) exclude.add(uid);
+                                    }
+                                }
+
+                                // Get candidates who opted in for resampling
+                                List<WaitingListEntry> candidateEntries = new ArrayList<>();
+                                QuerySnapshot waitlistSnaps = activeWaitlistTask.getResult();
+                                if (waitlistSnaps != null) {
+                                    for (DocumentSnapshot w : waitlistSnaps.getDocuments()) {
+                                        WaitingListEntry e = w.toObject(WaitingListEntry.class);
+                                        Boolean resamplingOptIn = w.getBoolean("resampling_opt_in");
+                                        if (e != null && e.getUserId() != null && !exclude.contains(e.getUserId())
+                                                && Boolean.TRUE.equals(resamplingOptIn)) {
+                                            candidateEntries.add(e);
+                                        }
+                                    }
+                                }
+
+                                android.util.Log.d(TAG, "Found " + candidateEntries.size() + " candidates who opted in for resampling");
+
+                                // Fill each unfilled spot
+                                if (!candidateEntries.isEmpty()) {
+                                    fillSpotsSequentially(eventId, unfilledSpots, candidateEntries, methodValue, currentWinners);
+                                } else {
+                                    // No candidates available to fill spots - leave num_winners as-is so new joiners can fill them
+                                    android.util.Log.d(TAG, "No candidates available to fill " + unfilledSpots + " unfilled spots. Leaving num_winners at " + selectionSize + " so new joiners can fill spots.");
+                                }
+                            });
+                })
+                .addOnFailureListener(e -> android.util.Log.e(TAG, "Error checking for unfilled spots", e));
+    }
+
+    /**
+     * Fill unfilled spots sequentially by selecting candidates one at a time.
+     * @param eventId event identifier
+     * @param spotsToFill number of spots remaining
+     * @param candidates list of candidate entries
+     * @param methodValue lottery method to use for selection
+     * @param currentWinners current list of winners (for exclusion)
+     */
+    private void fillSpotsSequentially(@NonNull String eventId, int spotsToFill,
+                                       @NonNull List<WaitingListEntry> candidates,
+                                       @Nullable String methodValue,
+                                       @NonNull List<String> currentWinners) {
+        if (spotsToFill <= 0 || candidates.isEmpty()) {
+            android.util.Log.d(TAG, "No more spots to fill or no candidates available");
+            return;
+        }
+
+        // Pick one candidate
+        String selectedUserId = pickCandidate(methodValue, candidates);
+        if (selectedUserId == null) {
+            android.util.Log.d(TAG, "No candidate selected");
+            return;
+        }
+
+        android.util.Log.d(TAG, "Attempting to auto-select user " + selectedUserId + " to fill unfilled spot");
+
+        // Add them as a winner
+        autoSelectUser(eventId, selectedUserId, currentWinners);
+
+        // Remove from candidates and recurse for remaining spots
+        candidates.removeIf(e -> selectedUserId.equals(e.getUserId()));
+        currentWinners = new ArrayList<>(currentWinners);
+        currentWinners.add(selectedUserId);
+
+        // Continue filling remaining spots
+        if (spotsToFill > 1 && !candidates.isEmpty()) {
+            fillSpotsSequentially(eventId, spotsToFill - 1, candidates, methodValue, currentWinners);
+        }
+    }
+
+    /**
+     * Check if there are unfilled winner spots and automatically select the new joiner.
+     * @param eventId event identifier
+     * @param newUserId newly joined user ID
+     */
+    private void checkAndAutoSelectNewJoiner(@NonNull String eventId, @NonNull String newUserId) {
+        db.collection(LOTTERY_RESULTS_COLL).document(eventId)
+                .get()
+                .addOnSuccessListener(lotteryDoc -> {
+                    if (!lotteryDoc.exists()) {
+                        android.util.Log.d(TAG, "No lottery conducted yet for event=" + eventId);
+                        return;
+                    }
+
+                    LotteryResult result = lotteryDoc.toObject(LotteryResult.class);
+                    if (result == null) return;
+
+                    // Get current winner count and selection size
+                    List<String> currentWinners = result.getWinnerIds() != null ? result.getWinnerIds() : new ArrayList<>();
+                    Integer selectionSize = result.getNumWinners();
+
+                    if (selectionSize == null || selectionSize <= 0) {
+                        android.util.Log.d(TAG, "No selection size set for event=" + eventId);
+                        return;
+                    }
+
+                    // Check if user is already a winner
+                    if (currentWinners.contains(newUserId)) {
+                        android.util.Log.d(TAG, "User " + newUserId + " is already a winner");
+                        return;
+                    }
+
+                    // Check if there are unfilled spots
+                    int unfilledSpots = selectionSize - currentWinners.size();
+                    if (unfilledSpots <= 0) {
+                        android.util.Log.d(TAG, "No unfilled spots for event=" + eventId);
+                        return;
+                    }
+
+                    android.util.Log.d(TAG, "Found " + unfilledSpots + " unfilled spots. Auto-selecting user " + newUserId);
+
+                    // Check if user has been cancelled/declined before
+                    db.collection(INVITATION_STATUS_COLL)
+                            .whereEqualTo("event_id", eventId)
+                            .whereEqualTo("user_id", newUserId)
+                            .whereEqualTo("status", "cancelled")
+                            .get()
+                            .addOnSuccessListener(cancelledSnap -> {
+                                if (!cancelledSnap.isEmpty()) {
+                                    android.util.Log.d(TAG, "User " + newUserId + " previously declined/cancelled, not auto-selecting");
+                                    return;
+                                }
+
+                                // Auto-select this user
+                                autoSelectUser(eventId, newUserId, currentWinners);
+                            });
+                })
+                .addOnFailureListener(e -> android.util.Log.e(TAG, "Error checking lottery results", e));
+    }
+
+    /**
+     * Automatically select a new user to fill an unfilled spot.
+     * @param eventId event identifier
+     * @param userId user to auto-select
+     * @param currentWinners current list of winner IDs
+     */
+    private void autoSelectUser(@NonNull String eventId, @NonNull String userId, @NonNull List<String> currentWinners) {
+        db.runTransaction(tr -> {
+            DocumentReference lotteryRef = db.collection(LOTTERY_RESULTS_COLL).document(eventId);
+            DocumentSnapshot snap = tr.get(lotteryRef);
+            if (!snap.exists()) return null;
+
+            List<String> winners = (List<String>) snap.get("winner_ids");
+            if (winners == null) winners = new ArrayList<>();
+
+            // Double-check user isn't already a winner (race condition check)
+            if (winners.contains(userId)) return null;
+
+            // Add user to winners
+            winners = new ArrayList<>(winners);
+            winners.add(userId);
+
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("winner_ids", winners);
+            tr.update(lotteryRef, updates);
+
+            // Create invitation status
+            DocumentReference inviteRef = db.collection(INVITATION_STATUS_COLL)
+                    .document(eventId + "_" + userId);
+            Map<String, Object> inviteData = new HashMap<>();
+            inviteData.put("event_id", eventId);
+            inviteData.put("user_id", userId);
+            inviteData.put("status", "chosen");
+            inviteData.put("invited_at", Timestamp.now());
+            tr.set(inviteRef, inviteData);
+
+            return userId;
+        }).addOnSuccessListener(selectedUserId -> {
+            if (selectedUserId != null) {
+                android.util.Log.d(TAG, "Auto-selected user " + selectedUserId + " for event " + eventId);
+
+                // Send notification
+                String notificationId = db.collection("notifications").document().getId();
+                Map<String, Object> notif = new HashMap<>();
+                notif.put("userId", selectedUserId);
+                notif.put("eventId", eventId);
+                notif.put("type", "result_resample");
+                notif.put("title", "🎉 You're now selected!");
+                notif.put("message", "A spot was available and you were automatically selected for the event!");
+                notif.put("createdAt", Timestamp.now());
+                notif.put("read", false);
+                db.collection("notifications").document(notificationId).set(notif);
+            }
+        }).addOnFailureListener(e -> android.util.Log.e(TAG, "Error auto-selecting user", e));
     }
 
     private void handleDecline(String eventId, String declinedUserId, @Nullable ReplacementCallback callback) {
@@ -151,11 +456,15 @@ public class DeclineResamplingService {
                                 if (waitlistSnaps != null) {
                                     for (DocumentSnapshot w : waitlistSnaps.getDocuments()) {
                                         WaitingListEntry e = w.toObject(WaitingListEntry.class);
-                                        if (e != null && e.getUserId() != null && !exclude.contains(e.getUserId())) {
+                                        // Only include users who have opted in for resampling
+                                        Boolean resamplingOptIn = w.getBoolean("resampling_opt_in");
+                                        if (e != null && e.getUserId() != null && !exclude.contains(e.getUserId())
+                                                && Boolean.TRUE.equals(resamplingOptIn)) {
                                             candidateEntries.add(e);
                                         }
                                     }
                                 }
+                                android.util.Log.d(TAG, "Found " + candidateEntries.size() + " candidates who opted in for resampling");
                                 String replacementUserId = null;
                                 if (!candidateEntries.isEmpty()) {
                                     replacementUserId = pickCandidate(methodValue, candidateEntries);
@@ -329,11 +638,16 @@ public class DeclineResamplingService {
                     List<WaitingListEntry> entries = new ArrayList<>();
                     for (DocumentSnapshot s : task.getResult().getDocuments()) {
                         WaitingListEntry e = s.toObject(WaitingListEntry.class);
-                        if (e != null) entries.add(e);
+                        if (e != null && e.getUserId() != null) {
+                            entries.add(e);
+                        }
                     }
-                    String candidate = pickCandidate("random", entries);
-                    android.util.Log.d(TAG, "Dry run resample candidate=" + candidate);
-                    return candidate;
+                    if (entries.isEmpty()) return null;
+                    String methodValue = "early_priority_random"; // force weighted method
+                    String selectedUserId = pickCandidate(methodValue, entries);
+                    android.util.Log.d(TAG, "Dry run resample selected user: " + selectedUserId);
+                    return selectedUserId;
                 });
     }
 }
+

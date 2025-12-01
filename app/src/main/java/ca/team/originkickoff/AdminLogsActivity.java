@@ -1,3 +1,7 @@
+/**
+ * Admin notification logs viewer displaying all system notifications.
+ * Provides filtering by date range, user, event, and notification type.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;

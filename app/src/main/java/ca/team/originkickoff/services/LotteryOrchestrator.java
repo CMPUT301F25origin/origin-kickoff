@@ -138,6 +138,8 @@ public class LotteryOrchestrator {
                         if (!t.isSuccessful()) {
                             throw t.getException();
                         }
+                        // Start monitoring for declines and new joiners immediately after lottery completes
+                        DeclineResamplingService.ensureMonitoring(result.getEventId());
                         return result;
                     });
         });

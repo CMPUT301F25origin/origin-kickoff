@@ -1,4 +1,8 @@
 // filepath: /Users/sargun/StudioProjects/origin-kickoff/app/src/main/java/ca/team/originkickoff/ui/OrganizerEntrantsActivity.java
+/**
+ * Organizer view for managing entrants (enrolled and cancelled).
+ * Allows organizers to review and cancel entrant registrations.
+ */
 package ca.team.originkickoff.ui;
 
 import android.os.Bundle;
