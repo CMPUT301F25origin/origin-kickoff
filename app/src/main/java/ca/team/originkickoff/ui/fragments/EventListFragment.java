@@ -1,4 +1,4 @@
-/*
+/**
  * Displays the list of events with search and pull-to-refresh capabilities.
  * Bridges Firestore-backed data to a RecyclerView via EventAdapter.
  */

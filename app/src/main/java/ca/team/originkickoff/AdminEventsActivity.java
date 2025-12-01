@@ -1,3 +1,7 @@
+/**
+ * Admin panel for browsing and managing all events in the system.
+ * Provides event list with navigation to individual event details.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;

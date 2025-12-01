@@ -1,4 +1,4 @@
-/*
+/**
  * Main feed displaying upcoming events with filtering by category, date, and location.
  * Hosts navigation bar and entry points for scanning and event creation.
  */

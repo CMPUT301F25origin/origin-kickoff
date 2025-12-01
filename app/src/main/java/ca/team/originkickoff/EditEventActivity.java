@@ -1,4 +1,4 @@
-/*
+/**
  * Event editing workflow enabling organizers to modify existing event metadata and registration windows.
  * Loads current event, allows changes, and updates Firestore document while preserving poster if unchanged.
  */
