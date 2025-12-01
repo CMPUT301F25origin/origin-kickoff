@@ -1,12 +1,10 @@
 package ca.team.originkickoff;
 
-import android.app.DatePickerDialog;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
-import android.widget.DatePicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,6 +16,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -173,14 +172,35 @@ public class AdminLogsActivity extends AppCompatActivity {
      * @param isFrom true to set the lower bound (From), false for upper bound (To).
      */
     private void pickDate(boolean isFrom) {
-        final Calendar c = Calendar.getInstance();
-        DatePickerDialog d = new DatePickerDialog(this, (DatePicker view, int year, int month, int dayOfMonth) -> {
-            Calendar sel = Calendar.getInstance();
-            sel.set(year, month, dayOfMonth, isFrom ? 0 : 23, isFrom ? 0 : 59, isFrom ? 0 : 59);
-            if (isFrom) fromDate = sel.getTime(); else toDate = sel.getTime();
+        MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText(isFrom ? "From date" : "To date")
+                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+                .setTheme(R.style.ThemeOverlay_KickOff_DatePicker)
+                .build();
+        picker.addOnPositiveButtonClickListener(selection -> {
+            if (selection == null) return;
+            java.util.Calendar utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+            utc.setTimeInMillis(selection);
+            java.util.Calendar local = java.util.Calendar.getInstance();
+            local.set(java.util.Calendar.YEAR, utc.get(java.util.Calendar.YEAR));
+            local.set(java.util.Calendar.MONTH, utc.get(java.util.Calendar.MONTH));
+            local.set(java.util.Calendar.DAY_OF_MONTH, utc.get(java.util.Calendar.DAY_OF_MONTH));
+            if (isFrom) {
+                local.set(java.util.Calendar.HOUR_OF_DAY, 0);
+                local.set(java.util.Calendar.MINUTE, 0);
+                local.set(java.util.Calendar.SECOND, 0);
+                local.set(java.util.Calendar.MILLISECOND, 0);
+                fromDate = local.getTime();
+            } else {
+                local.set(java.util.Calendar.HOUR_OF_DAY, 23);
+                local.set(java.util.Calendar.MINUTE, 59);
+                local.set(java.util.Calendar.SECOND, 59);
+                local.set(java.util.Calendar.MILLISECOND, 999);
+                toDate = local.getTime();
+            }
             resetAndLoad();
-        }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
-        d.show();
+        });
+        picker.show(getSupportFragmentManager(), isFrom ? "admin_logs_from" : "admin_logs_to");
     }
 
     /**
