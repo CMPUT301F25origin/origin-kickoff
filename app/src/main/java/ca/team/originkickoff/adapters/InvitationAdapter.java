@@ -21,6 +21,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.request.RequestOptions;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -33,6 +35,7 @@ import java.util.Map;
 
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.models.InvitationStatus;
+import ca.team.originkickoff.services.NotificationService;
 
 /**
  * Adapter for displaying {@link ca.team.originkickoff.models.InvitationStatus} items.
@@ -42,6 +45,7 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
     private final Map<String, String> nameCache = new HashMap<>();
     private final Map<String, String> imageCache = new HashMap<>();
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
+    private final NotificationService notificationService = new NotificationService();
     private boolean showCancelButton = false;
 
     /**
@@ -165,16 +169,37 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
         private void showCancelConfirmationDialog(InvitationStatus invitation, int position) {
             String userName = nameCache.getOrDefault(invitation.getUserId(), "this user");
 
-            new AlertDialog.Builder(itemView.getContext())
-                    .setTitle("Cancel Invitation")
-                    .setMessage("Are you sure you want to cancel the invitation for " + userName + "?")
-                    .setPositiveButton("Yes, Cancel", (dialog, which) -> cancelInvitation(invitation, position))
-                    .setNegativeButton("No", null)
-                    .show();
+            // Inflate custom dialog layout
+            View dialogView = LayoutInflater.from(itemView.getContext())
+                    .inflate(R.layout.dialog_cancel_invitation, null);
+
+            MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(
+                    itemView.getContext(), R.style.CustomAlertDialog);
+            builder.setView(dialogView);
+
+            TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
+            TextView tvMessage = dialogView.findViewById(R.id.tvDialogMessage);
+            MaterialButton btnConfirm = dialogView.findViewById(R.id.btnConfirm);
+            MaterialButton btnCancel = dialogView.findViewById(R.id.btnCancel);
+
+            tvTitle.setText("Cancel Invitation");
+            tvMessage.setText("Are you sure you want to cancel the invitation for " + userName + "?");
+
+            AlertDialog dialog = builder.create();
+
+            btnConfirm.setOnClickListener(v -> {
+                dialog.dismiss();
+                cancelInvitation(invitation, position);
+            });
+
+            btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+            dialog.show();
         }
 
         /**
-         * Cancels the invitation by updating the status to "cancelled" in Firestore.
+         * Cancels the invitation by updating the status to "cancelled" in Firestore
+         * and sends a notification to the user.
          * @param invitation the invitation to cancel
          * @param position adapter position
          */
@@ -191,6 +216,10 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                                     .update("status", "cancelled",
                                             "responded_at", Timestamp.now())
                                     .addOnSuccessListener(aVoid -> {
+                                        // Send notification to the user
+                                        sendCancellationNotification(invitation.getUserId(),
+                                                invitation.getEventId());
+
                                         Toast.makeText(itemView.getContext(),
                                                 "Invitation cancelled successfully",
                                                 Toast.LENGTH_SHORT).show();
@@ -206,6 +235,47 @@ public class InvitationAdapter extends RecyclerView.Adapter<InvitationAdapter.Vi
                         Toast.makeText(itemView.getContext(),
                                 "Failed to cancel invitation",
                                 Toast.LENGTH_SHORT).show();
+                    });
+        }
+
+        /**
+         * Sends a notification to the user informing them that their invitation was cancelled.
+         * @param userId the user whose invitation was cancelled
+         * @param eventId the event ID
+         */
+        private void sendCancellationNotification(String userId, String eventId) {
+            // Fetch event name first
+            db.collection("events").document(eventId).get()
+                    .addOnSuccessListener(eventDoc -> {
+                        String eventName = "the event";
+                        if (eventDoc.exists()) {
+                            String name = eventDoc.getString("name");
+                            if (name != null && !name.isEmpty()) {
+                                eventName = name;
+                            }
+                        }
+
+                        // Create notification document
+                        String notificationId = db.collection("notifications").document().getId();
+                        Map<String, Object> notification = new HashMap<>();
+                        notification.put("userId", userId);
+                        notification.put("eventId", eventId);
+                        notification.put("type", "invitation_cancelled");
+                        notification.put("read", false);
+                        notification.put("createdAt", Timestamp.now());
+                        notification.put("title", "Invitation Cancelled");
+                        notification.put("message", "Your invitation for " + eventName +
+                                " has been cancelled by the organizer.");
+
+                        db.collection("notifications")
+                                .document(notificationId)
+                                .set(notification)
+                                .addOnSuccessListener(aVoid -> {
+                                    // Notification sent successfully
+                                })
+                                .addOnFailureListener(e -> {
+                                    // Failed to send notification, but invitation is still cancelled
+                                });
                     });
         }
 

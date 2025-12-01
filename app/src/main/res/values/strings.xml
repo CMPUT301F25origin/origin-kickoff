@@ -186,4 +186,8 @@ All your data will be erased!</string>
 
     <!-- Invitation Management -->
     <string name="cancel_invitation">Cancel invitation</string>
+    <string name="cancel_invitation_title">Cancel Invitation</string>
+    <string name="cancel_invitation_message">Are you sure you want to cancel the invitation for %1$s?</string>
+    <string name="yes_cancel">Yes, Cancel</string>
+    <string name="no">No</string>
 </resources>
