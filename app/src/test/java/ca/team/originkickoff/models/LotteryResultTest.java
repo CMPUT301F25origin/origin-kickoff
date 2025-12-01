@@ -1,49 +1,62 @@
 package ca.team.originkickoff.models;
 
-import com.google.firebase.Timestamp;
 import org.junit.Test;
-import java.util.Arrays;
-import java.util.List;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Unit tests for LotteryResult covering simple POJO behavior without Firebase timestamp instantiation.
+ */
 public class LotteryResultTest {
 
     @Test
-    public void testConstructorAndFields() {
-        Timestamp conducted = Timestamp.now();
-        List<String> winners = Arrays.asList("u1", "u2");
-        LotteryResult result = new LotteryResult("eventX", conducted, "random", 10, 2, winners, "orgZ");
-        result.setAllEntrantIds(Arrays.asList("u1", "u2", "u3"));
-        assertEquals("eventX", result.getEventId());
-        assertEquals(conducted, result.getConductedAt());
-        assertEquals("random", result.getLotteryMethod());
-        assertEquals(10, result.getTotalEntrants());
-        assertEquals(2, result.getNumWinners());
-        assertEquals(winners, result.getWinnerIds());
-        assertEquals("orgZ", result.getConductedBy());
-        assertEquals(Arrays.asList("u1", "u2", "u3"), result.getAllEntrantIds());
+    public void defaultConstructor_fieldsNullOrZero() {
+        LotteryResult lr = new LotteryResult();
+        assertNull(lr.getEventId());
+        assertNull(lr.getConductedAt());
+        assertNull(lr.getLotteryMethod());
+        assertEquals(0, lr.getTotalEntrants());
+        assertEquals(0, lr.getNumWinners());
+        assertNull(lr.getWinnerIds());
+        assertNull(lr.getAllEntrantIds());
+        assertNull(lr.getConductedBy());
     }
 
     @Test
-    public void testEmptyConstructorSetters() {
-        LotteryResult res = new LotteryResult();
-        Timestamp t = Timestamp.now();
-        res.setEventId("E");
-        res.setConductedAt(t);
-        res.setLotteryMethod("early_priority_random");
-        res.setTotalEntrants(5);
-        res.setNumWinners(3);
-        res.setWinnerIds(Arrays.asList("a","b","c"));
-        res.setAllEntrantIds(Arrays.asList("a","b","c","d","e"));
-        res.setConductedBy("ORG");
-        assertEquals("E", res.getEventId());
-        assertEquals(t, res.getConductedAt());
-        assertEquals("early_priority_random", res.getLotteryMethod());
-        assertEquals(5, res.getTotalEntrants());
-        assertEquals(3, res.getNumWinners());
-        assertEquals(Arrays.asList("a","b","c"), res.getWinnerIds());
-        assertEquals(Arrays.asList("a","b","c","d","e"), res.getAllEntrantIds());
-        assertEquals("ORG", res.getConductedBy());
+    public void convenienceConstructor_setsProvidedFields() {
+        List<String> winners = Arrays.asList("U1", "U2");
+        LotteryResult lr = new LotteryResult("E1", null, "random", 10, 2, winners, "ORG1");
+        assertEquals("E1", lr.getEventId());
+        assertNull(lr.getConductedAt()); // passed null intentionally
+        assertEquals("random", lr.getLotteryMethod());
+        assertEquals(10, lr.getTotalEntrants());
+        assertEquals(2, lr.getNumWinners());
+        assertEquals(winners, lr.getWinnerIds());
+        assertNull(lr.getAllEntrantIds()); // not set via constructor
+        assertEquals("ORG1", lr.getConductedBy());
+    }
+
+    @Test
+    public void setters_updateMutableFields() {
+        LotteryResult lr = new LotteryResult();
+        lr.setEventId("E2");
+        lr.setLotteryMethod("early_priority_random");
+        lr.setTotalEntrants(25);
+        lr.setNumWinners(5);
+        lr.setWinnerIds(Arrays.asList("A", "B"));
+        lr.setAllEntrantIds(Arrays.asList("A", "B", "C"));
+        lr.setConductedBy("ORG2");
+        // conductedAt left null to avoid Firebase dependency
+        assertEquals("E2", lr.getEventId());
+        assertEquals("early_priority_random", lr.getLotteryMethod());
+        assertEquals(25, lr.getTotalEntrants());
+        assertEquals(5, lr.getNumWinners());
+        assertEquals(Arrays.asList("A", "B"), lr.getWinnerIds());
+        assertEquals(Arrays.asList("A", "B", "C"), lr.getAllEntrantIds());
+        assertEquals("ORG2", lr.getConductedBy());
+        assertNull(lr.getConductedAt());
     }
 }
 

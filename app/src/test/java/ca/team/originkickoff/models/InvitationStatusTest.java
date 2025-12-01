@@ -1,37 +1,45 @@
 package ca.team.originkickoff.models;
 
-import com.google.firebase.Timestamp;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
+/**
+ * Unit tests for InvitationStatus focusing on simple POJO behavior without Firebase runtime.
+ */
 public class InvitationStatusTest {
 
     @Test
-    public void testConstructor() {
-        Timestamp inviteTime = Timestamp.now();
-        InvitationStatus status = new InvitationStatus("eventA", "userB", "chosen", inviteTime);
-        assertEquals("eventA", status.getEventId());
-        assertEquals("userB", status.getUserId());
-        assertEquals("chosen", status.getStatus());
-        assertEquals(inviteTime, status.getInvitedAt());
-        assertNull(status.getRespondedAt());
+    public void defaultConstructor_fieldsNull() {
+        InvitationStatus is = new InvitationStatus();
+        assertNull(is.getEventId());
+        assertNull(is.getUserId());
+        assertNull(is.getStatus());
+        assertNull(is.getInvitedAt());
+        assertNull(is.getRespondedAt());
     }
 
     @Test
-    public void testSetters() {
-        InvitationStatus s = new InvitationStatus();
-        s.setEventId("E");
-        s.setUserId("U");
-        s.setStatus("enrolled");
-        Timestamp invited = Timestamp.now();
-        Timestamp responded = Timestamp.now();
-        s.setInvitedAt(invited);
-        s.setRespondedAt(responded);
-        assertEquals("E", s.getEventId());
-        assertEquals("U", s.getUserId());
-        assertEquals("enrolled", s.getStatus());
-        assertEquals(invited, s.getInvitedAt());
-        assertEquals(responded, s.getRespondedAt());
+    public void convenienceConstructor_setsProvidedFields() {
+        InvitationStatus is = new InvitationStatus("E1", "U1", "chosen", null);
+        assertEquals("E1", is.getEventId());
+        assertEquals("U1", is.getUserId());
+        assertEquals("chosen", is.getStatus());
+        assertNull(is.getInvitedAt()); // passed null
+        assertNull(is.getRespondedAt()); // not set yet
+    }
+
+    @Test
+    public void setters_mutateFields() {
+        InvitationStatus is = new InvitationStatus();
+        is.setEventId("E2");
+        is.setUserId("U2");
+        is.setStatus("cancelled");
+        // intentionally keep timestamps null to avoid Firebase dependency in JVM test
+        assertEquals("E2", is.getEventId());
+        assertEquals("U2", is.getUserId());
+        assertEquals("cancelled", is.getStatus());
+        assertNull(is.getInvitedAt());
+        assertNull(is.getRespondedAt());
     }
 }
 
