@@ -41,6 +41,7 @@ import java.util.Map;
 import ca.team.originkickoff.data.repository.UserRepository;
 import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.User;
+import ca.team.originkickoff.services.AcceptInvitationService;
 import ca.team.originkickoff.services.DeclineResamplingService;
 import ca.team.originkickoff.services.WaitingListService;
 import ca.team.originkickoff.SessionManager;
@@ -890,8 +891,9 @@ public class EventDetailActivity extends AppCompatActivity {
             btnAcceptInvitation.setOnClickListener(v -> {
                 btnAcceptInvitation.setEnabled(false);
                 btnDeclineInvitation.setEnabled(false);
-                DeclineResamplingService.getInstance()
-                        .acceptInvitation(currentEvent.getId(), currentUser.getId())
+                // Use AcceptInvitationService to confirm attendance and add to final list
+                new AcceptInvitationService()
+                        .confirmAttendance(currentEvent.getId(), currentUser.getId())
                         .addOnSuccessListener(changed -> {
                             if (Boolean.TRUE.equals(changed)) {
                                 Toast.makeText(this, "Invitation accepted", Toast.LENGTH_SHORT).show();
@@ -899,7 +901,9 @@ public class EventDetailActivity extends AppCompatActivity {
                                 tvLotteryResult.setText(getString(R.string.lottery_win));
                                 tvLotteryResult.setTextColor(Color.parseColor("#4DE8C0"));
                             } else {
-                                Toast.makeText(this, "Unable to accept (already enrolled or state changed)", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(this, "Unable to accept (not chosen or state changed)", Toast.LENGTH_SHORT).show();
+                                btnAcceptInvitation.setEnabled(true);
+                                btnDeclineInvitation.setEnabled(true);
                             }
                         })
                         .addOnFailureListener(e -> {
