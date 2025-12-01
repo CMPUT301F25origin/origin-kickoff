@@ -117,6 +117,7 @@ public class DeclineResamplingService {
         }
         processedDeclines.clear();
         processedNewJoiners.clear();
+        newJoinerListenerInitialized = false;
     }
 
     /**
@@ -132,34 +133,33 @@ public class DeclineResamplingService {
                         android.util.Log.w(TAG, "New joiner listener error", err);
                         return;
                     }
-                    if (snap == null || snap.getDocumentChanges().isEmpty()) return;
+                    if (snap == null) return;
 
-                    // Check for newly added entries
-                    for (com.google.firebase.firestore.DocumentChange change : snap.getDocumentChanges()) {
-                        if (change.getType() == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                            DocumentSnapshot doc = change.getDocument();
-                            String userId = doc.getString("user_id");
-                            if (userId != null) {
-                                // Filter out users who are already in the waiting list (processed inital snapshot)
-                                if (processedNewJoiners.contains(userId)) {
-                                    android.util.Log.d(TAG, "Skipping already processed new joiner: " + userId);
-                                    continue;
-                                }
-                                android.util.Log.d(TAG, "Detected new waiting list joiner: " + userId);
-                                checkAndAutoSelectNewJoiner(eventId, userId);
-                            }
-                        }
-                    }
-
-                    // Mark all current joiners as processed after initial handling
+                    // On first snapshot, mark all existing users as processed to avoid auto-selecting them
                     if (!newJoinerListenerInitialized) {
                         for (DocumentSnapshot doc : snap.getDocuments()) {
                             String userId = doc.getString("user_id");
                             if (userId != null) {
                                 processedNewJoiners.add(userId);
+                                android.util.Log.d(TAG, "Marked existing user as processed: " + userId);
                             }
                         }
                         newJoinerListenerInitialized = true;
+                        android.util.Log.d(TAG, "New joiner listener initialized with " + processedNewJoiners.size() + " existing users");
+                        return; // Don't process any users from the initial snapshot
+                    }
+
+                    // After initialization, only process truly new ADDED documents
+                    for (com.google.firebase.firestore.DocumentChange change : snap.getDocumentChanges()) {
+                        if (change.getType() == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                            DocumentSnapshot doc = change.getDocument();
+                            String userId = doc.getString("user_id");
+                            if (userId != null && !processedNewJoiners.contains(userId)) {
+                                processedNewJoiners.add(userId);
+                                android.util.Log.d(TAG, "Detected new waiting list joiner: " + userId);
+                                checkAndAutoSelectNewJoiner(eventId, userId);
+                            }
+                        }
                     }
                 });
     }
