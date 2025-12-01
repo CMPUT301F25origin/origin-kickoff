@@ -4,7 +4,6 @@
  */
 package ca.team.originkickoff;
 
-import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -28,6 +27,8 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SwitchCompat;
 
+import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.android.material.datepicker.MaterialPickerOnPositiveButtonClickListener;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.FirebaseFirestore;
 
@@ -304,16 +305,26 @@ public class CreateEventActivity extends AppCompatActivity {
      * @param cb callback to receive the chosen date in millis
      */
     private void showDatePicker(DateChosenCallback cb) {
-        final Calendar c = Calendar.getInstance();
-        int y = c.get(Calendar.YEAR);
-        int m = c.get(Calendar.MONTH);
-        int d = c.get(Calendar.DAY_OF_MONTH);
-        DatePickerDialog dlg = new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            Calendar chosen = Calendar.getInstance();
-            chosen.set(year, month, dayOfMonth, 0, 0, 0);
-            cb.onDateChosen(chosen.getTimeInMillis());
-        }, y, m, d);
-        dlg.show();
+        MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("Select date")
+                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+                .setTheme(R.style.ThemeOverlay_KickOff_DatePicker)
+                .build();
+        picker.addOnPositiveButtonClickListener(selection -> {
+            if (selection == null) return;
+            java.util.Calendar utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+            utc.setTimeInMillis(selection);
+            java.util.Calendar local = java.util.Calendar.getInstance();
+            local.set(java.util.Calendar.YEAR, utc.get(java.util.Calendar.YEAR));
+            local.set(java.util.Calendar.MONTH, utc.get(java.util.Calendar.MONTH));
+            local.set(java.util.Calendar.DAY_OF_MONTH, utc.get(java.util.Calendar.DAY_OF_MONTH));
+            local.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            local.set(java.util.Calendar.MINUTE, 0);
+            local.set(java.util.Calendar.SECOND, 0);
+            local.set(java.util.Calendar.MILLISECOND, 0);
+            cb.onDateChosen(local.getTimeInMillis());
+        });
+        picker.show(getSupportFragmentManager(), "create_event_date_picker");
     }
 
     /**

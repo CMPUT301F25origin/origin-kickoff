@@ -5,7 +5,6 @@
 package ca.team.originkickoff;
 
 import android.app.AlertDialog;
-import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -30,6 +29,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.datepicker.MaterialDatePicker;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
@@ -318,13 +318,27 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
      * Opens a date picker and filters events on the chosen day.
      */
     private void showDatePickerDialog() {
-        Calendar cal = Calendar.getInstance();
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            Calendar selectedCal = Calendar.getInstance();
-            selectedCal.set(year, month, dayOfMonth, 0, 0, 0);
-            selectedDate = selectedCal.getTimeInMillis();
+        MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("Select date")
+                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+                .setTheme(R.style.ThemeOverlay_KickOff_DatePicker)
+                .build();
+        picker.addOnPositiveButtonClickListener(selection -> {
+            if (selection == null) return;
+            java.util.Calendar utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+            utc.setTimeInMillis(selection);
+            java.util.Calendar local = java.util.Calendar.getInstance();
+            local.set(java.util.Calendar.YEAR, utc.get(java.util.Calendar.YEAR));
+            local.set(java.util.Calendar.MONTH, utc.get(java.util.Calendar.MONTH));
+            local.set(java.util.Calendar.DAY_OF_MONTH, utc.get(java.util.Calendar.DAY_OF_MONTH));
+            local.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            local.set(java.util.Calendar.MINUTE, 0);
+            local.set(java.util.Calendar.SECOND, 0);
+            local.set(java.util.Calendar.MILLISECOND, 0);
+            selectedDate = local.getTimeInMillis();
             filterEvents();
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+        });
+        picker.show(getSupportFragmentManager(), "main_date_filter");
     }
 
     /**
