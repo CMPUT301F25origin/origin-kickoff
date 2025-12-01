@@ -48,6 +48,15 @@ public class AdminMainActivity extends AppCompatActivity {
 
     private interface Action { void run(); }
 
+    /**
+     * Binds title, subtitle, icon, and click action to a dashboard card view.
+     *
+     * @param card     root view of the card
+     * @param title    display title text
+     * @param subtitle secondary description text
+     * @param iconRes  drawable resource id for icon
+     * @param action   action invoked when card is tapped
+     */
     private void bindCard(View card, String title, String subtitle, int iconRes, Action action) {
         if (card == null) return;
         TextView tvTitle = card.findViewById(R.id.title);
@@ -59,18 +68,30 @@ public class AdminMainActivity extends AppCompatActivity {
         card.setOnClickListener(v -> action.run());
     }
 
+    /**
+     * Opens the admin events management screen.
+     */
     private void openEvents() {
         startActivity(new Intent(this, AdminEventsActivity.class));
     }
 
+    /**
+     * Opens the admin user management screen.
+     */
     private void openUsers() {
         startActivity(new Intent(this, AdminUsersActivity.class));
     }
 
+    /**
+     * Opens the admin images review screen.
+     */
     private void openImages() {
         startActivity(new Intent(this, AdminImagesActivity.class));
     }
 
+    /**
+     * Opens the admin notification logs screen.
+     */
     private void openLogs() {
         startActivity(new Intent(this, AdminLogsActivity.class));
     }

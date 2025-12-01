@@ -154,7 +154,17 @@ public class SignUpActivity extends AppCompatActivity {
         finish();
     }
 
-    // --- Admin helpers (no UI button; triggered by special name/email) ---
+    private void navigateToAdmin() {
+        Intent i = new Intent(this, AdminMainActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(i);
+        finish();
+    }
+
+    /**
+     * Performs a quick admin sign-in flow for test purposes. Ensures an auth session, upserts an admin user document,
+     * and routes to the admin dashboard.
+     */
     private void quickAdminSignIn() {
         String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
         if (mAuth.getCurrentUser() == null) {
@@ -166,6 +176,11 @@ public class SignUpActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Creates or updates a Firestore admin user document and launches the AdminMainActivity.
+     *
+     * @param deviceId current device identifier used to associate the admin record
+     */
     private void upsertAdminAndOpen(String deviceId) {
         String uid = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getUid() : deviceId;
         Map<String, Object> admin = new HashMap<>();
