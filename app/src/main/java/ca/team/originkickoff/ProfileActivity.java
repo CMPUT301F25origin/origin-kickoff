@@ -106,6 +106,9 @@ public class ProfileActivity extends AppCompatActivity {
         updateProfileHeader();
     }
 
+    /**
+     * Wires back and edit buttons at the top bar to navigate or open edit profile screen.
+     */
     private void setupTopBar() {
         findViewById(R.id.btnBack).setOnClickListener(v -> finish());
         findViewById(R.id.btnEditProfile).setOnClickListener(v -> {
@@ -113,6 +116,9 @@ public class ProfileActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Initializes notification preference toggle and binds its change listener.
+     */
     private void setupToggles() {
         switchLottery = findViewById(R.id.switchLottery);
         if (TextUtils.isEmpty(deviceId)) return;
@@ -135,10 +141,16 @@ public class ProfileActivity extends AppCompatActivity {
         });
     }
 
+    /**
+     * Sets up action buttons such as delete profile.
+     */
     private void setupButtons() {
         findViewById(R.id.btnDelete).setOnClickListener(v -> showDeleteConfirmationDialog());
     }
 
+    /**
+     * Presents a bottom sheet dialog asking for confirmation before deleting the profile.
+     */
     private void showDeleteConfirmationDialog() {
         final BottomSheetDialog bottomSheetDialog = new BottomSheetDialog(this);
         bottomSheetDialog.setContentView(R.layout.bottomsheet_delete_profile);
@@ -152,6 +164,9 @@ public class ProfileActivity extends AppCompatActivity {
         bottomSheetDialog.show();
     }
 
+    /**
+     * Deletes user document and related waiting list entries; updates affected event counters, then navigates to splash.
+     */
     private void deleteUserAndData() {
         if (userDocId == null) {
             Toast.makeText(this, "Error: Could not get user profile to delete.", Toast.LENGTH_SHORT).show();
@@ -192,7 +207,11 @@ public class ProfileActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Toast.makeText(ProfileActivity.this, "Failed to find waitlist entries.", Toast.LENGTH_SHORT).show());
     }
 
-    // Helper to navigate between bottom-bar destinations smoothly with no transition animation
+    /**
+     * Debounced bottom navigation helper to switch to another activity without animation.
+     *
+     * @param targetActivity destination activity class
+     */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
         if (getClass().equals(targetActivity)) return; // already on this tab
@@ -206,6 +225,9 @@ public class ProfileActivity extends AppCompatActivity {
         overridePendingTransition(0, 0);
     }
 
+    /**
+     * Binds bottom navigation item click listeners and highlights current profile tab.
+     */
     private void setupBottomBar() {
         findViewById(R.id.navHome).setOnClickListener(v -> {
             navigateBottomTab(MainActivity.class);
@@ -219,11 +241,18 @@ public class ProfileActivity extends AppCompatActivity {
         findViewById(R.id.navProfile).setOnClickListener(v -> {});
     }
 
+    /**
+     * Displays the device identifier string in the UI.
+     */
     private void setupDeviceId() {
         tvDeviceId = findViewById(R.id.tvDeviceId);
         tvDeviceId.setText(getString(R.string.device_id, deviceId != null ? deviceId : "-"));
     }
 
+    /**
+     * Fetches the user document by device id, populates header fields, and loads event history.
+     * Falls back to placeholder if not found or on error.
+     */
     private void updateProfileHeader() {
         if (TextUtils.isEmpty(deviceId)) {
             showPlaceholderAndClearData();
@@ -248,6 +277,9 @@ public class ProfileActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> showPlaceholderAndClearData());
     }
 
+    /**
+     * Clears display fields and shows placeholder avatar when user cannot be resolved.
+     */
     private void showPlaceholderAndClearData(){
         tvUserName.setText("");
         tvUserEmail.setText("");
@@ -255,6 +287,11 @@ public class ProfileActivity extends AppCompatActivity {
         showPlaceholderImage();
     }
 
+    /**
+     * Loads and applies the profile image from the images collection (Base64 or placeholder).
+     *
+     * @param imageId Firestore image document ID (may be null)
+     */
     private void loadProfileImage(String imageId) {
         if (imageId != null && !imageId.isEmpty()) {
             db.collection("images").document(imageId).get().addOnSuccessListener(imageDoc -> {
@@ -280,11 +317,19 @@ public class ProfileActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Shows a tinted placeholder avatar icon.
+     */
     private void showPlaceholderImage() {
         ivProfile.setImageTintList(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.ko_teal)));
         Glide.with(this).load(R.drawable.ic_person).apply(RequestOptions.circleCropTransform()).into(ivProfile);
     }
 
+    /**
+     * Queries waiting_list_entries for this user and then fetches event details to build history cards.
+     *
+     * @param userId Firestore user document id
+     */
     private void loadEventHistory(String userId) {
         eventHistoryLayout.removeAllViews();
         db.collection("waiting_list_entries").whereEqualTo("user_id", userId).get()
@@ -306,6 +351,12 @@ public class ProfileActivity extends AppCompatActivity {
                 });
     }
 
+    /**
+     * Fetches a single event document and inflates a history card with status, title, location, and image.
+     *
+     * @param eventId event document identifier
+     * @param state   waiting list entry state used for status coloring
+     */
     private void fetchEventAndDisplay(String eventId, String state) {
         db.collection("events").document(eventId).get().addOnSuccessListener(eventDoc -> {
             if (eventDoc.exists()) {

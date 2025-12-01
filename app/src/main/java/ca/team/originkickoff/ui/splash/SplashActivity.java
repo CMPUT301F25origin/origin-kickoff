@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import ca.team.originkickoff.AdminMainActivity;
 import ca.team.originkickoff.MainActivity;
 import ca.team.originkickoff.R;
 import ca.team.originkickoff.SignUpActivity;
@@ -44,7 +45,13 @@ public class SplashActivity extends AppCompatActivity {
         db.collection("users").document(deviceId).get()
                 .addOnSuccessListener(legacyDoc -> {
                     if (legacyDoc.exists()) {
-                        startActivity(new Intent(this, MainActivity.class));
+                        // Check if user is admin
+                        Boolean isAdmin = legacyDoc.getBoolean("is_admin");
+                        if (isAdmin != null && isAdmin) {
+                            startActivity(new Intent(this, AdminMainActivity.class));
+                        } else {
+                            startActivity(new Intent(this, MainActivity.class));
+                        }
                         finish();
                     } else {
                         // Fallback: query by device_id field (new format where doc id != device id)
@@ -54,7 +61,13 @@ public class SplashActivity extends AppCompatActivity {
                                 .get()
                                 .addOnSuccessListener(querySnapshots -> {
                                     if (!querySnapshots.isEmpty()) {
-                                        startActivity(new Intent(this, MainActivity.class));
+                                        // Check if user is admin
+                                        Boolean isAdmin = querySnapshots.getDocuments().get(0).getBoolean("is_admin");
+                                        if (isAdmin != null && isAdmin) {
+                                            startActivity(new Intent(this, AdminMainActivity.class));
+                                        } else {
+                                            startActivity(new Intent(this, MainActivity.class));
+                                        }
                                     } else {
                                         startActivity(new Intent(this, SignUpActivity.class));
                                     }
@@ -74,7 +87,13 @@ public class SplashActivity extends AppCompatActivity {
                             .get()
                             .addOnSuccessListener(querySnapshots -> {
                                 if (!querySnapshots.isEmpty()) {
-                                    startActivity(new Intent(this, MainActivity.class));
+                                    // Check if user is admin
+                                    Boolean isAdmin = querySnapshots.getDocuments().get(0).getBoolean("is_admin");
+                                    if (isAdmin != null && isAdmin) {
+                                        startActivity(new Intent(this, AdminMainActivity.class));
+                                    } else {
+                                        startActivity(new Intent(this, MainActivity.class));
+                                    }
                                 } else {
                                     startActivity(new Intent(this, SignUpActivity.class));
                                 }

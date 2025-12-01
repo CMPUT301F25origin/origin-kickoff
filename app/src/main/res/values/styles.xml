@@ -25,4 +25,49 @@
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">16dp</item>
     </style>
+
+    <!-- DatePicker theme overlay to improve button text visibility and day colors in dark theme -->
+    <style name="ThemeOverlay.KickOff.DatePicker" parent="@style/ThemeOverlay.Material3.MaterialCalendar">
+        <!-- Make action buttons (OK/Cancel) use a visible accent color -->
+        <item name="colorPrimary">@color/ko_teal</item>
+        <!-- Text color shown on primary colored elements (e.g., selected chip/button text) -->
+        <item name="colorOnPrimary">#003932</item>
+        <!-- Force dark text on calendar surfaces for high visibility -->
+        <item name="colorOnSurface">#000000</item>
+        <item name="colorOnSurfaceVariant">#000000</item>
+        <!-- Ensure calendar background is light for contrast with black text -->
+        <item name="colorSurface">#FFFFFF</item>
+        <!-- Keep custom calendar item styles -->
+        <item name="materialCalendarStyle">@style/Widget.KickOff.MaterialCalendar</item>
+    </style>
+
+    <!-- Customize calendar day/month/year item appearances for better contrast -->
+    <style name="Widget.KickOff.MaterialCalendar" parent="@style/Widget.Material3.MaterialCalendar">
+        <item name="dayStyle">@style/Widget.KickOff.MaterialCalendar.Day</item>
+        <item name="daySelectedStyle">@style/Widget.KickOff.MaterialCalendar.Day.Selected</item>
+        <item name="dayTodayStyle">@style/Widget.KickOff.MaterialCalendar.Day.Today</item>
+        <item name="yearStyle">@style/Widget.KickOff.MaterialCalendar.Year</item>
+        <item name="yearSelectedStyle">@style/Widget.KickOff.MaterialCalendar.Year.Selected</item>
+    </style>
+
+    <style name="Widget.KickOff.MaterialCalendar.Day" parent="@style/Widget.Material3.MaterialCalendar.Day">
+        <item name="android:textColor">#000000</item>
+    </style>
+
+    <style name="Widget.KickOff.MaterialCalendar.Day.Selected" parent="@style/Widget.Material3.MaterialCalendar.Day.Selected">
+        <!-- Selected day text uses onPrimary for contrast over selection highlight -->
+        <item name="android:textColor">#003932</item>
+    </style>
+
+    <style name="Widget.KickOff.MaterialCalendar.Day.Today" parent="@style/Widget.Material3.MaterialCalendar.Day.Today">
+        <item name="android:textColor">#000000</item>
+    </style>
+
+    <style name="Widget.KickOff.MaterialCalendar.Year" parent="@style/Widget.Material3.MaterialCalendar.Year">
+        <item name="android:textColor">@color/ko_text_primary</item>
+    </style>
+
+    <style name="Widget.KickOff.MaterialCalendar.Year.Selected" parent="@style/Widget.Material3.MaterialCalendar.Year.Selected">
+        <item name="android:textColor">#003932</item>
+    </style>
 </resources>

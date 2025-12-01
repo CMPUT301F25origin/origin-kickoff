@@ -76,7 +76,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         mapPreviewCard = findViewById(R.id.mapPreviewCard);
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new WaitingListAdapter();
+        adapter = new WaitingListAdapter(entry -> showRemoveEntrantDialog(entry));
         recyclerView.setAdapter(adapter);
 
         // Load event details first to check geolocation requirement
@@ -98,7 +98,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Loads event details to determine if geolocation is required and sets up the map preview accordingly.
+     * Loads event metadata to determine geolocation requirement and conditionally initialize map preview.
      */
     private void loadEventDetails() {
         com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -129,9 +129,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Callback fired when the preview map is ready; plots any loaded entrant markers.
+     * Google Maps preview ready callback; disables gestures and plots any already-loaded entries.
      *
-     * @param map google map instance
+     * @param map initialized GoogleMap instance
      */
     @Override
     public void onMapReady(@NonNull GoogleMap map) {
@@ -208,7 +208,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Queries the waiting list service for current entries and updates the UI.
+     * Fetches active waiting list entries for the event and updates UI state.
      */
     private void loadEntries() {
         progressBar.setVisibility(View.VISIBLE);
@@ -222,9 +222,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Submits the entries to the adapter and plots their locations on the map.
+     * Displays entries in the list and triggers marker plotting on the preview map.
      *
-     * @param entries list of waiting list entries (may be null)
+     * @param entries list of active waiting list entries (nullable)
      */
     private void showEntries(List<WaitingListEntry> entries) {
         currentEntries = entries != null ? new ArrayList<>(entries) : new ArrayList<>();
@@ -238,9 +238,9 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Draws markers for entrants that have shared location, and adjusts camera bounds.
+     * Adds markers for entries with stored coordinates and adjusts camera bounds or default view.
      *
-     * @param entries list of waiting list entries
+     * @param entries list of waiting list entries to plot
      */
     private void plotUserLocations(List<WaitingListEntry> entries) {
         if (googleMap == null || entries == null || entries.isEmpty()) {
@@ -279,7 +279,7 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
     }
 
     /**
-     * Launches the full-screen map activity with entrant coordinates.
+     * Launches full-screen map activity with entrant coordinate extras if any entries have locations.
      */
     private void openFullScreenMap() {
         if (currentEntries.isEmpty()) {
@@ -314,5 +314,82 @@ public class WaitingListActivity extends AppCompatActivity implements OnMapReady
         intent.putExtra("longitudes", longitudes);
         intent.putExtra("user_ids", userIds);
         startActivity(intent);
+    }
+
+    /**
+     * Initiates removal confirmation flow; resolves entrant name from user document for dialog personalization.
+     *
+     * @param entry target waiting list entry
+     */
+    private void showRemoveEntrantDialog(WaitingListEntry entry) {
+        if (entry == null) return;
+        // Fetch user's display name from Firestore, then show confirmation dialog with proper name.
+        String userId = entry.getUserId();
+        if (userId == null || userId.isEmpty()) {
+            showRemoveDialogWithName("Entrant", entry);
+            return;
+        }
+
+        com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(userId)
+                .get()
+                .addOnSuccessListener(doc -> {
+                    String name = extractDisplayNameFromDoc(doc);
+                    if (name == null || name.isEmpty()) name = userId;
+                    showRemoveDialogWithName(name, entry);
+                })
+                .addOnFailureListener(e -> {
+                    // Fallback to userId on failure
+                    showRemoveDialogWithName(userId, entry);
+                });
+    }
+
+    /**
+     * Presents confirmation dialog using resolved entrant display name; performs removal if confirmed.
+     *
+     * @param displayName resolved user-facing name string
+     * @param entry       waiting list entry being removed
+     */
+    private void showRemoveDialogWithName(String displayName, WaitingListEntry entry) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle(getString(R.string.remove_entrant_confirm_title))
+                .setMessage(getString(R.string.remove_entrant_confirm_message, displayName))
+                .setNegativeButton(R.string.cancel, (d, w) -> d.dismiss())
+                .setPositiveButton(R.string.remove_entrant_confirm_remove, (d, w) -> {
+                    // Call service.leave to mark the entrant left and decrement counters
+                    service.leave(eventId, entry.getUserId())
+                            .addOnSuccessListener(changed -> {
+                                if (changed != null && changed) {
+                                    Toast.makeText(this, R.string.remove_entrant_removed, Toast.LENGTH_SHORT).show();
+                                    loadEntries();
+                                } else {
+                                    Toast.makeText(this, R.string.remove_entrant_failed, Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .addOnFailureListener(e -> {
+                                Toast.makeText(this, R.string.remove_entrant_failed, Toast.LENGTH_SHORT).show();
+                            });
+                })
+                .show();
+    }
+
+    /**
+     * Extracts a human-friendly display name from a user document by trying common key variants.
+     *
+     * @param doc user Firestore document snapshot
+     * @return display name string or null if not found
+     */
+    private String extractDisplayNameFromDoc(com.google.firebase.firestore.DocumentSnapshot doc) {
+        if (doc == null || !doc.exists()) return null;
+        String[] keys = new String[]{"display_name", "displayName", "name", "username", "email"};
+        for (String k : keys) {
+            Object v = doc.get(k);
+            if (v instanceof String) {
+                String s = ((String) v).trim();
+                if (!s.isEmpty()) return s;
+            }
+        }
+        return null;
     }
 }

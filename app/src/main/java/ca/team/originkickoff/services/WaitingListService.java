@@ -14,11 +14,8 @@ import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
-import com.google.firebase.firestore.Transaction;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,7 +124,7 @@ public class WaitingListService {
         DocumentReference wlRef = waitlistDoc(eventId, userId);
         DocumentReference eventRef = db.collection(EVENTS_COLL).document(eventId);
 
-        return db.runTransaction((Transaction.Function<Boolean>) transaction -> {
+        return db.runTransaction(transaction -> {
             DocumentSnapshot snap = transaction.get(wlRef);
             boolean wasActive = snap.exists() && "active".equals(snap.getString("state"));
             if (!wasActive) {
@@ -135,6 +132,32 @@ public class WaitingListService {
             }
             transaction.update(wlRef, "state", "left");
             transaction.update(eventRef, "waitlistCount", FieldValue.increment(-1));
+            return true;
+        });
+    }
+
+    /**
+     * Removes an entrant from the waitlist explicitly by organizer action, marking a flag.
+     * NOTE: Must be invoked instead of leave() when organizer initiates removal so we can distinguish via removed_by_organizer.
+     * TODO: Integrate this method in organizer removal flow (WaitingListActivity) to ensure proper cancelled grouping logic.
+     */
+    public Task<Boolean> removeByOrganizer(@NonNull String eventId, @NonNull String userId) {
+        DocumentReference wlRef = waitlistDoc(eventId, userId);
+        DocumentReference eventRef = db.collection(EVENTS_COLL).document(eventId);
+        return db.runTransaction(transaction -> {
+            DocumentSnapshot snap = transaction.get(wlRef);
+            if (!snap.exists()) {
+                return false; // nothing to remove
+            }
+            String state = snap.getString("state");
+            boolean wasActive = "active".equals(state);
+            Map<String, Object> updates = new java.util.HashMap<>();
+            updates.put("state", "left");
+            updates.put("removed_by_organizer", true);
+            transaction.update(wlRef, updates);
+            if (wasActive) {
+                transaction.update(eventRef, "waitlistCount", FieldValue.increment(-1));
+            }
             return true;
         });
     }
@@ -165,7 +188,8 @@ public class WaitingListService {
 
         return q.get().continueWith(task -> {
             if (!task.isSuccessful()) {
-                throw task.getException();
+                Exception ex = task.getException();
+                if (ex != null) throw ex; else throw new IllegalStateException("Unknown error fetching active user ids");
             }
             List<String> userIds = new ArrayList<>();
             QuerySnapshot snaps = task.getResult();
@@ -194,8 +218,8 @@ public class WaitingListService {
 
         return q.get().continueWith(task -> {
             if (!task.isSuccessful()) {
-                // Propagate failure so callers can surface an error
-                throw task.getException();
+                Exception ex = task.getException();
+                if (ex != null) throw ex; else throw new IllegalStateException("Unknown error listing active entries");
             }
             List<WaitingListEntry> out = new ArrayList<>();
             QuerySnapshot snaps = task.getResult();
@@ -205,17 +229,11 @@ public class WaitingListService {
                     if (e != null) out.add(e);
                 }
             }
-            // Sort client-side by joined_at ascending to avoid composite index need
-            Collections.sort(out, new Comparator<WaitingListEntry>() {
-                @Override
-                public int compare(WaitingListEntry a, WaitingListEntry b) {
-                    if (a.getJoinedAt() == null && b.getJoinedAt() == null) return 0;
-                    if (a.getJoinedAt() == null) return 1;
-                    if (b.getJoinedAt() == null) return -1;
-                    long da = a.getJoinedAt().getSeconds();
-                    long db = b.getJoinedAt().getSeconds();
-                    return Long.compare(da, db);
-                }
+            out.sort((a, b) -> {
+                if (a.getJoinedAt() == null && b.getJoinedAt() == null) return 0;
+                if (a.getJoinedAt() == null) return 1;
+                if (b.getJoinedAt() == null) return -1;
+                return Long.compare(a.getJoinedAt().getSeconds(), b.getJoinedAt().getSeconds());
             });
             return out;
         });

@@ -29,6 +29,7 @@ import ca.team.originkickoff.models.Event;
 import ca.team.originkickoff.models.LotteryMethod;
 import ca.team.originkickoff.services.LotteryOrchestrator;
 import ca.team.originkickoff.services.WaitingListService;
+import ca.team.originkickoff.services.NotificationService; // added import
 
 /**
  * Activity enabling organizers to conduct a lottery, send notifications, and view results.
@@ -49,6 +50,7 @@ public class ManageLotteryActivity extends AppCompatActivity {
     private Event currentEvent;
     private LotteryOrchestrator lotteryOrchestrator;
     private WaitingListService waitingListService;
+    private NotificationService notificationService; // service for waitlist broadcast
     private int entrantsCount = 0;
 
     /**
@@ -70,6 +72,7 @@ public class ManageLotteryActivity extends AppCompatActivity {
         initializeViews();
         initializeServices();
         loadEventData();
+        setupNotifyWaitlistButton();
     }
 
     /**
@@ -98,6 +101,7 @@ public class ManageLotteryActivity extends AppCompatActivity {
     private void initializeServices() {
         lotteryOrchestrator = new LotteryOrchestrator();
         waitingListService = new WaitingListService();
+        notificationService = new NotificationService();
     }
 
     /**
@@ -423,5 +427,58 @@ public class ManageLotteryActivity extends AppCompatActivity {
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    private void setupNotifyWaitlistButton() {
+        View btn = findViewById(R.id.btn_notify_waitlist);
+        if (btn == null) return;
+        btn.setOnClickListener(v -> {
+            if (eventId == null) {
+                Toast.makeText(this, "Event not loaded", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            waitingListService.getAllActiveUserIds(eventId)
+                    .addOnSuccessListener(userIds -> {
+                        if (userIds.isEmpty()) {
+                            Toast.makeText(this, "No active entrants to notify", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        promptWaitlistBroadcast(userIds);
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(this, "Failed to load waiting list", Toast.LENGTH_SHORT).show());
+        });
+    }
+
+    private void promptWaitlistBroadcast(List<String> userIds) {
+        String eventName = currentEvent != null ? currentEvent.getName() : "Event";
+        android.widget.LinearLayout container = new android.widget.LinearLayout(this);
+        container.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        container.setPadding(pad, pad, pad, pad);
+        android.widget.EditText titleInput = new android.widget.EditText(this);
+        titleInput.setHint("Title (optional)");
+        android.widget.EditText messageInput = new android.widget.EditText(this);
+        messageInput.setHint("Message to entrants");
+        messageInput.setMinLines(3);
+        messageInput.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
+        container.addView(titleInput);
+        container.addView(messageInput);
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Notify Waiting List")
+                .setMessage("Send a notification to " + userIds.size() + " active entrant(s)?")
+                .setView(container)
+                .setPositiveButton("Send", (dialog, which) -> {
+                    String title = titleInput.getText() != null ? titleInput.getText().toString() : null;
+                    String message = messageInput.getText() != null ? messageInput.getText().toString() : null;
+                    if (message == null || message.trim().isEmpty()) {
+                        Toast.makeText(this, "Message is required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    notificationService.notifyWaitingListEntrants(userIds, eventId, eventName, title, message)
+                            .addOnSuccessListener(v -> Toast.makeText(this, "Broadcast sent", Toast.LENGTH_SHORT).show())
+                            .addOnFailureListener(e -> Toast.makeText(this, "Failed to send broadcast", Toast.LENGTH_SHORT).show());
+                })
+                .setNegativeButton("Cancel", (d, w) -> d.dismiss())
+                .show();
     }
 }

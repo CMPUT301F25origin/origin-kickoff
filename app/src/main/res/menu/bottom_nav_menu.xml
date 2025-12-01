@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_dashboard"
+        android:title="Dashboard"
+        android:icon="@android:drawable/ic_menu_manage" />
+    <item
+        android:id="@+id/nav_events"
+        android:title="Events"
+        android:icon="@android:drawable/ic_menu_today" />
+    <item
+        android:id="@+id/nav_users"
+        android:title="Users"
+        android:icon="@android:drawable/ic_menu_myplaces" />
+    <item
+        android:id="@+id/nav_images"
+        android:title="Images"
+        android:icon="@android:drawable/ic_menu_gallery" />
+    <item
+        android:id="@+id/nav_logs"
+        android:title="Logs"
+        android:icon="@android:drawable/ic_menu_info_details" />
+</menu>
+

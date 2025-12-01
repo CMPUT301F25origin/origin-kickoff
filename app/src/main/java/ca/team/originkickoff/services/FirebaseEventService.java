@@ -50,8 +50,6 @@ public class FirebaseEventService {
                     if (snapshot != null) {
                         Log.d(TAG, "Firestore snapshot received. Total documents: " + snapshot.size());
                         java.util.List<Event> events = new java.util.ArrayList<>();
-                        long currentTime = System.currentTimeMillis();
-
                         for (DocumentSnapshot doc : snapshot.getDocuments()) {
                             try {
                                 Event event = doc.toObject(Event.class);
@@ -61,21 +59,18 @@ public class FirebaseEventService {
                                     event.setId(doc.getId());
                                     Log.d(TAG, "Event loaded: " + event.getName() + ", Status: " + (event.getRegistrationStartTime() != null ? "has dates" : "no dates"));
 
-                                    if (event.getRegistrationStartTime() != null &&
-                                        event.getRegistrationEndTime() != null) {
-                                        long startTime = event.getRegistrationStartTime().getTime();
-                                        long endTime = event.getRegistrationEndTime().getTime();
+                                    long currentTime = System.currentTimeMillis();
+                                    java.util.Date start = event.getRegistrationStartTime();
+                                    java.util.Date end = event.getRegistrationEndTime();
 
-                                        Log.d(TAG, "Current time: " + currentTime + ", Start: " + startTime + ", End: " + endTime);
+                                    boolean hasBoth = start != null && end != null;
+                                    boolean withinWindow = hasBoth && currentTime >= start.getTime() && currentTime <= end.getTime();
 
-                                        if (currentTime >= startTime && currentTime <= endTime) {
-                                            events.add(event);
-                                            Log.d(TAG, "✓ Added open event: " + event.getName());
-                                        } else {
-                                            Log.d(TAG, "✗ Event not in registration window: " + event.getName());
-                                        }
+                                    if (withinWindow) {
+                                        events.add(event);
+                                        Log.d(TAG, "✓ Added open event: " + event.getName());
                                     } else {
-                                        Log.d(TAG, "✗ Event missing registration times: " + event.getName());
+                                        Log.d(TAG, "✗ Event not in registration window: " + event.getName());
                                     }
                                 } else {
                                     Log.d(TAG, "Event object is null for document: " + doc.getId());
@@ -120,7 +115,6 @@ public class FirebaseEventService {
                     if (snapshot != null) {
                         Log.d(TAG, "Debug: Found " + snapshot.size() + " total events in collection");
                         java.util.List<Event> events = new java.util.ArrayList<>();
-                        long currentTime = System.currentTimeMillis();
 
                         for (DocumentSnapshot doc : snapshot.getDocuments()) {
                             try {
@@ -129,17 +123,18 @@ public class FirebaseEventService {
                                     event.setId(doc.getId());
                                     Log.d(TAG, "Debug Event: " + event.getName() + ", Status: " + (event.getRegistrationStartTime() != null ? "has times" : "NO TIMES"));
 
-                                    if (event.getRegistrationStartTime() != null &&
-                                        event.getRegistrationEndTime() != null) {
-                                        long startTime = event.getRegistrationStartTime().getTime();
-                                        long endTime = event.getRegistrationEndTime().getTime();
+                                    long currentTime = System.currentTimeMillis();
+                                    java.util.Date start = event.getRegistrationStartTime();
+                                    java.util.Date end = event.getRegistrationEndTime();
 
-                                        if (currentTime >= startTime && currentTime <= endTime) {
-                                            events.add(event);
-                                            Log.d(TAG, "✓ Debug added: " + event.getName());
-                                        } else {
-                                            Log.d(TAG, "✗ Debug out of window: " + event.getName());
-                                        }
+                                    boolean hasBoth = start != null && end != null;
+                                    boolean withinWindow = hasBoth && currentTime >= start.getTime() && currentTime <= end.getTime();
+
+                                    if (withinWindow) {
+                                        events.add(event);
+                                        Log.d(TAG, "✓ Debug added: " + event.getName());
+                                    } else {
+                                        Log.d(TAG, "✗ Debug out of window: " + event.getName());
                                     }
                                 }
                             } catch (Exception e) {

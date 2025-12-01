@@ -1,83 +1,95 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:background="@drawable/bg_card_ripple"
-    android:orientation="vertical"
-    android:layout_marginBottom="12dp"
-    android:clickable="true"
-    android:focusable="true">
-
-    <!-- Event Image -->
-    <ImageView
-        android:id="@+id/ivEventImage"
-        android:layout_width="match_parent"
-        android:layout_height="150dp"
-        android:scaleType="centerCrop"
-        android:background="#127A70"
-        android:adjustViewBounds="true"
-        android:contentDescription="@string/app_name"/>
+    android:layout_height="wrap_content">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/bg_card_ripple"
         android:orientation="vertical"
-        android:padding="14dp">
+        android:layout_marginBottom="12dp">
 
-        <TextView
-            android:id="@+id/tvEventName"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Event Name"
-            android:textColor="@android:color/white"
-            android:textSize="16sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/tvEventDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:text="Oct 26, 2024"
-            android:textColor="#BFBFBF"
-            android:textSize="13sp" />
+        <!-- Event Image -->
+        <ImageView
+            android:id="@+id/ivEventImage"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:scaleType="centerCrop"
+            android:background="#127A70"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/app_name"/>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginTop="10dp">
-
-            <!-- Spots left -->
-            <TextView
-                android:id="@+id/tvSpotsLeft"
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:background="@drawable/bg_spots"
-                android:gravity="center_vertical"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:text="1000 spots left"
-                android:textColor="@android:color/white"
-                android:textSize="12sp" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1"/>
+            android:orientation="vertical"
+            android:padding="14dp">
 
             <TextView
-                android:id="@+id/tvRequirements"
+                android:id="@+id/tvEventName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Req: Geolocation"
-                android:textColor="#A4A4A4"
-                android:textSize="11sp"/>
+                android:text="@string/event_name_placeholder"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvEventDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/date_tbd_label"
+                android:textColor="#BFBFBF"
+                android:textSize="13sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="10dp">
+
+                <!-- Spots left / status -->
+                <TextView
+                    android:id="@+id/tvSpotsLeft"
+                    android:layout_width="wrap_content"
+                    android:layout_height="30dp"
+                    android:background="@drawable/bg_spots"
+                    android:gravity="center_vertical"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:text="@string/spots_left_format"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1"/>
+
+                <TextView
+                    android:id="@+id/tvRequirements"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/req_geolocation"
+                    android:textColor="#A4A4A4"
+                    android:textSize="11sp"/>
+            </LinearLayout>
+
         </LinearLayout>
-
     </LinearLayout>
-</LinearLayout>
 
+    <ImageView
+        android:id="@+id/ivDeleteEvent"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:src="@drawable/ic_close"
+        android:layout_gravity="top|end"
+        android:layout_margin="8dp"
+        android:visibility="gone"
+        android:contentDescription="@string/remove_event" />
+
+</FrameLayout>

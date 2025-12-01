@@ -5,7 +5,6 @@
 package ca.team.originkickoff;
 
 import android.app.AlertDialog;
-import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.SystemClock;
@@ -30,6 +29,8 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.datepicker.MaterialDatePicker;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 
@@ -58,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     private Long selectedDate = null;
     private String selectedLocation = null;
     private View loadingView;
+    private View btnSwitchToAdmin;
+    private boolean isAdminUser = false;
 
     private long lastNavTapAtMs = 0L;
 
@@ -71,6 +74,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+        // If we are in forced user mode, do not auto-show switch-to-admin until we resolve admin
+        // (will show a "Switch to Admin" button allowing return)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -80,9 +85,18 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         db = FirebaseFirestore.getInstance();
 
         loadingView = findViewById(R.id.loadingView);
+        if (loadingView != null) loadingView.setVisibility(View.GONE); // hide overlay initially
+        btnSwitchToAdmin = findViewById(R.id.btnSwitchToAdmin);
+        if (btnSwitchToAdmin != null) btnSwitchToAdmin.setOnClickListener(v -> {
+            // Leaving user mode and going back to admin dashboard
+            SessionManager.setForceUserMode(false);
+            Intent i = new Intent(MainActivity.this, AdminMainActivity.class);
+            startActivity(i);
+        });
 
         setupRecyclerView();
         setupClickListeners();
+        checkAdminAndToggleSwitch();
         loadEventsFromFirestore();
     }
 
@@ -92,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     @Override
     protected void onResume() {
         super.onResume();
+        checkAdminAndToggleSwitch();
         loadEventsFromFirestore();
     }
 
@@ -126,6 +141,7 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                 .get()
                 .addOnSuccessListener(queryDocumentSnapshots -> {
                     allEvents.clear();
+                    long now = System.currentTimeMillis();
                     for (QueryDocumentSnapshot document : queryDocumentSnapshots) {
                         try {
                             Event event = document.toObject(Event.class);
@@ -133,6 +149,17 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
 
                             String lotteryStatus = document.getString("lotteryStatus");
                             if ("conducted".equals(lotteryStatus)) {
+                                continue;
+                            }
+
+                            java.util.Date start = event.getRegistrationStartTime();
+                            java.util.Date end = event.getRegistrationEndTime();
+                            if (start == null || end == null) {
+                                // Hide events without both bounds to avoid showing closed ones unintentionally
+                                continue;
+                            }
+                            if (now < start.getTime() || now > end.getTime()) {
+                                // Registration window not open
                                 continue;
                             }
 
@@ -144,10 +171,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
                     filterEvents();
 
                     loadingView.setVisibility(View.GONE);
-                    Log.d(TAG, "Loaded " + allEvents.size() + " events from Firestore");
+                    Log.d(TAG, "Loaded " + allEvents.size() + " open events from Firestore");
 
                     if (allEvents.isEmpty()) {
-                        Toast.makeText(this, "No events available", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "No open events right now", Toast.LENGTH_SHORT).show();
                     }
                 })
                 .addOnFailureListener(e -> {
@@ -207,9 +234,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     }
 
     /**
-     * Navigates to a bottom-tab destination with debounce and no transition.
+     * Navigates to a bottom navigation destination activity using a debounce and no animations.
+     * Skips if target is the current class.
      *
-     * @param targetActivity activity class to open
+     * @param targetActivity destination activity class
      */
     private void navigateBottomTab(Class<?> targetActivity) {
         if (targetActivity == null) return;
@@ -230,10 +258,10 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
      */
     @Override
     public void onEventClick(Event event) {
-        getSupportFragmentManager().beginTransaction()
-                .replace(R.id.main, EventDetailFragment.newInstance(event.getId()))
-                .addToBackStack(null)
-                .commit();
+        if (event == null) return;
+        Intent intent = new Intent(MainActivity.this, EventDetailActivity.class);
+        intent.putExtra(EventDetailActivity.EXTRA_EVENT_ID, event.getId());
+        startActivity(intent);
     }
 
     /**
@@ -291,13 +319,27 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
      * Opens a date picker and filters events on the chosen day.
      */
     private void showDatePickerDialog() {
-        Calendar cal = Calendar.getInstance();
-        new DatePickerDialog(this, (view, year, month, dayOfMonth) -> {
-            Calendar selectedCal = Calendar.getInstance();
-            selectedCal.set(year, month, dayOfMonth, 0, 0, 0);
-            selectedDate = selectedCal.getTimeInMillis();
+        MaterialDatePicker<Long> picker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("Select date")
+                .setSelection(MaterialDatePicker.todayInUtcMilliseconds())
+                .setTheme(R.style.ThemeOverlay_KickOff_DatePicker)
+                .build();
+        picker.addOnPositiveButtonClickListener(selection -> {
+            if (selection == null) return;
+            java.util.Calendar utc = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"));
+            utc.setTimeInMillis(selection);
+            java.util.Calendar local = java.util.Calendar.getInstance();
+            local.set(java.util.Calendar.YEAR, utc.get(java.util.Calendar.YEAR));
+            local.set(java.util.Calendar.MONTH, utc.get(java.util.Calendar.MONTH));
+            local.set(java.util.Calendar.DAY_OF_MONTH, utc.get(java.util.Calendar.DAY_OF_MONTH));
+            local.set(java.util.Calendar.HOUR_OF_DAY, 0);
+            local.set(java.util.Calendar.MINUTE, 0);
+            local.set(java.util.Calendar.SECOND, 0);
+            local.set(java.util.Calendar.MILLISECOND, 0);
+            selectedDate = local.getTimeInMillis();
             filterEvents();
-        }, cal.get(Calendar.YEAR), cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH)).show();
+        });
+        picker.show(getSupportFragmentManager(), "main_date_filter");
     }
 
     /**
@@ -356,7 +398,8 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
     }
 
     /**
-     * Applies search text, category, date, and location filters to the in-memory list.
+     * Applies in-memory filters (search text, category, date, location) to the current open events list
+     * and submits the filtered list to the adapter.
      */
     private void filterEvents() {
         List<Event> tempFiltered = new ArrayList<>(allEvents);
@@ -401,5 +444,36 @@ public class MainActivity extends AppCompatActivity implements EventAdapter.OnEv
         }
 
         eventAdapter.setEvents(tempFiltered);
+    }
+
+    /**
+     * Checks if the current user/device is an admin and shows/hides the admin switch button.
+     */
+    private void checkAdminAndToggleSwitch() {
+        if (SessionManager.isForceUserMode()) {
+            // In forced user mode: treat as normal user (hide admin switch button label maybe?)
+            if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(View.VISIBLE); // show to allow switching back
+            isAdminUser = false; // disable admin behaviors like special filtering
+            return;
+        }
+        String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+        db.collection("users")
+                .whereEqualTo("device_id", deviceId)
+                .limit(1)
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    boolean admin = false;
+                    if (snapshot != null && !snapshot.isEmpty()) {
+                        DocumentSnapshot doc = snapshot.getDocuments().get(0);
+                        Boolean flag = doc.getBoolean("is_admin");
+                        admin = flag != null && flag;
+                    }
+                    isAdminUser = admin;
+                    if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(isAdminUser ? View.VISIBLE : View.GONE);
+                })
+                .addOnFailureListener(e -> {
+                    isAdminUser = false;
+                    if (btnSwitchToAdmin != null) btnSwitchToAdmin.setVisibility(View.GONE);
+                });
     }
 }
