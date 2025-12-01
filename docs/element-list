@@ -3,6 +3,7 @@ ca.team.originkickoff.adapters
 ca.team.originkickoff.data.repository
 ca.team.originkickoff.models
 ca.team.originkickoff.services
+ca.team.originkickoff.ui
 ca.team.originkickoff.ui.fragments
 ca.team.originkickoff.ui.home
 ca.team.originkickoff.ui.setup
