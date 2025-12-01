@@ -1,3 +1,7 @@
+/**
+ * Admin image browser for viewing and deleting event posters and user profile pictures.
+ * Supports search filtering and bulk image management.
+ */
 package ca.team.originkickoff;
 
 import android.os.Bundle;

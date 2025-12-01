@@ -1,5 +1,7 @@
-/* Notifications hub listing real-time updates for the current user.
- * Wires a live Firestore listener and supports quick navigation to events. */
+/**
+ * Notifications hub listing real-time updates for the current user.
+ * Wires a live Firestore listener and supports quick navigation to events.
+ */
 package ca.team.originkickoff;
 
 import android.content.Intent;

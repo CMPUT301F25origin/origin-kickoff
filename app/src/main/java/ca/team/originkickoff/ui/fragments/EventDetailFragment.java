@@ -1,5 +1,5 @@
-/*
- * Displays detailed information for a single event, including poster, metadata, and registration info.
+/**
+ * Displays detailed information for a single event including poster and metadata.
  * Fetches the event from Firestore via FirebaseEventService by ID passed in arguments.
  */
 package ca.team.originkickoff.ui.fragments;

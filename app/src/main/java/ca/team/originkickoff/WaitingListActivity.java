@@ -1,4 +1,4 @@
-/*
+/**
  * Compact waiting list manager showing entrants and optional location preview map.
  * Fetches entrant data and conditionally displays a static map snapshot.
  */

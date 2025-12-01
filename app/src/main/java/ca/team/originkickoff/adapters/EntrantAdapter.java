@@ -1,4 +1,8 @@
 // filepath: /Users/sargun/StudioProjects/origin-kickoff/app/src/main/java/ca/team/originkickoff/adapters/EntrantAdapter.java
+/**
+ * RecyclerView adapter for displaying entrant items with cancel action.
+ * Used by organizer views to manage event entrants.
+ */
 package ca.team.originkickoff.adapters;
 
 import android.view.LayoutInflater;

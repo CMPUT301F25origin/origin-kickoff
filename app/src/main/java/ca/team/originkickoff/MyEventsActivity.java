@@ -1,5 +1,5 @@
-/*
- * Consolidated view for a user's joined and (if applicable) organized events.
+/**
+ * Consolidated view for a user's joined and organized events.
  * Dynamically configures tabs and FAB visibility based on organizer status.
  */
 package ca.team.originkickoff;

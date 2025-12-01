@@ -1,4 +1,4 @@
-/*
+/**
  * User profile screen showing account info, preferences, and event history.
  * Supports updating profile data and deleting the account.
  */
